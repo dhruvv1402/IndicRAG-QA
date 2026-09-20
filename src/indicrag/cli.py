@@ -167,7 +167,14 @@ def dataset_generate(
 
     matrix = {k: limit_per_cell for k in MATRIX} if limit_per_cell else None
     items = generate_candidates(
-        passages, provider.complete, seed=seed, matrix=matrix, progress=typer.echo
+        passages,
+        provider.complete,
+        seed=seed,
+        matrix=matrix,
+        progress=typer.echo,
+        # A full run is hours of CPU inference; checkpoint so a crash costs one
+        # item rather than the whole pass.
+        checkpoint=lambda so_far: write_jsonl(out, so_far),
     )
     n = write_jsonl(out, items)
     typer.echo("")

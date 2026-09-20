@@ -82,9 +82,36 @@ what is committed under `evals/` is byte-identical to what was shown.
 
 ---
 
+## What has been measured
+
+Preliminary, on synthetic probes rather than the human-verified gold set, and
+labelled as such in every report under `evals/`. Three findings so far:
+
+**Lexical retrieval does not cross the language boundary at all.** BM25 Recall@5
+is 0.740 monolingual but 0.006 cross-lingual and 0.028 code-mixed. A Romanized or
+Devanagari query and an English passage share essentially no tokens.
+
+**Naive hybrid fusion makes that worse, not better.** Plain RRF lost every one of
+the 8 error cases where dense retrieval alone had found the gold passage. BM25
+can only return passages sharing a script with the query, so in rank fusion a
+cross-script passage is docked roughly 2:1 for the *lexical retriever's
+blindness* rather than its own irrelevance. `script_aware_rrf` scores each
+passage over the systems eligible to retrieve it, which takes cross-lingual
+Recall@5 from 0.022 to 0.153 (p=0.0001) and code-mixed from 0.028 to 0.173
+(p=0.0002), at a real cost of -0.044 monolingual (p=0.032).
+
+**A retrieval-score threshold cannot detect false premises.** Recall on the
+false-premise class is 0.000 and near-miss 0.143. A retrieval score measures
+whether a question is *about* something in the corpus; it cannot measure whether
+the specific asserted fact exists. No choice of threshold fixes that.
+
+See `evals/report-retrieval-probes.txt`, `evals/report-script-aware-fusion.txt`,
+`evals/report-answerability.txt` and `evals/report-errors.txt`.
+
 ## Status
 
-Early. `docs/PLAN.md` §10 lists what is not built yet, and that list is kept honest.
+P0-P2 complete, P3 in progress, P4-P6 not started. `docs/PLAN.md` §10 carries the
+phase table and what is not built yet, and that list is kept honest.
 
 ## Attribution
 

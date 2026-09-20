@@ -123,11 +123,16 @@ def generate_candidates(
     seed: int = 20260922,
     matrix: dict[tuple[str, str], int] | None = None,
     progress: Callable[[str], None] | None = None,
+    checkpoint: Callable[[list[QAItem]], None] | None = None,
 ) -> list[QAItem]:
     """Generate one candidate per matrix slot.
 
     `complete(prompt, grammar) -> str` is the only model dependency, so this is
     testable with a scripted stub and works against any provider.
+
+    `checkpoint` is called with the items so far after each one. A full run takes
+    hours of CPU inference, and losing it to a crash on item 290 would mean
+    redoing every earlier call -- the results are deterministic but not free.
     """
     rng = random.Random(seed)
     matrix = matrix or MATRIX
@@ -152,7 +157,7 @@ def generate_candidates(
                         lang=passage.lang,
                         scheme=passage.scheme.replace("-", " "),
                         section=passage.section_path,
-                        passage=passage.text[:1800],
+                        passage=passage.text[:1100],
                     ),
                     QA_GRAMMAR,
                 )
@@ -204,7 +209,9 @@ def generate_candidates(
             )
             used.add(passage.passage_id)
             made += 1
-            if made % 10 == 0:
+            if checkpoint is not None:
+                checkpoint(items)
+            if made % 5 == 0:
                 say(f"  {query_lang}->{passage_lang}: {made}/{count}")
 
         say(f"  {query_lang}->{passage_lang}: {made}/{count} generated")

@@ -69,10 +69,13 @@ PROMPT_HI = """आप भारत सरकार की योजनाओं 
 - प्रश्न उसी तथ्य पर हो जो अनुच्छेद में लिखा है। कुछ भी अपनी ओर से न जोड़ें।
 - अनुच्छेद के शब्द ज्यों के त्यों न दोहराएँ; प्रश्न को अपने शब्दों में लिखें।
 - उत्तर अनुच्छेद से हूबहू लिया जाए, संख्याएँ और नाम बिल्कुल वैसे ही।
-- प्रश्न 20 शब्दों से कम और उत्तर 25 शब्दों से कम रखें।
+- प्रश्न 20 शब्दों से कम और उत्तर 25 शब्दों से कम रखें। संक्षिप्त लिखें।
 - प्रश्न और उत्तर हिन्दी (देवनागरी) में ही लिखें।
 
-केवल JSON में उत्तर दें।"""
+JSON की कुंजियाँ (keys) अंग्रेज़ी में ही रहें, अनुवाद न करें:
+{{"question": "...", "answer": "...", "kind": "fact"}}
+
+केवल यही JSON लौटाएँ, और कुछ नहीं।"""
 
 #: Hinglish is produced by transliterating a Hindi question rather than by asking
 #: the model for code-mix directly. Small models write a stilted, over-formal
@@ -90,6 +93,14 @@ people normally use in English (scholarship, eligibility, income, account, onlin
 Reply with JSON only, as {{"question": "...", "answer": "", "kind": "fact"}}."""
 
 
+#: A Hindi prompt makes a model translate the JSON KEYS as well as the content:
+#: Qwen2.5-3B returned {"प्रश्न": ..., "उत्तर": ...} -- well-formed JSON that
+#: closed properly, and completely unparseable by a reader looking for
+#: "question". The keys are therefore pinned in English inside the Hindi prompt,
+#: with the literal object shape shown. Diagnosed by reading the raw output; the
+#: parse-failure counter alone would have said "Hindi fails" and pointed at the
+#: model rather than at the prompt.
+#:
 #: Cross-lingual items are made by generating the question in the *passage's*
 #: language and then translating the question alone, leaving the gold passage
 #: where it is. That is what makes the item genuinely cross-lingual: the evidence

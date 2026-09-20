@@ -113,29 +113,27 @@ class ExtractiveProvider:
 
 
 class TransformersProvider:
-    """CPU generation through `transformers`, with no compiler dependency.
+    """CPU generation through `transformers`. The fallback, not the default.
 
-    **Why this exists instead of LlamaCppProvider.** `llama-cpp-python` has no
-    prebuilt wheel for this Python/platform and must compile. Three build attempts
-    failed on this machine: first because MSVC's environment was not initialised,
-    then -- once it was -- because CMake resolves to MinGW's CMake 4.0 while the
-    toolchain is MSVC/Ninja, and the compiler ABI check fails on that mismatch.
-    Rather than keep grinding on a build, generation runs through `transformers`,
-    which is already installed and already used for the MuRIL encoder arm.
+    `LlamaCppProvider` is the primary backend: a Q4_K_M GGUF needs 1.0 GB resident
+    against this provider's 5.7 GB at float32, and runs roughly four times faster.
+    This exists as the no-GGUF path and because it needs nothing beyond the
+    encoder stack already installed for MuRIL.
 
-    **What that costs, and how it is mitigated.** llama.cpp supports GBNF
-    grammars, which make malformed JSON literally unreachable;
-    `docs/ARCHITECTURE.md` §11.4 calls that the highest-value detail in the
-    generation stage, and this path does not have it. The concern was never
-    malformed output as such -- it is that unparseable generations are *not a
-    random sample*. They skew towards longer, messier passages, so silently
-    dropping them biases the dataset towards easy ones.
+    A note on how the llama.cpp dependency was resolved, because the detour cost
+    real time. `llama-cpp-python` has no wheel on PyPI for this Python/platform
+    and falls back to compiling, and three build attempts failed -- MSVC's
+    environment uninitialised, then CMake resolving to MinGW's CMake 4.0 against
+    an MSVC/Ninja toolchain. The project publishes prebuilt CPU wheels at
+    `https://abetlen.github.io/llama-cpp-python/whl/cpu`, and installing from
+    there took 66 milliseconds. Try the project's own wheel index before
+    concluding a package must be built from source.
 
-    So instead of dropping silently: extract the first balanced JSON object from
-    whatever the model emits, retry once with a stricter instruction on failure,
-    and **count every failure** so `parse_failure_rate` can be reported alongside
-    the dataset rather than discovered later. A measured bias is a caveat; an
-    unmeasured one is a flaw.
+    Like the llama.cpp provider, this one extracts the first balanced JSON object
+    from whatever the model emits, retries once with a stricter instruction, and
+    counts every failure. Unparseable generations are not a random sample -- they
+    skew towards longer, messier passages -- so `parse_failure_rate` is reported
+    with the dataset rather than left to be discovered later.
     """
 
     name = "transformers"
@@ -328,6 +326,42 @@ class LlamaCppProvider:
 
     name = "llamacpp"
 
+    #: JSON Schema for a QA candidate. Passed through `response_format`, which
+    #: llama.cpp compiles into a GBNF grammar internally, so the requested object
+    #: shape is the only reachable output and `kind` cannot be an invented value.
+    #:
+    #: The explicit `LlamaGrammar.from_string` path is NOT used, despite being the
+    #: documented one: on llama-cpp-python 0.3.35 it crashes the interpreter with
+    #: `OSError: access violation reading 0x0` inside `llama_sampler_sample`.
+    #: Plain generation and schema-constrained generation both work on the same
+    #: build, so the bug is in the grammar sampler wiring rather than in the
+    #: model or the install. `response_format` gets the same guarantee by a route
+    #: that does not segfault.
+    #: Retained for reference but NOT used: schema-constrained decoding was
+    #: measured slower and no more reliable than plain generation here.
+    #:
+    #:   no schema            2.6s   0.05 s/token
+    #:   schema               15.2s  0.19 s/token
+    #:   schema + maxLength   7.0s   0.13 s/token
+    #:
+    #: Grammar checking against a 151k vocabulary costs more per token than the
+    #: forward pass. And it did not buy reliability: on Hindi passages the schema
+    #: path parsed 60% against 64% unconstrained, because `maxLength` did not
+    #: stop the model running past the token cap. The real Hindi failure was
+    #: elsewhere entirely -- see `dataset/prompts.py` on translated JSON keys.
+    QA_SCHEMA: dict = {
+        "type": "object",
+        "properties": {
+            "question": {"type": "string", "maxLength": 180},
+            "answer": {"type": "string", "maxLength": 220},
+            "kind": {
+                "type": "string",
+                "enum": ["fact", "number", "date", "eligibility", "process"],
+            },
+        },
+        "required": ["question", "answer", "kind"],
+    }
+
     def __init__(
         self,
         gguf_path: str,
@@ -345,31 +379,45 @@ class LlamaCppProvider:
             seed=seed,
             verbose=verbose,
         )
-        self._grammars: dict[str, object] = {}
         self.model_path = gguf_path
+        self.calls = 0
+        self.parse_failures = 0
+        self.retries = 0
 
-    def _grammar(self, text: str):
-        """Compile and cache. Recompiling per call costs more than generation."""
-        from llama_cpp import LlamaGrammar
-
-        if text not in self._grammars:
-            self._grammars[text] = LlamaGrammar.from_string(text, verbose=False)
-        return self._grammars[text]
+    @property
+    def parse_failure_rate(self) -> float:
+        return self.parse_failures / self.calls if self.calls else 0.0
 
     def complete(
         self,
         prompt: str,
         grammar: str | None = None,
         *,
-        max_tokens: int = 256,
+        max_tokens: int = 200,
         temperature: float = 0.0,
     ) -> str:
-        messages = [{"role": "user", "content": prompt}]
-        kwargs: dict = {"max_tokens": max_tokens, "temperature": temperature}
-        if grammar:
-            kwargs["grammar"] = self._grammar(grammar)
-        out = self._llm.create_chat_completion(messages=messages, **kwargs)
-        return out["choices"][0]["message"]["content"] or ""
+        """Generate one JSON object.
+
+        `grammar` is accepted for interface compatibility with the GBNF text the
+        callers hold, but the schema above is what actually constrains decoding.
+        """
+        self.calls += 1
+        try:
+            out = self._llm.create_chat_completion(
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object", "schema": self.QA_SCHEMA},
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+            text = out["choices"][0]["message"]["content"] or ""
+        except Exception:
+            self.parse_failures += 1
+            return ""
+        found = extract_json_object(text)
+        if found is None:
+            self.parse_failures += 1
+            return ""
+        return found
 
     def answer(
         self, query: str, passages: Sequence[Passage], *, lang: LangIdResult

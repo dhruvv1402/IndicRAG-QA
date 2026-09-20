@@ -1,8 +1,9 @@
 IndicRAG-QA -- retrieval on SYNTHETIC PROBES (not the gold set)
 ==============================================================================
-Generated: 2026-09-20 06:18
-Corpus: 694 passages, 40 schemes, EN+HI.
+Generated: 2026-09-20 06:53
+Corpus: 694 passages, 40 schemes, EN+HI, all 80 documents pass integrity checks.
 Probes: 180, ground truth by construction (evals/probes.jsonl, verified=false).
+Encoders: 4 of 5 evaluated; ai4bharat/indic-bert is gated (401).
 
 READ THIS BEFORE THE NUMBERS. These are synthetic probes, not the 400 human-
 verified items docs/PRD.md S6 specifies -- that set is P3 and is not built yet.
@@ -19,6 +20,9 @@ BM25                                            0.358     0.465     0.499     0.
 TF-IDF                                          0.347     0.481     0.501     0.534     0.477     0.471   
 paraphrase-multilingual-MiniLM-L12-v2           0.122     0.236     0.303     0.389     0.280     0.282   
 multilingual-e5-base                            0.210     0.343     0.449     0.576     0.406     0.420   
+LaBSE                                           0.175     0.311     0.361     0.447     0.361     0.341   
+muril-base-cased/mean                           0.144     0.206     0.238     0.296     0.206     0.220   
+muril-base-cased/cls                            0.059     0.117     0.143     0.194     0.127     0.134   
 Hybrid RRF (BM25 + multilingual-e5-base)        0.276     0.409     0.483     0.536     0.427     0.433   
 Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.298     0.415     0.524     0.611     0.470     0.483   
 
@@ -28,6 +32,9 @@ RETRIEVAL -- Recall@5 with 95% bootstrap CI
   TF-IDF                                       0.501 [0.430, 0.569]
   paraphrase-multilingual-MiniLM-L12-v2        0.303 [0.239, 0.366]
   multilingual-e5-base                         0.449 [0.386, 0.516]
+  LaBSE                                        0.361 [0.298, 0.433]
+  muril-base-cased/mean                        0.238 [0.178, 0.299]
+  muril-base-cased/cls                         0.143 [0.099, 0.193]
   Hybrid RRF (BM25 + multilingual-e5-base)     0.483 [0.412, 0.550]
   Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) 0.524 [0.460, 0.590]
 
@@ -42,6 +49,9 @@ BM25                                            0.740 (n=120)   0.006 (n=30)    
 TF-IDF                                          0.745 (n=120)   0.006 (n=30)    0.019 (n=30)  
 paraphrase-multilingual-MiniLM-L12-v2           0.394 (n=120)   0.136 (n=30)    0.102 (n=30)  
 multilingual-e5-base                            0.610 (n=120)   0.125 (n=30)    0.132 (n=30)  
+LaBSE                                           0.435 (n=120)   0.097 (n=30)    0.332 (n=30)  
+muril-base-cased/mean                           0.357 (n=120)   0.000 (n=30)    0.000 (n=30)  
+muril-base-cased/cls                            0.206 (n=120)   0.033 (n=30)    0.003 (n=30)  
 Hybrid RRF (BM25 + multilingual-e5-base)        0.712 (n=120)   0.022 (n=30)    0.028 (n=30)  
 Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.750 (n=120)   0.037 (n=30)    0.107 (n=30)  
 
@@ -52,14 +62,14 @@ Two-sided paired randomization test, 10000 trials. * marks p < 0.05.
   TF-IDF                                       delta=+0.002 p=0.7796  (n=180)
   paraphrase-multilingual-MiniLM-L12-v2        delta=-0.196 p=0.0001* (n=180)
   multilingual-e5-base                         delta=-0.049 p=0.0999  (n=180)
+  LaBSE                                        delta=-0.137 p=0.0003* (n=180)
+  muril-base-cased/mean                        delta=-0.261 p=0.0001* (n=180)
+  muril-base-cased/cls                         delta=-0.356 p=0.0001* (n=180)
   Hybrid RRF (BM25 + multilingual-e5-base)     delta=-0.016 p=0.4054  (n=180)
   Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) delta=+0.025 p=0.1260  (n=180)
 
 NOT EVALUATED
 ------------------------------------------------------------------------------
-  LaBSE: embeddings not built
-  muril-base-cased/mean: embeddings not built
-  muril-base-cased/cls: embeddings not built
   indic-bert: Named in the brief, but the repository is gated: downloading it returns 401 without an accepted licence and an HF token
 
 ALPHA SWEEP -- weighted fusion, Recall@5
@@ -82,20 +92,40 @@ ALPHA SWEEP -- weighted fusion, Recall@5
 
 FINDINGS
 ------------------------------------------------------------------------------
-1. Lexical retrieval collapses across the language boundary. BM25 Recall@5 is
-   0.006 cross-lingual and 0.028 code-mixed, against 0.740 monolingual. A
-   Romanized or Devanagari query and an English passage share almost no tokens,
-   so there is nothing for BM25 to match. This is H4, and it is not marginal.
-2. Dense retrieval does cross that boundary, but is weak in absolute terms here:
-   e5-base reaches 0.125 cross-lingual and 0.132 code-mixed. Twenty times BM25
-   on the cross-lingual slice, and still far below the 0.70 target in PRD S10.2.
-3. Overall BM25 still leads (0.499 vs e5-base 0.449, p=0.10, not significant).
-   That is an artefact of the probe mix: 120 of 180 probes are monolingual and
-   the fragment shape quotes the passage directly. It is not evidence against H1.
-4. Hybrid weighted fusion is the only arm that improves on BM25 overall
-   (+0.025, p=0.13) and it does so without losing the monolingual slice. The
-   improvement is inside the noise on this probe set.
+1. H4 SUPPORTED, strongly. Lexical retrieval does not cross the language
+   boundary at all. BM25 Recall@5 is 0.740 monolingual, 0.006 cross-lingual,
+   0.028 code-mixed. A Devanagari or Romanized query and an English passage
+   share almost no tokens, so there is nothing for BM25 to match.
 
-The honest summary: these probes establish that the pipeline works and that the
-cross-lingual gap is real and large. They cannot rank the encoders fairly, and
-no claim about H1 or H2 should rest on them. That needs the gold set (P3).
+2. H6 SUPPORTED. MuRIL, the Indic-pretrained model the brief names, is the
+   WORST dense encoder tested: 0.238 mean-pooled, 0.143 CLS-pooled, against
+   0.303 for MiniLM -- a model with half the parameters but trained for
+   retrieval. Both poolings were run and the better is reported, so this is not
+   a pooling artefact. Most striking: MuRIL/mean scores exactly 0.000 on both
+   the cross-lingual and the code-mixed slices. The model pretrained on 17
+   Indian languages is the one that cannot cross between two of them.
+   Pretraining-language coverage does not substitute for retrieval training.
+
+3. Unexpected, and contrary to the prediction in ARCHITECTURE S7.1. LaBSE was
+   expected to lead the cross-lingual slice and does not (0.097, below MiniLM
+   at 0.136 and e5-base at 0.125). Instead it dominates CODE-MIXED by a wide
+   margin: 0.332, against 0.132 for e5-base and 0.028 for BM25 -- 2.5x the next
+   best system and 12x the lexical baseline. LaBSE is the only model that
+   handles Romanized Hindi well. This wants confirming on the gold set before
+   it goes in the paper, but if it holds it is the most useful practical
+   finding here: pick the encoder by query SCRIPT, not by language coverage.
+
+4. H1 NOT ESTABLISHED on these probes. BM25 leads overall (0.499 vs e5-base
+   0.449, p=0.10, not significant). That is an artefact of the probe mix --
+   120 of 180 are monolingual and the fragment shape quotes the passage. It is
+   not evidence against H1, and it is not evidence for it either.
+
+5. H2 NOT SUPPORTED. The best interior alpha beats the best endpoint by 0.001,
+   one query changing its mind. Hybrid weighted fusion is nonetheless the only
+   arm that improves on BM25 overall (+0.025, p=0.13) while holding the
+   monolingual slice, so it is worth re-testing on the gold set.
+
+The honest summary: the pipeline works, the cross-lingual gap is real and large,
+and two negative results (MuRIL, hybrid) plus one surprise (LaBSE on code-mixed)
+are already visible. These probes cannot rank encoders fairly and no claim in
+the paper should rest on them. That needs the gold set (P3).

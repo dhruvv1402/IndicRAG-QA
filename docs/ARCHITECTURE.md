@@ -652,7 +652,27 @@ indicrag dataset stats                             matrix coverage vs PRD §6.2
 
 ## 19. Performance budget
 
-**Estimated from the hardware profile; every figure must be replaced with a measurement in P0.** The purpose of this table is to make the plan's schedule falsifiable rather than optimistic.
+**Measured on the development machine, 2026-09-20.** Encoding figures below are real, not estimates; the generation figures remain estimates until P4.
+
+| Encoder | Params | 694 passages | Rate |
+|---|---|---|---|
+| MiniLM-L12 | 118M | 149.6 s | 4.6/s |
+| multilingual-e5-base | 278M | ~380 s | ~1.8/s |
+| LaBSE | 471M | ~600 s | ~1.2/s |
+| MuRIL (mean) | 236M | 632.3 s | 1.1/s |
+| MuRIL (CLS) | 236M | 622.2 s | 1.1/s |
+| **All five** | | **~40 min** | one-time, cached |
+
+The estimate in the original version of this table was 35–50 minutes for the full
+registry, and the measured total landed inside it. What the estimate got wrong is
+the *shape*: throughput does not scale with parameter count as assumed. MuRIL at
+236M is slower than LaBSE at 471M, because the MLM path runs through a
+hand-rolled `transformers` loop while the sentence models use SentenceTransformer's
+optimised batching. Anything added to the MLM arm should be budgeted at MuRIL's
+rate, not interpolated from its size.
+
+The table below is the original per-stage budget. Generation rows are still
+estimates.
 
 | Stage | Scale | Estimate | Notes |
 |---|---|---|---|

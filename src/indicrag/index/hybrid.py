@@ -1,0 +1,128 @@
+"""Hybrid fusion of lexical and dense retrieval.
+
+Two methods, compared rather than blended into a single "hybrid" number, because
+they fail differently and reporting which one wins is itself a result.
+
+**Weighted score fusion** is the brief's formula, `alpha*lex + (1-alpha)*dense`,
+applied after normalising each component over the candidate pool. Normalisation
+is min-max rather than z-score, and that is a real choice: BM25 score
+distributions are strongly right-skewed, and under z-score the fused ranking ends
+up dominated by lexical outliers. Both are implemented so the choice can be
+ablated instead of asserted, since this is exactly the sort of buried decision
+that silently moves a headline number.
+
+**Reciprocal Rank Fusion** uses ranks only, so it needs no normalisation at all
+and is immune to that skew. `k=60` is the standard value and is deliberately left
+untuned, to keep it an honest baseline against a tuned alpha.
+
+The alpha sweep doubles as the evidence for hypothesis H2: alpha=1 and alpha=0
+recover pure lexical and pure dense retrieval, so if no interior alpha beats both
+endpoints on the dev split, H2 is false and the paper must say so.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+from typing import Literal, Sequence
+
+from ..models import Retrieved
+
+RRF_K = 60
+Normalisation = Literal["minmax", "zscore"]
+
+
+def _minmax(scores: dict[str, float]) -> dict[str, float]:
+    if not scores:
+        return {}
+    lo, hi = min(scores.values()), max(scores.values())
+    if hi - lo < 1e-12:
+        # Every candidate scored alike: carrying that through as 1.0 would let a
+        # degenerate component outvote a discriminating one. 0.5 is neutral.
+        return dict.fromkeys(scores, 0.5)
+    return {k: (v - lo) / (hi - lo) for k, v in scores.items()}
+
+
+def _zscore(scores: dict[str, float]) -> dict[str, float]:
+    if not scores:
+        return {}
+    vals = list(scores.values())
+    mean = sum(vals) / len(vals)
+    var = sum((v - mean) ** 2 for v in vals) / max(1, len(vals) - 1)
+    sd = var**0.5
+    if sd < 1e-12:
+        return dict.fromkeys(scores, 0.0)
+    return {k: (v - mean) / sd for k, v in scores.items()}
+
+
+def weighted_fusion(
+    lexical: Sequence[Retrieved],
+    dense: Sequence[Retrieved],
+    *,
+    alpha: float = 0.4,
+    k: int = 10,
+    normalisation: Normalisation = "minmax",
+) -> list[Retrieved]:
+    """Score(p) = alpha * norm(lexical) + (1 - alpha) * norm(dense).
+
+    A passage found by only one component keeps that component's normalised score
+    weighted by its coefficient and contributes 0 from the other. That is the
+    intended behaviour: a passage no dense retriever surfaced should not be
+    rewarded for its absence.
+    """
+    norm = _minmax if normalisation == "minmax" else _zscore
+    lex_scores = norm({r.passage_id: r.score for r in lexical})
+    den_scores = norm({r.passage_id: r.score for r in dense})
+
+    fused: dict[str, float] = defaultdict(float)
+    for pid, s in lex_scores.items():
+        fused[pid] += alpha * s
+    for pid, s in den_scores.items():
+        fused[pid] += (1.0 - alpha) * s
+
+    ranked = sorted(fused.items(), key=lambda kv: kv[1], reverse=True)[:k]
+    return [
+        Retrieved(
+            passage_id=pid,
+            score=float(score),
+            rank=rank,
+            method=f"hybrid-weighted(a={alpha:g},{normalisation})",
+            component_scores={
+                "lexical": float(lex_scores.get(pid, 0.0)),
+                "dense": float(den_scores.get(pid, 0.0)),
+            },
+        )
+        for rank, (pid, score) in enumerate(ranked, start=1)
+    ]
+
+
+def rrf_fusion(
+    *runs: Sequence[Retrieved],
+    k: int = 10,
+    rrf_k: int = RRF_K,
+) -> list[Retrieved]:
+    """RRF(p) = sum over runs of 1 / (rrf_k + rank).
+
+    Accepts any number of runs, so adding a third retriever later needs no change
+    here.
+    """
+    fused: dict[str, float] = defaultdict(float)
+    parts: dict[str, dict[str, float]] = defaultdict(dict)
+
+    for i, run in enumerate(runs):
+        label = run[0].method if run else f"run{i}"
+        for r in run:
+            contribution = 1.0 / (rrf_k + r.rank)
+            fused[r.passage_id] += contribution
+            parts[r.passage_id][label] = contribution
+
+    ranked = sorted(fused.items(), key=lambda kv: kv[1], reverse=True)[:k]
+    return [
+        Retrieved(
+            passage_id=pid,
+            score=float(score),
+            rank=rank,
+            method=f"hybrid-rrf(k={rrf_k})",
+            component_scores=parts[pid],
+        )
+        for rank, (pid, score) in enumerate(ranked, start=1)
+    ]

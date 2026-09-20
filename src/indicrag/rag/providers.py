@@ -140,6 +140,22 @@ class TransformersProvider:
 
     name = "transformers"
 
+    #: Measured on the development machine (i5-11320H, 4 threads, AVX-512 without
+    #: AVX512-BF16) for Qwen2.5-1.5B-Instruct geometry. These drive `choose_dtype`.
+    #:
+    #: dtype     weights   decode     prefill
+    #: float32    5.7 GB   4.2 tok/s   69 tok/s
+    #: bfloat16   2.9 GB   6.2 tok/s   26 tok/s
+    #:
+    #: The split is not a quirk, it is the two regimes. Decode is batch-1 and
+    #: memory-bandwidth-bound, so halving the bytes per weight makes bfloat16
+    #: ~50% faster. Prefill is a large GEMM and compute-bound, and this CPU has
+    #: AVX-512 but *not* AVX512-BF16, so bfloat16 matmuls are emulated and run
+    #: ~2.7x slower. Prompts here carry a whole passage, so prefill dominates the
+    #: total and float32 wins overall -- provided it fits.
+    WEIGHTS_GB = {"float32": 5.7, "bfloat16": 2.9}
+    HEADROOM_GB = 1.8  # activations, KV cache, tokenizer, interpreter
+
     def __init__(
         self,
         model_id: str = "Qwen/Qwen2.5-1.5B-Instruct",
@@ -147,6 +163,7 @@ class TransformersProvider:
         max_new_tokens: int = 160,
         seed: int = 20260922,
         threads: int = 4,
+        dtype: str = "auto",
     ):
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -156,12 +173,68 @@ class TransformersProvider:
         self._torch = torch
         self.model_id = model_id
         self.max_new_tokens = max_new_tokens
+        self.dtype_name = self.choose_dtype() if dtype == "auto" else dtype
+
         self._tok = AutoTokenizer.from_pretrained(model_id)
-        self._model = AutoModelForCausalLM.from_pretrained(model_id, dtype=torch.float32)
+        self._model = AutoModelForCausalLM.from_pretrained(
+            model_id, dtype=getattr(torch, self.dtype_name)
+        )
         self._model.eval()
         self.calls = 0
         self.parse_failures = 0
         self.retries = 0
+
+    @classmethod
+    def free_ram_gb(cls) -> float | None:
+        """Available physical memory, or None if it cannot be determined."""
+        try:
+            import ctypes
+
+            class _Status(ctypes.Structure):
+                _fields_ = [
+                    ("dwLength", ctypes.c_ulong),
+                    ("dwMemoryLoad", ctypes.c_ulong),
+                    ("ullTotalPhys", ctypes.c_ulonglong),
+                    ("ullAvailPhys", ctypes.c_ulonglong),
+                    ("ullTotalPageFile", ctypes.c_ulonglong),
+                    ("ullAvailPageFile", ctypes.c_ulonglong),
+                    ("ullTotalVirtual", ctypes.c_ulonglong),
+                    ("ullAvailVirtual", ctypes.c_ulonglong),
+                    ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+                ]
+
+            status = _Status()
+            status.dwLength = ctypes.sizeof(_Status)
+            if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+                return status.ullAvailPhys / 2**30
+        except Exception:
+            pass
+        try:
+            with open("/proc/meminfo") as fh:
+                for line in fh:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) / 2**20
+        except Exception:
+            pass
+        return None
+
+    @classmethod
+    def choose_dtype(cls) -> str:
+        """float32 when it fits, bfloat16 when it does not.
+
+        float32 is the faster choice overall here because prefill dominates, but
+        it needs 5.7 GB resident against roughly 7.9 GB free on this machine --
+        enough, with little to spare. If it does not fit, the failure mode is not
+        a graceful slowdown: the model spills to the page file and throughput
+        collapses by one to two orders of magnitude, which is far worse than
+        bfloat16's ~40% penalty. So the fit is checked rather than assumed.
+        """
+        free = cls.free_ram_gb()
+        if free is None:
+            return "bfloat16"  # unknown: take the option that cannot thrash
+        if free >= cls.WEIGHTS_GB["float32"] + cls.HEADROOM_GB:
+            return "float32"
+        return "bfloat16"
 
     @property
     def parse_failure_rate(self) -> float:

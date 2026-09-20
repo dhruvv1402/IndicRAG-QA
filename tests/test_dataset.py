@@ -415,3 +415,40 @@ def test_mixed_script_query_treats_both_retrievers_as_eligible():
         for r in script_aware_rrf(lexical, dense, script_of=script_of, query_script="mixed", k=2)
     ]
     assert plain == aware
+
+
+# --- generator dtype selection ---------------------------------------------------
+
+
+def test_dtype_falls_back_to_bfloat16_when_float32_will_not_fit():
+    """If float32 spills to the page file, throughput collapses by one to two
+    orders of magnitude -- far worse than bfloat16's ~40% penalty. So the fit is
+    checked rather than assumed."""
+    from indicrag.rag.providers import TransformersProvider as T
+
+    original = T.free_ram_gb
+    try:
+        T.free_ram_gb = classmethod(lambda cls: 4.0)
+        assert T.choose_dtype() == "bfloat16"
+        T.free_ram_gb = classmethod(lambda cls: 12.0)
+        assert T.choose_dtype() == "float32"
+    finally:
+        T.free_ram_gb = original
+
+
+def test_unknown_free_ram_takes_the_option_that_cannot_thrash():
+    from indicrag.rag.providers import TransformersProvider as T
+
+    original = T.free_ram_gb
+    try:
+        T.free_ram_gb = classmethod(lambda cls: None)
+        assert T.choose_dtype() == "bfloat16"
+    finally:
+        T.free_ram_gb = original
+
+
+def test_free_ram_probe_returns_a_plausible_value_on_this_machine():
+    from indicrag.rag.providers import TransformersProvider as T
+
+    free = T.free_ram_gb()
+    assert free is None or 0.1 < free < 2048

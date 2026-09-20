@@ -125,6 +125,7 @@ def generate_candidates(
     matrix: dict[tuple[str, str], int] | None = None,
     progress: Callable[[str], None] | None = None,
     checkpoint: Callable[[list[QAItem]], None] | None = None,
+    exclude: set[str] | None = None,
 ) -> list[QAItem]:
     """Generate one candidate per matrix slot.
 
@@ -134,12 +135,18 @@ def generate_candidates(
     `checkpoint` is called with the items so far after each one. A full run takes
     hours of CPU inference, and losing it to a crash on item 290 would mean
     redoing every earlier call -- the results are deterministic but not free.
+
+    `exclude` holds passage IDs already spent by an earlier partial run. The
+    matrix is filled in separate sittings when one model cannot serve every cell,
+    and without this the second sitting would draw passages the first already
+    used -- two questions sharing one gold passage, which narrows corpus coverage
+    and lets a single passage answer two different queries in the evaluation.
     """
     rng = random.Random(seed)
     matrix = matrix or MATRIX
     say = progress or (lambda _m: None)
     items: list[QAItem] = []
-    used: set[str] = set()
+    used: set[str] = set(exclude or ())
     # Semantic rejections are tracked separately from parse failures. A model can
     # return perfectly valid JSON containing an invented translation, and only
     # this list sees it.

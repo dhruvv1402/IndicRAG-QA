@@ -462,9 +462,43 @@ Each shows the full output object: detected type, answerability, answer, confide
 
 ---
 
-## 10. Not built yet
+## 10. Status and what is not built yet
 
-**Everything.** At the time of writing, the repository contains the project brief and these three documents. Nothing in P0–P6 has started.
+**Updated 2026-09-20.** P0–P2 are done, P3 is partly done, P4–P6 have not started.
+
+| Phase | State |
+|---|---|
+| **P0** Environment | Done. CPU-only stack, caches redirected to G:, measured throughput written into ARCHITECTURE §19 |
+| **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation |
+| **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, two fusion methods, all evaluated. First results in `evals/report-retrieval-probes.txt` |
+| **P3** Dataset | **Partly done.** Infrastructure complete and tested; 80/80 unanswerable items scaffolded; 0/320 answerable items generated |
+| **P4** Generation | Not started |
+| **P5** Experiments | Not started (probe-based retrieval results exist, but they are not gold-set results) |
+| **P6** Write-up | Not started |
+
+### 10.1 The P3 blocker
+
+The 320 answerable items need a generator, and the generator is not running yet. Two independent obstacles, both environmental rather than design:
+
+1. **`llama-cpp-python` will not build here.** No prebuilt wheel exists for this Python/platform, so it compiles. Three attempts failed: MSVC's environment was not initialised; then, once `vcvars64` was sourced and MSVC 19.44 was correctly detected, CMake resolves to MinGW's CMake 4.0 against an MSVC/Ninja toolchain and the compiler ABI check fails on the mismatch. The backend was switched to `transformers`, which needs no compiler and was already installed for the MuRIL arm.
+2. **The model download is crawling.** HuggingFace is serving at roughly 250 KB/s with intermittent stalls, so the 3.1 GB `Qwen2.5-1.5B-Instruct` snapshot has not landed. This is transient — the 4.5 GB of encoders downloaded quickly earlier in the same session.
+
+Everything downstream is ready and tested against a scripted stub. When the weights land:
+
+```bash
+indicrag dataset generate --merge-into evals/gold.jsonl   # 320 answerable candidates
+indicrag dataset stats                                    # confirm matrix coverage
+indicrag dataset verify --annotator a1                    # the human pass, resumable
+indicrag dataset split                                    # seals the test split
+```
+
+### 10.2 Cost of the backend change
+
+Switching from llama.cpp to `transformers` loses **GBNF grammar-constrained decoding**, which ARCHITECTURE §11.4 calls the highest-value detail in the generation stage. The concern was never malformed JSON in itself — it is that unparseable generations are not a random sample. They skew towards longer, messier passages, so dropping them silently biases the dataset towards easy ones.
+
+`TransformersProvider` mitigates rather than ignores this: it extracts the first balanced JSON object from whatever the model emits, retries once with a stricter instruction, and **counts every failure**, so `parse_failure_rate` is reported alongside the dataset. A measured bias is a caveat that belongs in the limitations section; an unmeasured one is a flaw.
+
+### 10.3 Still not built
 
 Items already expected to remain unbuilt at submission, recorded here so they are not mistaken for oversights:
 

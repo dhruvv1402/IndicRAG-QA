@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Evidence-grounded cross-lingual question answering for Indic and code-mixed queries"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = { text = "Apache-2.0" }
 
 # Floors only, no upper pins. The one exception to "just install the latest" is
 # torch: it must come from the CPU-only index (see scripts/dev-env.*), because the

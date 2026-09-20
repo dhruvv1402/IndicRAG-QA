@@ -79,9 +79,14 @@ The framing, in four moves:
 
 ### Contributions, as claimed
 
-1. **Script-aware fusion**, a one-line correction to rank fusion that recovers
-   cross-lingual retrieval on a bilingual corpus, with an explanation of the
-   structural cause and a significance test. `[PROBE]`, to be confirmed `[GOLD]`.
+1. **Script-aware fusion**, a correction to rank fusion that recovers
+   cross-lingual retrieval on a bilingual corpus, with the structural cause and a
+   significance test. `[PROBE]`, to be confirmed `[GOLD]`.
+   **Claim narrowed after the literature pass** — see `section-II-related-work.md`.
+   RRF's single-retriever penalty is intended behaviour, not an oversight, and
+   prior cross-lingual QA work already restricts the sparse index to the query's
+   language. The contribution is to show the fusion *arithmetic* still assumes a
+   retriever's silence is evidence, to quantify that cost, and to correct it.
 2. **A bilingual (Hindi/English) evidence-grounded QA dataset** over Indian
    government schemes, with an explicit query-language × evidence-language
    matrix and a four-class unanswerable taxonomy.
@@ -94,7 +99,11 @@ The framing, in four moves:
 
 ## II. Related Work
 
-**Material available: needs a literature pass. Not yet written.**
+**Literature pass complete (2026-09-21). Drafted in
+`paper/section-II-related-work.md`, with a bibliography checklist.**
+
+The gate result: the framing must be narrowed from "we show" to "we characterise
+and correct". Details and the honest novelty statement are in that file.
 
 Four threads to cover, with the specific gap each leaves:
 

@@ -1,0 +1,283 @@
+"""Dataset bootstrapping, coverage and splitting.
+
+These run against a scripted stub rather than a real model, so the generation
+logic -- matrix quotas, which language gets translated, passage selection -- is
+tested without a 2 GB download and without waiting on CPU inference.
+
+The split tests matter most. `docs/PLAN.md` risk R13 calls test-split
+contamination fatal to the paper, and unlike most bugs it cannot be repaired
+after the fact: once a test number has been looked at, it cannot be unlooked at.
+"""
+
+from __future__ import annotations
+
+import json
+
+from indicrag.dataset.generate import MATRIX, generate_candidates, parse_reply, select_passages
+from indicrag.dataset.split import UNANSWERABLE_TARGET, coverage, stratified_split
+from indicrag.dataset.verify import cohens_kappa, progress_of, sample_for_second_pass
+from indicrag.models import Passage, QAItem
+
+
+def _passages(n_schemes: int = 6, per_scheme: int = 6) -> list[Passage]:
+    out: list[Passage] = []
+    for s in range(n_schemes):
+        for lang in ("en", "hi"):
+            for i in range(per_scheme):
+                body = (
+                    f"Scheme {s} provides Rs. {1000 * (i + 1)} per annum to eligible students "
+                    if lang == "en"
+                    else f"योजना {s} पात्र छात्रों को प्रति वर्ष {1000 * (i + 1)} रुपये देती है "
+                )
+                out.append(
+                    Passage(
+                        passage_id=f"sch{s}-{lang}#p{i:04d}",
+                        doc_id=f"sch{s}-{lang}",
+                        scheme=f"sch{s}",
+                        lang=lang,
+                        text=body * 12,
+                        section_path="Eligibility",
+                        token_count=120,
+                    )
+                )
+    return out
+
+
+class _Stub:
+    """Returns valid grammar-shaped JSON, recording every prompt it saw."""
+
+    def __init__(self):
+        self.prompts: list[str] = []
+
+    def __call__(self, prompt: str, grammar: str | None = None) -> str:
+        self.prompts.append(prompt)
+        return json.dumps(
+            {"question": "What is the annual amount?", "answer": "Rs. 1000", "kind": "number"}
+        )
+
+
+# --- parsing -------------------------------------------------------------------
+
+
+def test_parse_reply_reads_a_well_formed_object():
+    c = parse_reply('{"question": "How much?", "answer": "Rs. 500", "kind": "number"}')
+    assert c is not None and c.question == "How much?" and c.kind == "number"
+
+
+def test_parse_reply_treats_the_empty_reply_as_no_candidate():
+    """The prompt explicitly allows this when a passage states no usable fact."""
+    assert parse_reply('{"question": "", "answer": "", "kind": "fact"}') is None
+
+
+def test_parse_reply_survives_malformed_json():
+    assert parse_reply("not json at all") is None
+    assert parse_reply("") is None
+
+
+# --- selection -----------------------------------------------------------------
+
+
+def test_selection_spreads_across_schemes_rather_than_draining_one():
+    import random
+
+    picked = select_passages(_passages(), "en", 12, rng=random.Random(0))
+    schemes = {p.scheme for p in picked}
+    assert len(picked) == 12
+    assert len(schemes) >= 5, f"only drew from {schemes}"
+
+
+def test_selection_respects_the_requested_language():
+    import random
+
+    picked = select_passages(_passages(), "hi", 8, rng=random.Random(0))
+    assert all(p.lang == "hi" for p in picked)
+
+
+# --- generation ----------------------------------------------------------------
+
+
+def test_generation_fills_every_matrix_cell():
+    stub = _Stub()
+    matrix = dict.fromkeys(MATRIX, 3)
+    items = generate_candidates(_passages(), stub, matrix=matrix)
+    got = {}
+    for i in items:
+        got[(i.query_lang, i.passage_lang)] = got.get((i.query_lang, i.passage_lang), 0) + 1
+    assert set(got) == set(MATRIX)
+    assert all(v == 3 for v in got.values()), got
+
+
+def test_every_generated_item_is_unverified():
+    """Nothing may reach a reported metric without a human pass (PRD §6.5)."""
+    items = generate_candidates(_passages(), _Stub(), matrix=dict.fromkeys(MATRIX, 2))
+    assert items and all(not i.verified for i in items)
+    assert all(i.annotator == "" for i in items)
+
+
+def test_cross_lingual_items_keep_the_passage_in_the_other_language():
+    """The question is translated; the evidence stays put. That is the whole point."""
+    items = generate_candidates(_passages(), _Stub(), matrix={("en", "hi"): 3})
+    assert len(items) == 3
+    for item in items:
+        assert item.query_lang == "en" and item.passage_lang == "hi"
+        assert all("-hi#" in pid for pid in item.gold_passage_ids)
+
+
+def test_monolingual_generation_makes_one_model_call_per_item():
+    stub = _Stub()
+    generate_candidates(_passages(), stub, matrix={("en", "en"): 4})
+    assert len(stub.prompts) == 4
+
+
+def test_hinglish_from_an_english_passage_takes_two_extra_hops():
+    """English question -> Hindi -> Romanized, so three calls per item."""
+    stub = _Stub()
+    generate_candidates(_passages(), stub, matrix={("hinglish", "en"): 2})
+    assert len(stub.prompts) == 6
+
+
+def test_a_passage_is_never_reused_across_items():
+    items = generate_candidates(_passages(), _Stub(), matrix=dict.fromkeys(MATRIX, 3))
+    ids = [pid for i in items for pid in i.gold_passage_ids]
+    assert len(ids) == len(set(ids))
+
+
+# --- coverage ------------------------------------------------------------------
+
+
+def _item(qid, ql, pl, answerable=True, verified=True, scheme="s1", klass=None):
+    return QAItem(
+        id=qid,
+        question="q",
+        query_lang=ql,
+        passage_lang=pl,
+        answerable=answerable,
+        gold_passage_ids=["p1"] if answerable else [],
+        scheme=scheme,
+        verified=verified,
+        unanswerable_class=klass,
+    )
+
+
+def test_coverage_reports_the_gap_against_the_prd_matrix():
+    items = [_item(f"q{i}", "en", "en") for i in range(10)]
+    cov = coverage(items)
+    assert cov.actual[("en", "en")] == 10
+    assert cov.deltas()[("en", "en")] == 10 - MATRIX[("en", "en")]
+    assert not cov.within(3)
+
+
+def test_coverage_counts_unanswerable_classes():
+    items = [_item(f"u{i}", "en", "", answerable=False, klass="near-miss") for i in range(5)]
+    cov = coverage(items)
+    assert cov.unanswerable_actual["near-miss"] == 5
+    assert cov.unanswerable_target == UNANSWERABLE_TARGET
+
+
+def test_rejected_items_are_not_counted_towards_coverage():
+    items = [_item("a", "en", "en"), _item("b", "en", "en")]
+    items[1].notes = "REJECTED unusable"
+    assert coverage(items).actual[("en", "en")] == 1
+
+
+# --- splitting -----------------------------------------------------------------
+
+
+def test_split_never_includes_an_unverified_item():
+    items = [_item(f"q{i}", "en", "en", verified=(i % 2 == 0)) for i in range(20)]
+    dev, test = stratified_split(items, dev_size=6)
+    assert len(dev) + len(test) == 10
+    assert all(i.verified for i in dev + test)
+
+
+def test_split_is_disjoint_and_labelled():
+    items = [_item(f"q{i}", "en", "en", scheme=f"s{i % 4}") for i in range(40)]
+    dev, test = stratified_split(items, dev_size=12)
+    assert not ({i.id for i in dev} & {i.id for i in test})
+    assert all(i.split == "dev" for i in dev)
+    assert all(i.split == "test" for i in test)
+
+
+def test_split_is_deterministic_under_the_same_seed():
+    items = [_item(f"q{i}", "en", "en", scheme=f"s{i % 5}") for i in range(50)]
+    a, _ = stratified_split(items, dev_size=15, seed=7)
+    b, _ = stratified_split(items, dev_size=15, seed=7)
+    assert [i.id for i in a] == [i.id for i in b]
+
+
+def test_split_keeps_every_query_language_on_both_sides():
+    items = [
+        _item(f"q{i}", lang, "en", scheme=f"s{i % 5}")
+        for lang in ("en", "hi", "hinglish")
+        for i in range(20)
+    ]
+    dev, test = stratified_split(items, dev_size=18)
+    assert {i.query_lang for i in dev} == {"en", "hi", "hinglish"}
+    assert {i.query_lang for i in test} == {"en", "hi", "hinglish"}
+
+
+# --- verification ---------------------------------------------------------------
+
+
+def test_progress_counts_rejected_separately_from_remaining():
+    items = [_item("a", "en", "en"), _item("b", "en", "en", verified=False)]
+    items[1].notes = "REJECTED bad"
+    p = progress_of(items)
+    assert (p.verified, p.rejected, p.remaining) == (1, 1, 0)
+
+
+def test_second_pass_sample_is_about_fifteen_percent():
+    items = [_item(f"q{i}", "en", "en") for i in range(100)]
+    assert len(sample_for_second_pass(items, fraction=0.15)) == 15
+
+
+def test_kappa_is_one_for_perfect_agreement_and_zero_for_chance():
+    labels = [True, False, True, False, True, False]
+    assert cohens_kappa(labels, labels) == 1.0
+    # Complete disagreement on a balanced set is worse than chance.
+    assert cohens_kappa(labels, [not x for x in labels]) < 0
+
+
+def test_kappa_gate_rejects_weak_agreement():
+    """PRD §6.5 sets 0.70 as the gate below which Module 5 cannot be trusted."""
+    a = [True] * 10 + [False] * 10
+    b = [True] * 7 + [False] * 3 + [False] * 7 + [True] * 3
+    assert cohens_kappa(a, b) < 0.70
+
+
+# --- JSON extraction (replaces GBNF grammar; see TransformersProvider) ----------
+
+
+def test_json_extraction_handles_the_ways_small_models_wrap_output():
+    """llama.cpp's grammar made malformed JSON unreachable; this path has no
+    grammar, so extraction has to cope with prose and markdown fences."""
+    from indicrag.rag.providers import extract_json_object
+
+    obj = '{"question": "How much?", "answer": "Rs. 500", "kind": "number"}'
+    assert extract_json_object(obj) == obj
+    assert extract_json_object(f"Here you go:\n```json\n{obj}\n```\nHope that helps") == obj
+    assert extract_json_object(f"Sure! {obj} Let me know if you need more.") == obj
+
+
+def test_json_extraction_respects_braces_inside_strings():
+    """A regex trips on this; brace counting must ignore braces in string values."""
+    from indicrag.rag.providers import extract_json_object
+
+    obj = '{"question": "What is {scheme}?", "answer": "a}b", "kind": "fact"}'
+    assert extract_json_object(obj) == obj
+
+
+def test_json_extraction_returns_none_when_there_is_no_object():
+    from indicrag.rag.providers import extract_json_object
+
+    assert extract_json_object("I cannot answer that.") is None
+    assert extract_json_object("") is None
+    assert extract_json_object('{"unterminated": ') is None
+
+
+def test_extracted_json_round_trips_through_the_candidate_parser():
+    from indicrag.rag.providers import extract_json_object
+
+    raw = 'Here:\n```json\n{"question": "Kitna milega?", "answer": "Rs. 1000", "kind": "number"}\n```'
+    cand = parse_reply(extract_json_object(raw))
+    assert cand is not None and cand.answer == "Rs. 1000"

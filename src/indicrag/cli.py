@@ -15,13 +15,17 @@ from pathlib import Path
 import typer
 
 from .config import get_settings
-from .models import Document, Passage, read_jsonl, write_jsonl
+from .models import Document, Passage, QAItem, read_jsonl, write_jsonl
 
 app = typer.Typer(no_args_is_help=True, add_completion=False, help=__doc__)
 corpus_app = typer.Typer(no_args_is_help=True, help="Fetch, extract and segment the corpus.")
 index_app = typer.Typer(no_args_is_help=True, help="Build lexical and dense indices.")
+dataset_app = typer.Typer(no_args_is_help=True, help="Generate, verify and split the QA set.")
 app.add_typer(corpus_app, name="corpus")
 app.add_typer(index_app, name="index")
+app.add_typer(dataset_app, name="dataset")
+
+GOLD_PATH = Path("evals/gold.jsonl")
 
 
 def _emit(lines: list[str], report: Path | None) -> None:
@@ -128,6 +132,126 @@ def index_lexical() -> None:
         raise typer.BadParameter("no passages; run `corpus segment` first")
     build_lexical(passages, cfg.lex_dir)
     typer.echo(f"lexical indices over {len(passages)} passages -> {cfg.lex_dir}")
+
+
+# --- dataset -------------------------------------------------------------------
+
+
+@dataset_app.command("generate")
+def dataset_generate(
+    out: Path = typer.Option(GOLD_PATH, "--out"),
+    gguf: str = typer.Option("", "--gguf", help="Path to a GGUF model file (llama.cpp)."),
+    hf_model: str = typer.Option(
+        "Qwen/Qwen2.5-1.5B-Instruct", "--hf-model", help="transformers model id (default backend)."
+    ),
+    limit_per_cell: int = typer.Option(0, "--limit-per-cell", help="0 uses the PRD quotas."),
+    seed: int = typer.Option(20260922, "--seed"),
+) -> None:
+    """Bootstrap QA candidates against the PRD §6.2 matrix. Writes verified=false."""
+    from .dataset.generate import MATRIX, generate_candidates
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter("no passages; run `corpus segment` first")
+
+    model_path = gguf or cfg.llm_gguf_path
+    if model_path:
+        from .rag.providers import LlamaCppProvider
+
+        provider = LlamaCppProvider(model_path, n_ctx=cfg.llm_n_ctx, n_threads=cfg.llm_n_threads)
+    else:
+        from .rag.providers import TransformersProvider
+
+        provider = TransformersProvider(hf_model, threads=cfg.llm_n_threads)
+
+    matrix = {k: limit_per_cell for k in MATRIX} if limit_per_cell else None
+    items = generate_candidates(
+        passages, provider.complete, seed=seed, matrix=matrix, progress=typer.echo
+    )
+    n = write_jsonl(out, items)
+    typer.echo("")
+    typer.echo(f"{n} candidates -> {out}  (all verified=false; run `dataset verify` next)")
+    rate = getattr(provider, "parse_failure_rate", None)
+    if rate is not None:
+        typer.echo(
+            f"model calls={provider.calls} retries={provider.retries} "
+            f"parse failures={provider.parse_failures} ({rate:.1%})"
+        )
+
+
+@dataset_app.command("verify")
+def dataset_verify(
+    path: Path = typer.Option(GOLD_PATH, "--path"),
+    annotator: str = typer.Option("a1", "--annotator"),
+    limit: int = typer.Option(0, "--limit", help="Review at most N items this sitting."),
+) -> None:
+    """Interactive review. Saves after every decision; resumable."""
+    from .dataset.verify import verify_loop
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not path.exists():
+        raise typer.BadParameter(f"no candidates at {path}; run `dataset generate` first")
+
+    progress = verify_loop(
+        path,
+        passages,
+        annotator=annotator,
+        ask=typer.prompt,
+        say=typer.echo,
+        limit=limit or None,
+    )
+    typer.echo("")
+    typer.echo(str(progress))
+
+
+@dataset_app.command("stats")
+def dataset_stats(
+    path: Path = typer.Option(GOLD_PATH, "--path"),
+    report: Path = typer.Option(None, "--report"),
+) -> None:
+    """Coverage against the PRD matrix. Run this during annotation, not after."""
+    from .dataset.split import coverage, format_coverage
+    from .dataset.verify import progress_of
+
+    items = list(read_jsonl(path, QAItem))
+    if not items:
+        raise typer.BadParameter(f"no items at {path}")
+    lines = format_coverage(coverage(items)) + ["", str(progress_of(items))]
+    _emit(lines, report)
+
+
+@dataset_app.command("split")
+def dataset_split(
+    path: Path = typer.Option(GOLD_PATH, "--path"),
+    dev_size: int = typer.Option(120, "--dev-size"),
+    seed: int = typer.Option(20260922, "--seed"),
+) -> None:
+    """Stratified dev/test split over VERIFIED items only. Seals the test split."""
+    import json
+
+    from .dataset.split import stratified_split
+
+    items = list(read_jsonl(path, QAItem))
+    dev, test = stratified_split(items, dev_size=dev_size, seed=seed)
+    if not dev and not test:
+        raise typer.BadParameter("no verified items to split; run `dataset verify` first")
+
+    write_jsonl(path, items)
+    Path("evals/splits.json").write_text(
+        json.dumps(
+            {
+                "seed": seed,
+                "dev": sorted(i.id for i in dev),
+                "test": sorted(i.id for i in test),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    typer.echo(f"dev={len(dev)} test={len(test)} -> evals/splits.json")
+    typer.echo("The test split is now sealed: tune only on dev until P5.")
 
 
 @app.command("ask")

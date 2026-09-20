@@ -20,8 +20,8 @@ renumbers passages silently invalidates all three. IDs are therefore derived fro
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
-from typing import Iterable, Iterator
 
 from ..models import Document, Passage
 from .normalize import normalize_text, split_sentences

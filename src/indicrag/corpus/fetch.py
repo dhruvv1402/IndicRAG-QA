@@ -23,10 +23,11 @@ from __future__ import annotations
 
 import hashlib
 import time
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 import requests
 

@@ -38,31 +38,18 @@ _TOKEN_RE = re.compile(r"[a-zA-Zऀ-ॿ]+")
 # the evaluation. Ambiguous markers therefore never trigger Code-Mixed on their
 # own; they only corroborate an unambiguous one.
 UNAMBIGUOUS_MARKERS = frozenset(
-    """
-    kya kyaa kyu kyun kyon kaise kaisa kaisi kab kahan kahaan kaun kaunsa kitna
-    kitni kitne kitnaa hai hain haii hota hoti hote hona hoga hogi honge tha thi
-    ka ki ke ko se mein mai liye pe tak bhi aur nahi nahin chahiye sakta sakte
-    sakti milega milta milti wala wali wale apna apni apne mera meri mere tera
-    teri aapka aapki uska uski iska iski jis jab agar yadi lekin magar kuch koi
-    sab sabhi yeh woh bataye batao karna karne kare karta karti diya dena deta
-    milne kitnaa jaruri zaruri jarurat zarurat milti hoti kaunse kisi kisne
-    """.split()
+    ["kya", "kyaa", "kyu", "kyun", "kyon", "kaise", "kaisa", "kaisi", "kab", "kahan", "kahaan", "kaun", "kaunsa", "kitna", "kitni", "kitne", "kitnaa", "hai", "hain", "haii", "hota", "hoti", "hote", "hona", "hoga", "hogi", "honge", "tha", "thi", "ka", "ki", "ke", "ko", "se", "mein", "mai", "liye", "pe", "tak", "bhi", "aur", "nahi", "nahin", "chahiye", "sakta", "sakte", "sakti", "milega", "milta", "milti", "wala", "wali", "wale", "apna", "apni", "apne", "mera", "meri", "mere", "tera", "teri", "aapka", "aapki", "uska", "uski", "iska", "iski", "jis", "jab", "agar", "yadi", "lekin", "magar", "kuch", "koi", "sab", "sabhi", "yeh", "woh", "bataye", "batao", "karna", "karne", "kare", "karta", "karti", "diya", "dena", "deta", "milne", "kitnaa", "jaruri", "zaruri", "jarurat", "zarurat", "milti", "hoti", "kaunse", "kisi", "kisne"]
 )
 
 # Also Hindi, but homographs of common English words. Corroborating evidence only.
-AMBIGUOUS_MARKERS = frozenset("the is to us me hi na ya par lie tab wo ye jo so".split())
+AMBIGUOUS_MARKERS = frozenset(["the", "is", "to", "us", "me", "hi", "na", "ya", "par", "lie", "tab", "wo", "ye", "jo", "so"])
 
 HINGLISH_MARKERS = UNAMBIGUOUS_MARKERS | AMBIGUOUS_MARKERS
 
 # English function words, used as the counterweight. A query with many of these
 # and no Hindi markers is English even if it contains an Indic proper noun.
 ENGLISH_MARKERS = frozenset(
-    """
-    the a an is are was were what which who whom whose when where why how
-    of for to in on at by with from and or not do does did can could should
-    would will shall have has had be been being i you he she it we they this
-    that these those my your his her its our their there here if then than
-    """.split()
+    ["the", "a", "an", "is", "are", "was", "were", "what", "which", "who", "whom", "whose", "when", "where", "why", "how", "of", "for", "to", "in", "on", "at", "by", "with", "from", "and", "or", "not", "do", "does", "did", "can", "could", "should", "would", "will", "shall", "have", "has", "had", "be", "been", "being", "i", "you", "he", "she", "it", "we", "they", "this", "that", "these", "those", "my", "your", "his", "her", "its", "our", "their", "there", "here", "if", "then", "than"]
 )
 
 QueryType = str  # "English" | "Indic" | "Code-Mixed"

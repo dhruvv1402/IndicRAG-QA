@@ -14,8 +14,8 @@ without a 2 GB model download.
 from __future__ import annotations
 
 import time
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 from .index.hybrid import rrf_fusion, weighted_fusion
 from .index.lexical import LexicalIndex

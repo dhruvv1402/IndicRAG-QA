@@ -18,9 +18,9 @@ import json
 import math
 import pickle
 from collections import Counter
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
 
 from ..models import Passage, Retrieved
 from .tokenize import tokenize
@@ -80,7 +80,7 @@ class LexicalIndex:
             return []
         scores = [0.0] * self.n_docs
         q_counts = Counter(q_terms)
-        for term, qf in q_counts.items():
+        for term in q_counts:
             if term not in self.df:
                 continue
             idf = self._idf_bm25(term)

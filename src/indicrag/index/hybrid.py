@@ -23,7 +23,8 @@ endpoints on the dev split, H2 is false and the paper must say so.
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import Literal, Sequence
+from collections.abc import Sequence
+from typing import Literal
 
 from ..models import Retrieved
 

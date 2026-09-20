@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Iterable, Iterator
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from typing import Any, Iterable, Iterator, TypeVar
+from typing import Any, TypeVar
 
 T = TypeVar("T")
 

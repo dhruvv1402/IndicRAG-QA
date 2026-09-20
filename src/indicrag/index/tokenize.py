@@ -21,22 +21,11 @@ from ..corpus.normalize import normalize_text
 _TOKEN_RE = re.compile(r"[a-zA-Z0-9]+|[ऀ-ॿ]+")
 
 ENGLISH_STOPWORDS = frozenset(
-    """
-    a an the and or but if then than of for to in on at by with from as is are was
-    were be been being do does did have has had will would shall should can could
-    may might must this that these those it its he she they them their there here
-    what which who whom whose when where why how not no nor so such own same too
-    very s t just don now under over again further once
-    """.split()
+    ["a", "an", "the", "and", "or", "but", "if", "then", "than", "of", "for", "to", "in", "on", "at", "by", "with", "from", "as", "is", "are", "was", "were", "be", "been", "being", "do", "does", "did", "have", "has", "had", "will", "would", "shall", "should", "can", "could", "may", "might", "must", "this", "that", "these", "those", "it", "its", "he", "she", "they", "them", "their", "there", "here", "what", "which", "who", "whom", "whose", "when", "where", "why", "how", "not", "no", "nor", "so", "such", "own", "same", "too", "very", "s", "t", "just", "don", "now", "under", "over", "again", "further", "once"]
 )
 
 HINDI_STOPWORDS = frozenset(
-    """
-    के का की को में से है हैं था थे थी और या पर यह वह ये वे एक लिए किया कर करने
-    हो होता होती होने गया गई इस उस जो कि तो ही नहीं भी तक साथ बाद पहले अपने सकता
-    सकते सभी कोई कुछ जब तब यदि अगर द्वारा रूप प्रकार आदि अथवा एवं तथा हुए हुई
-    जाता जाती जाते किसी वाले वाली वाला रहा रहे रही बहुत अधिक कम लेकिन अपना अपनी
-    """.split()
+    ["के", "का", "की", "को", "में", "से", "है", "हैं", "था", "थे", "थी", "और", "या", "पर", "यह", "वह", "ये", "वे", "एक", "लिए", "किया", "कर", "करने", "हो", "होता", "होती", "होने", "गया", "गई", "इस", "उस", "जो", "कि", "तो", "ही", "नहीं", "भी", "तक", "साथ", "बाद", "पहले", "अपने", "सकता", "सकते", "सभी", "कोई", "कुछ", "जब", "तब", "यदि", "अगर", "द्वारा", "रूप", "प्रकार", "आदि", "अथवा", "एवं", "तथा", "हुए", "हुई", "जाता", "जाती", "जाते", "किसी", "वाले", "वाली", "वाला", "रहा", "रहे", "रही", "बहुत", "अधिक", "कम", "लेकिन", "अपना", "अपनी"]
 )
 
 #: Suffixes stripped from Hindi tokens. This is a *light* stripper covering the

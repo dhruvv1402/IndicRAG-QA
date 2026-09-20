@@ -10,8 +10,9 @@ by definition, which makes it a useful floor when reading the generative arms.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Protocol, Sequence
+from typing import Protocol
 
 from ..corpus.normalize import split_sentences
 from ..index.tokenize import tokenize

@@ -180,6 +180,38 @@ def dataset_generate(
         )
 
 
+@dataset_app.command("scaffold-unanswerable")
+def dataset_scaffold_unanswerable(
+    out: Path = typer.Option(Path("evals/unanswerable-scaffold.jsonl"), "--out"),
+    merge_into: Path = typer.Option(None, "--merge-into", help="Append to an existing set."),
+    seed: int = typer.Option(20260922, "--seed"),
+) -> None:
+    """Scaffold the 80 UNANSWERABLE items across the four PRD §6.3 classes.
+
+    Not model-generated: a model asked for an unanswerable question returns the
+    trivial out-of-scope kind, and the near-miss class is the one that actually
+    tests hallucination.
+    """
+    from .dataset.unanswerable import build_unanswerable
+    from .evaluation.run import title_map
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter("no passages; run `corpus segment` first")
+
+    items = build_unanswerable(passages, titles=title_map(cfg.manifest_path), seed=seed)
+
+    if merge_into:
+        existing = [i for i in read_jsonl(merge_into, QAItem) if i.answerable]
+        write_jsonl(merge_into, existing + items)
+        typer.echo(f"{len(items)} unanswerable + {len(existing)} answerable -> {merge_into}")
+    else:
+        write_jsonl(out, items)
+        typer.echo(f"{len(items)} scaffolds -> {out}")
+    typer.echo("All verified=false. Near-miss items carry a distractor passage to check against.")
+
+
 @dataset_app.command("verify")
 def dataset_verify(
     path: Path = typer.Option(GOLD_PATH, "--path"),

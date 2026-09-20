@@ -281,3 +281,70 @@ def test_extracted_json_round_trips_through_the_candidate_parser():
     raw = 'Here:\n```json\n{"question": "Kitna milega?", "answer": "Rs. 1000", "kind": "number"}\n```'
     cand = parse_reply(extract_json_object(raw))
     assert cand is not None and cand.answer == "Rs. 1000"
+
+
+# --- unanswerable scaffolds ----------------------------------------------------
+
+
+def _corpus_for_unanswerable():
+    return _passages(n_schemes=8, per_scheme=4)
+
+
+def test_unanswerable_hits_every_prd_class_quota():
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    counts = {}
+    for i in items:
+        counts[i.unanswerable_class] = counts.get(i.unanswerable_class, 0) + 1
+    assert counts == UNANSWERABLE_TARGET
+    assert len(items) == 80
+
+
+def test_unanswerable_language_mix_is_balanced():
+    """PRD §6.3 wants roughly 36/33/31 so per-language abstention rates stay
+    comparable with the answerable set. An English-heavy stem list broke this."""
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    n = len(items)
+    for lang in ("en", "hi", "hinglish"):
+        share = sum(1 for i in items if i.query_lang == lang) / n
+        assert 0.25 <= share <= 0.45, f"{lang} at {share:.0%}"
+
+
+def test_every_unanswerable_item_is_marked_unanswerable_and_unverified():
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    assert all(not i.answerable for i in items)
+    assert all(not i.verified for i in items)
+    assert all(i.gold_passage_ids == [] for i in items)
+    assert all(i.unanswerable_class for i in items)
+
+
+def test_near_miss_items_carry_a_distractor_for_the_annotator_to_check():
+    """Absence cannot be confirmed without the passage it nearly matches."""
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    near = [i for i in items if i.unanswerable_class == "near-miss"]
+    assert near and all("distractor=" in i.notes for i in near)
+
+
+def test_scheme_named_classes_spread_across_schemes():
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    schemes = {i.scheme for i in items if i.scheme}
+    assert len(schemes) >= 5, schemes
+
+
+def test_out_of_scope_and_under_specified_name_no_scheme():
+    from indicrag.dataset.unanswerable import build_unanswerable
+
+    items = build_unanswerable(_corpus_for_unanswerable())
+    for i in items:
+        if i.unanswerable_class in ("out-of-scope", "under-specified"):
+            assert i.scheme == ""
+            assert "{scheme}" not in i.question

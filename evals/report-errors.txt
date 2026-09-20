@@ -1,0 +1,327 @@
+IndicRAG-QA -- Module 6 error analysis
+==============================================================================
+Generated: 2026-09-21 00:16
+Source: hybrid RRF (BM25 + e5-base) failures on 180 synthetic probes.
+PRELIMINARY -- probes are not the gold set. See report-retrieval-probes.txt.
+
+HEADLINE FINDING FROM THESE CASES
+------------------------------------------------------------------------------
+Naive hybrid fusion actively destroys cross-lingual retrieval.
+
+Of the 20 failure cases below, e5-base ALONE retrieved the gold passage in 8.
+Hybrid RRF lost all 8 of them. Not some -- all.
+
+The mechanism is visible in E02. The query is Romanized Hinglish, the gold is a
+Hindi passage. e5-base returns the Hindi passages at ranks 2 and 3. BM25 returns
+English passages that match the query's Latin tokens, confidently and wrongly.
+RRF fuses by rank and cannot tell a confidently-right list from a
+confidently-wrong one, so the English hits outvote the correct Hindi ones and
+push them below the cut.
+
+This explains the aggregate numbers exactly. On the cross-lingual slice e5-base
+scores 0.125 and hybrid RRF scores 0.022; on code-mixed, 0.132 against 0.028.
+Hybrid is not merely failing to help on these slices, it is roughly five times
+worse than its own dense component.
+
+Language of the top hit against language of the gold, across all 20 cases:
+    7  en gold, en retrieved      <- ordinary ranking errors
+    6  en gold, hi retrieved
+    5  hi gold, en retrieved      <- fusion pulled toward the query script
+    2  hi gold, hi retrieved
+
+REMEDY, for P5: fusion must be language-aware. Down-weight the lexical component
+when the detected query script does not match the candidate passage script, or
+gate it on the query-type classifier that already exists. A single global alpha
+cannot serve both monolingual and cross-lingual queries, because the lexical
+signal is informative for one and actively misleading for the other. This is a
+sharper and more useful statement of H2 than the alpha sweep produced.
+
+MODULE 6 -- ERROR ANALYSIS
+==============================================================================
+20 cases across 10 taxonomy categories.
+
+Cases are selected by rule, not by hand: within each category, the failure
+where the system was most confident and most wrong. A confident miss is a
+systematic blind spot and the case a user would actually be harmed by,
+because nothing in the output warns them.
+
+------------------------------------------------------------------------------
+[E01] code-mixing   (Code-Mixed)
+
+  query      National Health Mission Untied Grants to Sub-Centres ke baare mein bataye
+  gold       janani-suraksha-hi#p0000 (janani-suraksha/hi), janani-suraksha-hi#p0001 (janani-suraksha/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  bm25       janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  e5         janani-suraksha/en | janani-suraksha/en | swachh-bharat/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Transliterate the query to Devanagari before lexical retrieval (H5 ablation).
+
+------------------------------------------------------------------------------
+[E02] code-mixing   (Code-Mixed)
+
+  query      Kisan Credit Card ka Kisan Credit Card kya hai?
+  gold       kisan-credit-card-hi#p0000 (kisan-credit-card/hi), kisan-credit-card-hi#p0001 (kisan-credit-card/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    kisan-credit-card/en | indira-awaas/en | pm-kisan/en
+  bm25       kisan-credit-card/en | indira-awaas/en | aadhaar/en
+  e5         kisan-credit-card/en | kisan-credit-card/hi | kisan-credit-card/hi
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Transliterate the query to Devanagari before lexical retrieval (H5 ablation).
+
+------------------------------------------------------------------------------
+[E03] transliteration-variation   (Code-Mixed)
+
+  query      Sukanya Samriddhi Account Eligibility ke baare mein bataye
+  gold       sukanya-hi#p0000 (sukanya/hi), sukanya-hi#p0001 (sukanya/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    sukanya/en | sukanya/en | sukanya/en
+  bm25       sukanya/en | sukanya/en | sukanya/en
+  e5         sukanya/en | sukanya/en | sukanya/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Extend the scheme alias table with Romanized spelling variants.
+
+------------------------------------------------------------------------------
+[E04] transliteration-variation   (Code-Mixed)
+
+  query      Mahatma Gandhi National Rural Employment Guarantee Act, 2005 Evaluation by the government ke baare mein bataye
+  gold       mgnrega-hi#p0000 (mgnrega/hi), mgnrega-hi#p0001 (mgnrega/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    mgnrega/en | mgnrega/en | mgnrega/en
+  bm25       mgnrega/en | mgnrega/en | sagy/en
+  e5         mgnrega/en | mgnrega/hi | mgnrega/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Extend the scheme alias table with Romanized spelling variants.
+
+------------------------------------------------------------------------------
+[E05] named-entity   (English)
+
+  query      Explain the Success of Pradhan Mantri Garib Kalyan Anna Yojana.
+  gold       garib-kalyan-anna-en#p0008 (garib-kalyan-anna/en), garib-kalyan-anna-en#p0009 (garib-kalyan-anna/en)
+  gold rank  6
+  top score  0.0328
+  primary    garib-kalyan-anna/en | ayushman-bharat/en | jeevan-jyoti/en
+  bm25       garib-kalyan-anna/en | garib-kalyan-anna/en | garib-kalyan-anna/en
+  e5         garib-kalyan-anna/en | jan-dhan/en | ayushman-bharat/en
+  diagnosis  gold passage returned at rank 6, below the cut. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Boost exact entity matches in fusion, or add an entity-aware reranking pass.
+
+------------------------------------------------------------------------------
+[E06] named-entity   (English)
+
+  query      What does National Health Mission say about Components of the scheme?
+  gold       janani-suraksha-en#p0007 (janani-suraksha/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  bm25       janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  e5         janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Boost exact entity matches in fusion, or add an entity-aware reranking pass.
+
+------------------------------------------------------------------------------
+[E07] amount   (English)
+
+  query      Explain the Wages of Mahatma Gandhi National Rural Employment Guarantee Act, 2005.
+  gold       mgnrega-en#p0025 (mgnrega/en), mgnrega-en#p0026 (mgnrega/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    mgnrega/en | mgnrega/en | mgnrega/en
+  bm25       mgnrega/en | mgnrega/en | sagy/en
+  e5         mgnrega/en | mgnrega/en | mgnrega/en
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Index canonical amount keys alongside the text so numeric answers are matchable.
+
+------------------------------------------------------------------------------
+[E08] amount   (English)
+
+  query      What does Mahatma Gandhi National Rural Employment Guarantee Act, 2005 say about Provisions?
+  gold       mgnrega-en#p0008 (mgnrega/en), mgnrega-en#p0009 (mgnrega/en)
+  gold rank  7
+  top score  0.0328
+  primary    mgnrega/en | mgnrega/en | mgnrega/en
+  bm25       mgnrega/en | mgnrega/en | sagy/en
+  e5         mgnrega/en | mgnrega/en | mgnrega/en
+  diagnosis  gold passage returned at rank 7, below the cut. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Index canonical amount keys alongside the text so numeric answers are matchable.
+
+------------------------------------------------------------------------------
+[E09] date   (English)
+
+  query      Explain the Criticism from private schools of Right of Children to Free and Compulsory Education Act, 2009.
+  gold       rte-act-en#p0018 (rte-act/en), rte-act-en#p0019 (rte-act/en)
+  gold rank  6
+  top score  0.0328
+  primary    rte-act/en | rte-act/en | rte-act/en
+  bm25       rte-act/en | rte-act/en | rte-act/en
+  e5         rte-act/en | rte-act/en | rte-act/en
+  diagnosis  gold passage returned at rank 6, below the cut. Top hit is the same scheme but a different section (Criticism).
+  component  retrieval
+  would fix  Normalise date expressions to a canonical form on both sides.
+
+------------------------------------------------------------------------------
+[E10] date   (English)
+
+  query      Right of Children to Free and Compulsory Education Act, 2009 Challenges to implementation details
+  gold       rte-act-en#p0014 (rte-act/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    rte-act/en | rte-act/en | rte-act/en
+  bm25       rte-act/en | rte-act/en | rte-act/en
+  e5         rte-act/en | rte-act/en | rte-act/en
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Normalise date expressions to a canonical form on both sides.
+
+------------------------------------------------------------------------------
+[E11] ambiguity   (Indic)
+
+  query      मध्याह्न भोजन योजना कार्यक्रम के उद्देश्य की जानकारी
+  gold       midday-meal-hi#p0002 (midday-meal/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    midday-meal/hi | midday-meal/hi | midday-meal/hi
+  bm25       midday-meal/hi | midday-meal/hi | midday-meal/hi
+  e5         midday-meal/hi | midday-meal/hi | midday-meal/hi
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Detect under-specification and ask for the scheme rather than guessing.
+
+------------------------------------------------------------------------------
+[E12] ambiguity   (Indic)
+
+  query      महात्मा गांधी राष्ट्रीय ग्रामीण रोजगार गारंटी अधिनियम में आलोचनाएँ क्या है?
+  gold       mgnrega-hi#p0006 (mgnrega/hi), mgnrega-hi#p0007 (mgnrega/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    mgnrega/hi | mgnrega/hi | jan-dhan/hi
+  bm25       mgnrega/hi | swachh-bharat/hi | mgnrega/hi
+  e5         mgnrega/hi | mgnrega/en | mgnrega/hi
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Detect under-specification and ask for the scheme rather than guessing.
+
+------------------------------------------------------------------------------
+[E13] near-duplicate-schemes   (Indic)
+
+  query      सर्व शिक्षा अभियान हस्तक्षेप की जानकारी
+  gold       sarva-shiksha-en#p0000 (sarva-shiksha/en), sarva-shiksha-en#p0001 (sarva-shiksha/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    sarva-shiksha/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  bm25       sarva-shiksha/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  e5         sarva-shiksha/hi | sarva-shiksha/hi | swachh-bharat/hi
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  Condition retrieval on a detected scheme, or rerank by scheme match.
+
+------------------------------------------------------------------------------
+[E14] near-duplicate-schemes   (Indic)
+
+  query      कस्तूरबा गांधी बालिका विद्यालय योजना में कस्तूरबा गांधी बालिका विद्यालय योजना क्या है?
+  gold       kgbv-en#p0000 (kgbv/en), kgbv-en#p0001 (kgbv/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    kgbv/hi | beti-bachao/hi | icds/hi
+  bm25       kgbv/hi | beti-bachao/hi | swachh-bharat/hi
+  e5         kgbv/hi | kgbv/en | beti-bachao/hi
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  Condition retrieval on a detected scheme, or rerank by scheme match.
+
+------------------------------------------------------------------------------
+[E15] cross-lingual-gap   (Indic)
+
+  query      किसान क्रेडिट कार्ड में किसान क्रेडिट कार्ड क्या है?
+  gold       kisan-credit-card-en#p0000 (kisan-credit-card/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    kisan-credit-card/hi | kisan-credit-card/hi | jan-dhan/hi
+  bm25       kisan-credit-card/hi | kisan-credit-card/hi | atmanirbhar/hi
+  e5         kisan-credit-card/hi | kisan-credit-card/hi | kisan-credit-card/en
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  A stronger cross-lingual encoder; this is the H1 case.
+
+------------------------------------------------------------------------------
+[E16] cross-lingual-gap   (Indic)
+
+  query      प्रधानमंत्री मातृ वंदना योजना में प्रधानमंत्री मातृ वंदना योजना क्या है?
+  gold       matru-vandana-en#p0000 (matru-vandana/en), matru-vandana-en#p0001 (matru-vandana/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    matru-vandana/hi | jan-dhan/hi | pmkvy/hi
+  bm25       matru-vandana/hi | swachh-bharat/hi | beti-bachao/hi
+  e5         matru-vandana/hi | matru-vandana/hi | jan-dhan/hi
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  A stronger cross-lingual encoder; this is the H1 case.
+
+------------------------------------------------------------------------------
+[E17] long-tail-scheme   (Indic)
+
+  query      दीन दयाल उपाध्याय ग्रामीण कौशल्य योजना अवलोकन की जानकारी
+  gold       ddu-gky-en#p0000 (ddu-gky/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    ddu-gky/hi | ddu-gky/hi | jan-dhan/hi
+  bm25       ddu-gky/hi | ddu-gky/hi | ujjwala/hi
+  e5         ddu-gky/hi | ddu-gky/hi | pmkvy/hi
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  Corpus imbalance: the scheme has too few passages to rank reliably.
+
+------------------------------------------------------------------------------
+[E18] long-tail-scheme   (Code-Mixed)
+
+  query      Pradhan Mantri Kisan Samman Nidhi ke liye History kaise hai?
+  gold       pm-kisan-hi#p0000 (pm-kisan/hi), pm-kisan-hi#p0001 (pm-kisan/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    pm-kisan/en | pm-kisan/en | suraksha-bima/en
+  bm25       pm-kisan/en | pm-kisan/en | pm-kisan/en
+  e5         pm-kisan/en | suraksha-bima/en | garib-kalyan-anna/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Corpus imbalance: the scheme has too few passages to rank reliably.
+
+------------------------------------------------------------------------------
+[E19] short-query   (English)
+
+  query      National Health Mission Impact details
+  gold       janani-suraksha-en#p0009 (janani-suraksha/en)
+  gold rank  6
+  top score  0.0323
+  primary    janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  bm25       janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  e5         janani-suraksha/en | janani-suraksha/en | janani-suraksha/en
+  diagnosis  gold passage returned at rank 6, below the cut. Top hit is the same scheme but a different section (History).
+  component  retrieval
+  would fix  Expand short queries with scheme context before retrieval.
+
+------------------------------------------------------------------------------
+[E20] short-query   (Indic)
+
+  query      सुकन्या समृद्धि तुलना की जानकारी
+  gold       sukanya-en#p0000 (sukanya/en), sukanya-en#p0001 (sukanya/en)
+  gold rank  not retrieved
+  top score  0.0323
+  primary    sukanya/hi | sukanya/hi | sukanya/hi
+  bm25       sukanya/hi | sukanya/hi | sukanya/hi
+  e5         sukanya/hi | sukanya/hi | sukanya/hi
+  diagnosis  gold passage not returned at all. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  Expand short queries with scheme context before retrieval.
+

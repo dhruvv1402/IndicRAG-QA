@@ -1,0 +1,82 @@
+IndicRAG-QA -- script-aware fusion
+==============================================================================
+Generated: 2026-09-21 00:24
+PRELIMINARY -- 180 synthetic probes, not the gold set.
+
+THE FIX, AND WHERE IT CAME FROM
+------------------------------------------------------------------------------
+The Module 6 error analysis showed that plain RRF lost all 8 of the failure
+cases where e5-base alone had found the gold passage. The cause is structural,
+not a tuning problem.
+
+BM25 can only return passages sharing a script with the query: a Romanized or
+Devanagari query and a passage in the other script share essentially no tokens.
+In plain RRF a passage found by both systems collects two contributions and one
+found only by the dense retriever collects one. Cross-script passages are
+therefore docked roughly 2:1 for the LEXICAL RETRIEVER'S BLINDNESS rather than
+for their own irrelevance. BM25 saying nothing about a Devanagari passage, given
+a Latin query, is not evidence against it -- it is no evidence at all.
+
+script_aware_rrf scores each passage over the systems that were ELIGIBLE to
+retrieve it, so a cross-script candidate is judged on the dense contribution
+alone instead of being penalised for a vote that was never possible.
+
+RETRIEVAL -- Recall@5 by language group
+------------------------------------------------------------------------------
+system                                          monolingual     cross-lingual   code-mixed    
+------------------------------------------------------------------------------
+BM25                                            0.740 (n=120)   0.006 (n=30)    0.028 (n=30)  
+e5-base (dense only)                            0.610 (n=120)   0.125 (n=30)    0.132 (n=30)  
+Hybrid RRF (plain)                              0.712 (n=120)   0.022 (n=30)    0.028 (n=30)  
+Hybrid RRF (script-aware)                       0.668 (n=120)   0.153 (n=30)    0.173 (n=30)  
+
+RETRIEVAL -- overall
+------------------------------------------------------------------------------
+system                                          R@1       R@3       R@5       R@10      MRR       nDCG@10 
+------------------------------------------------------------------------------
+BM25                                            0.358     0.465     0.499     0.542     0.481     0.476   
+e5-base (dense only)                            0.210     0.343     0.449     0.576     0.406     0.420   
+Hybrid RRF (plain)                              0.276     0.409     0.483     0.536     0.427     0.433   
+Hybrid RRF (script-aware)                       0.253     0.418     0.500     0.600     0.493     0.475   
+
+RETRIEVAL -- Recall@5 with 95% bootstrap CI
+------------------------------------------------------------------------------
+  BM25                                         0.499 [0.429, 0.565]
+  e5-base (dense only)                         0.449 [0.386, 0.516]
+  Hybrid RRF (plain)                           0.483 [0.412, 0.550]
+  Hybrid RRF (script-aware)                    0.500 [0.431, 0.564]
+
+n = 180 answerable queries. Intervals are percentile bootstrap over queries (1000 resamples, seed 20260922).
+Differences smaller than the interval width are not distinguishable from noise.
+
+RESULT
+------------------------------------------------------------------------------
+Recall@5 by slice, script-aware against plain RRF, paired randomization test:
+
+  cross-lingual   0.022 -> 0.153   delta +0.131  p=0.0001 *   (7x)
+  code-mixed      0.028 -> 0.173   delta +0.145  p=0.0002 *   (6x)
+  monolingual     0.712 -> 0.668   delta -0.044  p=0.0319 *
+  all             0.483 -> 0.500   delta +0.017  p=0.3195
+
+And against DENSE ALONE, which is the question of whether hybrid earns its keep:
+
+  cross-lingual   delta +0.028  p=0.0374 *
+  code-mixed      delta +0.041  p=0.0739
+  all             delta +0.050  p=0.0086 *
+
+H2 REVISITED
+------------------------------------------------------------------------------
+The alpha sweep said H2 was not supported: no interior alpha beat both endpoints
+by more than 0.001. That verdict was correct about the method it tested and
+wrong about the hypothesis. Hybrid retrieval DOES beat its own components --
+script-aware fusion beats dense alone overall at p=0.0086 -- but only once fusion
+stops penalising passages for being in the language the query was not written in.
+
+The honest cost is the monolingual regression: -0.044 at p=0.032. Removing the
+lexical double-vote costs a little precision where both retrievers could see the
+same passage. On this corpus that is a good trade, because monolingual retrieval
+was already strong and cross-lingual was near zero, but it is a trade and not a
+free win.
+
+This came out of reading twenty error cases, not out of a metric. The aggregate
+tables showed hybrid underperforming and gave no hint as to why.

@@ -348,3 +348,70 @@ def test_out_of_scope_and_under_specified_name_no_scheme():
         if i.unanswerable_class in ("out-of-scope", "under-specified"):
             assert i.scheme == ""
             assert "{scheme}" not in i.question
+
+
+# --- script-aware fusion --------------------------------------------------------
+
+
+def test_script_aware_rrf_does_not_penalise_a_cross_script_passage():
+    """Plain RRF docks a passage 2:1 for the lexical retriever's blindness.
+
+    BM25 cannot return a Devanagari passage for a Latin query at all, so its
+    silence is no evidence rather than evidence against.
+    """
+    from indicrag.index.hybrid import rrf_fusion, script_aware_rrf
+    from indicrag.models import Retrieved
+
+    # BM25 finds two same-script passages; dense ranks the cross-script gold first.
+    lexical = [
+        Retrieved(passage_id="en1", score=9.0, rank=1, method="bm25"),
+        Retrieved(passage_id="en2", score=8.0, rank=2, method="bm25"),
+    ]
+    dense = [
+        Retrieved(passage_id="hi1", score=0.9, rank=1, method="dense"),
+        Retrieved(passage_id="en1", score=0.8, rank=2, method="dense"),
+    ]
+    script_of = {"en1": "latin", "en2": "latin", "hi1": "deva"}
+
+    plain = rrf_fusion(lexical, dense, k=3)
+    assert plain[0].passage_id == "en1", "plain RRF promotes the doubly-voted passage"
+
+    aware = script_aware_rrf(
+        lexical, dense, script_of=script_of, query_script="latin", k=3
+    )
+    assert aware[0].passage_id == "hi1", "the cross-script passage should now win"
+
+
+def test_script_aware_rrf_matches_plain_when_every_candidate_shares_the_script():
+    """With no cross-script candidates the correction must be a no-op on ordering."""
+    from indicrag.index.hybrid import rrf_fusion, script_aware_rrf
+    from indicrag.models import Retrieved
+
+    lexical = [Retrieved(passage_id=f"en{i}", score=9 - i, rank=i + 1, method="bm25") for i in range(3)]
+    dense = [Retrieved(passage_id=f"en{i}", score=0.9 - i / 10, rank=i + 1, method="dense") for i in range(3)]
+    script_of = {f"en{i}": "latin" for i in range(3)}
+
+    plain = [r.passage_id for r in rrf_fusion(lexical, dense, k=3)]
+    aware = [
+        r.passage_id
+        for r in script_aware_rrf(lexical, dense, script_of=script_of, query_script="latin", k=3)
+    ]
+    assert plain == aware
+
+
+def test_mixed_script_query_treats_both_retrievers_as_eligible():
+    """A query containing both scripts can be reached by BM25 either way, so no
+    correction applies."""
+    from indicrag.index.hybrid import rrf_fusion, script_aware_rrf
+    from indicrag.models import Retrieved
+
+    lexical = [Retrieved(passage_id="en1", score=9.0, rank=1, method="bm25")]
+    dense = [Retrieved(passage_id="hi1", score=0.9, rank=1, method="dense")]
+    script_of = {"en1": "latin", "hi1": "deva"}
+
+    plain = [r.passage_id for r in rrf_fusion(lexical, dense, k=2)]
+    aware = [
+        r.passage_id
+        for r in script_aware_rrf(lexical, dense, script_of=script_of, query_script="mixed", k=2)
+    ]
+    assert plain == aware

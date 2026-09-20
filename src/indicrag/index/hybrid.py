@@ -96,6 +96,62 @@ def weighted_fusion(
     ]
 
 
+def script_aware_rrf(
+    lexical: Sequence[Retrieved],
+    dense: Sequence[Retrieved],
+    *,
+    script_of: dict[str, str],
+    query_script: str,
+    k: int = 10,
+    rrf_k: int = RRF_K,
+) -> list[Retrieved]:
+    """RRF that does not penalise a passage the lexical retriever could never see.
+
+    **This fixes a structural bug in plain RRF on a bilingual corpus**, found by
+    reading the Module 6 cases rather than by looking at a metric. Of 20 hybrid
+    failures, e5-base alone had retrieved the gold passage in 8 -- and plain RRF
+    lost all 8.
+
+    The mechanism: BM25 can only return passages sharing a script with the query,
+    because a Romanized or Devanagari query and a passage in the other script
+    share essentially no tokens. In plain RRF a passage found by both systems
+    collects two contributions and a passage found only by the dense retriever
+    collects one, so cross-script passages are penalised roughly 2:1 for the
+    retriever's blindness rather than for their own irrelevance. The lexical
+    retriever's silence about a Devanagari passage, given a Latin query, is not
+    evidence against that passage. It is no evidence at all.
+
+    So each passage is scored over the systems that were *eligible* to retrieve
+    it. A cross-script candidate is judged on the dense contribution alone rather
+    than being docked for a vote that was never possible.
+    """
+    eligible_both = query_script in ("mixed", "unknown")
+
+    contributions: dict[str, dict[str, float]] = defaultdict(dict)
+    for label, run in (("lexical", lexical), ("dense", dense)):
+        for r in run:
+            contributions[r.passage_id][label] = 1.0 / (rrf_k + r.rank)
+
+    fused: dict[str, float] = {}
+    for pid, parts in contributions.items():
+        passage_script = script_of.get(pid, "unknown")
+        lexical_could_see = eligible_both or passage_script == query_script
+        n_eligible = 2 if lexical_could_see else 1
+        fused[pid] = sum(parts.values()) * (2.0 / n_eligible)
+
+    ranked = sorted(fused.items(), key=lambda kv: kv[1], reverse=True)[:k]
+    return [
+        Retrieved(
+            passage_id=pid,
+            score=float(score),
+            rank=rank,
+            method=f"hybrid-rrf-script(k={rrf_k})",
+            component_scores=contributions[pid],
+        )
+        for rank, (pid, score) in enumerate(ranked, start=1)
+    ]
+
+
 def rrf_fusion(
     *runs: Sequence[Retrieved],
     k: int = 10,

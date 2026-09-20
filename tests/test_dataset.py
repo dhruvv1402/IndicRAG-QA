@@ -145,11 +145,15 @@ def test_monolingual_generation_makes_one_model_call_per_item():
     assert len(stub.prompts) == 4
 
 
-def test_hinglish_from_an_english_passage_takes_two_extra_hops():
-    """English question -> Hindi -> Romanized, so three calls per item."""
+def test_hinglish_from_an_english_passage_takes_one_extra_model_call():
+    """English question -> Hindi is a model call; Hindi -> Romanized is not.
+
+    Romanization is deterministic transliteration (query/translit.py), so a
+    hinglish-from-English item costs two model calls, not three.
+    """
     stub = _Stub()
     generate_candidates(_passages(), stub, matrix={("hinglish", "en"): 2})
-    assert len(stub.prompts) == 6
+    assert len(stub.prompts) == 4
 
 
 def test_a_passage_is_never_reused_across_items():

@@ -38,9 +38,9 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
 from ..models import Passage, QAItem
+from ..query.translit import romanize_question
 from .prompts import (
     QA_GRAMMAR,
-    build_hinglish_prompt,
     build_prompt,
     build_translate_prompt,
 )
@@ -207,14 +207,20 @@ def generate_candidates(
                         rejected.append(f"{passage.passage_id}: translate-hi: {verdict.reason}")
                         continue
                     hindi = step.question
-                romanised = parse_reply(complete(build_hinglish_prompt(hindi), QA_GRAMMAR))
-                if romanised is None:
+                # Deterministic transliteration, not a model call. Asking the
+                # model to romanize failed ~83% of the time -- it returned the
+                # Devanagari unchanged or translated to English -- and each
+                # failure had already cost a full Hindi generation. Script
+                # conversion is a mapping; it does not need a language model.
+                roman = romanize_question(hindi)
+                if roman is None:
+                    rejected.append(f"{passage.passage_id}: romanize: no devanagari to convert")
                     continue
-                verdict = check_romanization(hindi, romanised.question)
+                verdict = check_romanization(hindi, roman)
                 if not verdict:
                     rejected.append(f"{passage.passage_id}: romanize: {verdict.reason}")
                     continue
-                question = romanised.question
+                question = roman
 
             if len(question) < 8:
                 continue

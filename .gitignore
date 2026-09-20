@@ -1,0 +1,34 @@
+# Data, caches and model artefacts live off the system drive (see scripts/dev-env.*)
+# and are never committed. The one exception is the corpus manifest, which is the
+# provenance record and is small -- it is force-added below.
+data/
+!data/corpus_manifest.jsonl
+
+# Virtualenv (symlinked to G: by dev-env)
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# Scratch
+tmp/
+*.log

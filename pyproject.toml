@@ -1,0 +1,80 @@
+[project]
+name = "indicrag"
+version = "0.1.0"
+description = "Evidence-grounded cross-lingual question answering for Indic and code-mixed queries"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+# Floors only, no upper pins. The one exception to "just install the latest" is
+# torch: it must come from the CPU-only index (see scripts/dev-env.*), because the
+# default PyPI wheel pulls ~2.5 GB of CUDA libraries this machine has no GPU for.
+dependencies = [
+    "huggingface-hub>=0.26",
+    "indic-nlp-library>=0.92",
+    "indic-transliteration>=2.3",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "pydantic>=2.9",
+    "pydantic-settings>=2.6",
+    "pymupdf>=1.24",
+    "python-dotenv>=1.0",
+    "rank-bm25>=0.2.2",
+    "regex>=2024.9",
+    "requests>=2.32",
+    "scikit-learn>=1.5",
+    "sentence-transformers>=3.2",
+    "torch>=2.4",
+    "transformers>=4.45",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# Kept out of the default install: llama-cpp-python compiles or pulls a large
+# prebuilt wheel, and the corpus/index half of the project must be usable without it.
+llm = ["llama-cpp-python>=0.3.2"]
+viz = ["matplotlib>=3.9", "seaborn>=0.13"]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.7"]
+
+[project.scripts]
+indicrag = "indicrag.cli:app"
+
+# torch resolves from the CPU-only wheel index, not PyPI. The PyPI wheel bundles
+# CUDA runtime libraries (~2.5 GB) that an Intel Iris Xe machine can never use;
+# the CPU wheel is ~200 MB. `explicit = true` means this index is consulted only
+# for packages routed to it below, so nothing else gets pulled from it by accident.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/indicrag"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+# E501: line-length is enforced by the formatter, and prose in docstrings runs long.
+# B008: Typer's whole API is `def cmd(x: int = typer.Option(...))`, which is a call in a default.
+ignore = ["E501", "B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore::DeprecationWarning"]
+# src-layout without requiring an editable install to be current. The package is
+# imported straight from src/, so a stale `uv pip install -e .` cannot mask a change.
+pythonpath = ["src"]

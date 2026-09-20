@@ -59,11 +59,12 @@ Our work sits at the intersection of four lines of research.
 
 Dense retrieval over multilingual encoders is the standard remedy for the
 vocabulary and language mismatch that defeats lexical search. Sentence-level
-encoders trained with a contrastive or retrieval objective — LaBSE `[VERIFY:
-Feng et al., ACL 2022]`, multilingual E5 `[VERIFY: Wang et al., 2024]`, and
-multilingual Sentence-BERT `[VERIFY: Reimers and Gurevych, EMNLP 2019 and the
-multilingual extension, EMNLP 2020]` — project queries and passages into a shared
-space in which translation-equivalent texts are near neighbours.
+encoders trained with a contrastive or retrieval objective — LaBSE (Feng, Yang,
+Cer, Arivazhagan and Wang, ACL 2022, 878–891), multilingual E5 (Wang et al.,
+arXiv:2402.05672, 2024), and multilingual Sentence-BERT (Reimers and Gurevych,
+EMNLP-IJCNLP 2019, with the multilingual extension by knowledge distillation,
+EMNLP 2020) — project queries and passages into a shared space in which
+translation-equivalent texts are near neighbours.
 
 Benchmarks for this setting are predominantly *monolingual-per-language* or
 cross-lingual at the language rather than the script level. Mr. TyDi (Zhang et
@@ -83,8 +84,8 @@ for this corpus. MuRIL (Khanuja et al., arXiv:2103.10730, 2021) is trained on
 Indian-language corpora and, notably for our purposes, augments pretraining with
 **translated and transliterated document pairs** to supply explicit cross-lingual
 signal; it outperforms mBERT across the XTREME benchmark. IndicBERT and the wider
-AI4Bharat resources `[VERIFY: Kakwani et al., Findings of EMNLP 2020]` serve a
-similar role.
+AI4Bharat resources (Kakwani et al., IndicNLPSuite, Findings of EMNLP 2020) serve
+a similar role.
 
 The gap we address is that these models are evaluated on classification and
 understanding benchmarks, and their readiness for *retrieval* off the shelf is
@@ -107,8 +108,14 @@ that their errors are complementary: lexical matching is precise on rare terms,
 names and numbers, while dense retrieval generalises over paraphrase and
 synonymy. Reciprocal Rank Fusion (Cormack, Clarke and Büttcher, SIGIR 2009,
 pp. 758–759) remains the default combiner, chosen for needing no score
-normalisation and no tuning; weighted score fusion and learned combiners such as
-ColBERT and SPLADE `[VERIFY]` occupy the other end of the complexity range.
+normalisation and no tuning. Neural retrieval has since produced alternatives to
+the sparse half of the pair — ColBERT's late interaction over contextualised
+token embeddings (Khattab and Zaharia, SIGIR 2020, 39–48) and SPLADE's learned
+sparse representations with term expansion (Formal, Piwowarski and Clinchant,
+SIGIR 2021) — but neither removes the constraint that concerns us. SPLADE in
+particular expands terms within its model vocabulary, which mitigates vocabulary
+mismatch but not *script* mismatch: expansion cannot bridge a Devanagari passage
+and a Latin query that share no surface form.
 
 RRF rewards documents ranked highly by several retrievers and, by construction,
 penalises a document returned by only one. This is the intended semantics and is
@@ -124,31 +131,46 @@ the fusion step still treats a dense-only passage as weakly evidenced.
 ### D. Answerability and grounded abstention
 
 Systems that answer from retrieved evidence must be able to decline. SQuAD 2.0
-`[VERIFY: Rajpurkar et al., ACL 2018]` established unanswerable questions as a
-first-class evaluation target, and selective prediction and RAG-hallucination
-work has since developed confidence-based abstention `[VERIFY — needs a current
-survey citation]`.
+(Rajpurkar, Jia and Liang, ACL 2018, 784–789) established unanswerable questions
+as a first-class evaluation target, and did so adversarially: its 50,000+
+unanswerable questions were written by crowdworkers *to resemble answerable
+ones*. Confidence-based abstention for retrieval-augmented systems is an active
+area, including risk control for RAG (Findings of EMNLP 2024) and
+uncertainty-aware evidence verification `[VERIFY — pick one or two current
+citations rather than gesturing at a literature]`.
 
-Unanswerable items in these resources are typically treated as a single
-undifferentiated class. Our Module 5 result turns on the distinction we draw in
-§III-E: an out-of-scope question is rejected by any threshold, whereas a
-**false-premise** question — one presupposing a benefit the scheme does not
-provide — retrieves its scheme's passages at high similarity because the topic is
-right and only the asserted fact is absent. Reporting a single answerability F1
-over a set dominated by the former conceals total failure on the latter.
+**Our claim here must be stated carefully, because SQuAD 2.0 partly anticipates
+it.** Adversarially authored unanswerable questions are already near-misses in
+spirit. What the existing resources do not do is *stratify* them, so results are
+reported over an undifferentiated unanswerable class. Our §III-E taxonomy
+separates four kinds, and §VI-E shows why the distinction is not cosmetic: a
+retrieval-score threshold catches 0.688 of out-of-scope questions and 0.000 of
+false-premise ones. A single F1 over a set containing both conceals total failure
+on one of them. The contribution is the stratified measurement, not the
+observation that hard unanswerable questions exist.
 
 ### E. Code-mixed retrieval
 
-Romanized Hindi-English is not a marginal input mode. Reported usage statistics
-put the overwhelming majority of Hindi-speakers' social-media text in Roman
-rather than Devanagari script, with code-mixed usage rising over the last decade
-`[VERIFY — statistic seen in the deromanization literature; locate and cite the
-primary source before use, or drop the specific figures and make the qualitative
-claim]`.
+Romanized Hindi-English is not a marginal input mode. **The published
+platform-level statistics conflict, and the paper should say so rather than pick
+the most favourable.** Figures in the deromanization literature put 93.17% of
+native Hindi speakers' social-media posts in Roman script against 2.93% in
+Devanagari, and a 2015 YouTube analysis reports 52% against 1%; yet another
+measurement reports Devanagari on Twitter *rising* from 35% in 2014 to 82% in
+2022. These are not reconcilable as stated and likely reflect different
+platforms, sampling frames and dates.
+
+The claim we can make safely is the code-mixing trend rather than the script
+split: a peer-reviewed study of Indian Twitter users reports the proportion
+preferring Hinglish rising from 44.9% in 2014 to 56.3% after 2020 (*Humanities
+and Social Sciences Communications*, 2024, DOI 10.1057/s41599-024-03058-6)
+`[VERIFY — title and authors confirmed via search; the article is behind an
+authentication redirect, so confirm the figures against the full text before
+quoting them]`.
 
 Work on code-mixed text has concentrated on language identification,
 transliteration and deromanization as preprocessing, typically to normalise input
-into a single native script before a downstream monolingual model `[VERIFY]`.
+into a single native script before a downstream monolingual model.
 That framing treats script mismatch as a preprocessing problem to be eliminated.
 We instead retain it as an experimental variable, because the query script is
 exactly what determines whether a lexical retriever can see a passage at all —
@@ -156,25 +178,34 @@ and therefore whether fusion helps or harms.
 
 ---
 
-## Bibliography checklist
+## Bibliography
 
-Before submission, verify every `[VERIFY]` entry and fill in full details.
+Verified against primary sources on 2026-09-21 unless marked otherwise.
 
-| # | Work | Status |
+| # | Work | Venue |
 |---|---|---|
-| 1 | Cormack, Clarke, Büttcher. *Reciprocal rank fusion outperforms Condorcet and individual rank learning methods.* SIGIR 2009, 758–759. | **verified** |
-| 2 | Khanuja et al. *MuRIL: Multilingual Representations for Indian Languages.* arXiv:2103.10730, 2021. | **verified** |
-| 3 | Li et al. *On the Sentence Embeddings from Pre-trained Language Models.* EMNLP 2020, arXiv:2011.05864. | **verified** |
-| 4 | Tu, Padmanabhan. *MIA 2022 Shared Task Submission: ... Dense-Sparse Hybrids ...* arXiv:2207.01940. | **verified** |
-| 5 | Asai et al. *MIA 2022 Shared Task* overview. arXiv:2207.00758. | **verified** |
-| 6 | Zhang et al. *Mr. TyDi.* arXiv:2108.08787. | **verified** |
-| 7 | Ogundepo et al. *AfriQA.* arXiv:2305.06897. | **verified** |
-| 8 | *Exploring Anisotropy and Outliers in Multilingual Language Models...* arXiv:2306.00458. | **verified** (authors to fill) |
-| 9 | LaBSE (Feng et al.) | `[VERIFY]` |
-| 10 | multilingual-E5 (Wang et al.) | `[VERIFY]` |
-| 11 | Sentence-BERT (Reimers, Gurevych) + multilingual extension | `[VERIFY]` |
-| 12 | IndicBERT / IndicNLPSuite (Kakwani et al.) | `[VERIFY]` |
-| 13 | SQuAD 2.0 (Rajpurkar et al.) | `[VERIFY]` |
-| 14 | ColBERT, SPLADE | `[VERIFY]` |
-| 15 | Code-mixed script-usage statistics — primary source | `[VERIFY]` |
-| 16 | Selective prediction / RAG hallucination survey | `[VERIFY]` |
+| 1 | Cormack, Clarke, Büttcher. *Reciprocal rank fusion outperforms Condorcet and individual rank learning methods.* | SIGIR 2009, 758–759 |
+| 2 | Khanuja, Bansal, Mehtani, Khosla, Dey, Gopalan, Margam, Aggarwal, Nagipogu, Dave, Gupta, Gali, Subramanian, Talukdar. *MuRIL: Multilingual Representations for Indian Languages.* | arXiv:2103.10730, 2021 |
+| 3 | Li, Zhou, He, Wang, Yang, Li. *On the Sentence Embeddings from Pre-trained Language Models.* | EMNLP 2020, arXiv:2011.05864 |
+| 4 | Tu, Padmanabhan. *MIA 2022 Shared Task Submission: Leveraging Entity Representations, Dense-Sparse Hybrids, and Fusion-in-Decoder for Cross-Lingual QA.* | arXiv:2207.01940, 2022 |
+| 5 | Asai et al. *MIA 2022 Shared Task: Evaluating Cross-lingual Open-Retrieval QA for 16 Diverse Languages.* | arXiv:2207.00758 |
+| 6 | Zhang, Ma, Lin et al. *Mr. TyDi: A Multi-lingual Benchmark for Dense Retrieval.* | arXiv:2108.08787 |
+| 7 | Ogundepo et al. *AfriQA: Cross-lingual Open-Retrieval QA for African Languages.* | arXiv:2305.06897 |
+| 8 | *Exploring Anisotropy and Outliers in Multilingual Language Models for Cross-Lingual Semantic Sentence Similarity.* | arXiv:2306.00458 |
+| 9 | Feng, Yang, Cer, Arivazhagan, Wang. *Language-agnostic BERT Sentence Embedding.* | ACL 2022, 878–891 |
+| 10 | Wang et al. *Multilingual E5 Text Embeddings: A Technical Report.* | arXiv:2402.05672, 2024 |
+| 11 | Reimers, Gurevych. *Sentence-BERT.* | EMNLP-IJCNLP 2019 |
+| 12 | Reimers, Gurevych. *Making Monolingual Sentence Embeddings Multilingual using Knowledge Distillation.* | EMNLP 2020, ACL Anthology 2020.emnlp-main.365 |
+| 13 | Kakwani et al. *IndicNLPSuite: Monolingual Corpora, Evaluation Benchmarks and Pre-trained Multilingual Models for Indian Languages.* | Findings of EMNLP 2020, 2020.findings-emnlp.445 |
+| 14 | Rajpurkar, Jia, Liang. *Know What You Don't Know: Unanswerable Questions for SQuAD.* | ACL 2018, 784–789 |
+| 15 | Khattab, Zaharia. *ColBERT: Efficient and Effective Passage Search via Contextualized Late Interaction over BERT.* | SIGIR 2020, 39–48 |
+| 16 | Formal, Piwowarski, Clinchant. *SPLADE: Sparse Lexical and Expansion Model for First Stage Ranking.* | SIGIR 2021 (short), arXiv:2107.05720 |
+
+### Still open
+
+| Item | What is needed |
+|---|---|
+| Author list for arXiv:2306.00458 | fill from the paper |
+| Hinglish trend statistic | *Humanities and Social Sciences Communications* 2024, DOI 10.1057/s41599-024-03058-6 — title and venue confirmed, but the article sits behind an authentication redirect. Confirm the 44.9%→56.3% figures against the full text before quoting, or make the claim qualitatively. |
+| Roman-vs-Devanagari script split | **Do not cite.** The published figures conflict irreconcilably: 93.17%/2.93% (deromanization literature), 52%/1% (2015 YouTube), and Devanagari on Twitter *rising* 35%→82% (2014–2022). Different platforms and sampling frames. Use the code-mixing trend instead. |
+| RAG abstention citation | Pick one or two concrete works rather than gesturing at a literature. Candidates: *Controlling Risk of Retrieval-augmented Generation* (Findings of EMNLP 2024); RAGTruth (Niu et al., 2024). |

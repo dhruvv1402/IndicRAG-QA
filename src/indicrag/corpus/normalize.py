@@ -100,9 +100,14 @@ def normalize_whitespace(text: str, *, join_softwrap: bool = True) -> str:
 
 # --- Amount canonicalization ---------------------------------------------------
 
+# The number alternation must try the comma-grouped form FIRST, and the plain
+# digit run must be a separate branch rather than a `*` quantifier on the groups.
+# Written as `\d{1,3}(?:,\d{2,3})*`, a plain "350000" matches only its first
+# three digits and canonicalises to 350 -- so "350000" and "३,५०,०००" compared
+# unequal, and every Exact Match on an un-grouped amount was silently wrong.
 _CURRENCY_RE = re.compile(
     r"(?:(?:Rs\.?|INR|₹|रु\.?|रुपये|रुपए)\s*)?"
-    r"(\d{1,3}(?:,\d{2,3})*(?:\.\d+)?)"
+    r"(\d{1,3}(?:,\d{2,3})+(?:\.\d+)?|\d+(?:\.\d+)?)"
     r"(?:\s*/-)?"
     r"(?:\s*(lakh|lakhs|lac|crore|crores|लाख|करोड़))?",
     re.IGNORECASE,

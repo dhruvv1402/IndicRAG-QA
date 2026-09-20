@@ -110,7 +110,41 @@ Every source document is recorded in `data/corpus_manifest.jsonl` before extract
 
 `retrieved_at` and `sha256` exist so the paper can state exactly which snapshot produced the numbers — government circulars are revised without changing their URL.
 
-### 5.4 Licensing and redistribution
+### 5.4 What was actually built, and why it differs
+
+**The corpus is built from parallel English/Hindi Wikipedia articles on Indian
+government schemes, not from ministry guideline PDFs.** This is a deviation from
+§5.2 above, forced by two findings on first contact with the official sources —
+both of them risks R1 and R2 in `docs/PLAN.md` §5, which duly materialised:
+
+1. The Hindi paths on `socialjustice.gov.in` return HTTP 200 with a *"Page not
+   found"* body — a soft 404. The bilingual premise does not survive there.
+2. `PMS_for_SCs_Scheme_Guidelines.pdf` (18 pages, 2.8 MB) yields **17 characters**
+   of extractable text. It is a scan, as most Hindi circulars of this kind are,
+   and this machine has no Tesseract, so OCR was not available.
+
+An English-only text-layer corpus would have defeated the cross-lingual research
+question entirely, which is the thing the project exists to measure. Wikipedia
+pairs are genuinely parallel (resolved through the MediaWiki `langlinks` API
+rather than matched by hand), text-layer by construction, section-structured, and
+CC BY-SA licensed.
+
+**What it costs, stated here so it reaches the paper's limitations rather than a
+reader's own inference:** the register is *encyclopedic rather than regulatory*.
+Wikipedia describes schemes; it does not legislate them. Eligibility criteria and
+amounts appear, but as secondary prose rather than normative clauses, and they
+may lag the current circular. Every hypothesis in §2 remains testable — the
+corpus is bilingual, dense with near-duplicate scheme descriptions, and rich in
+amounts, dates and named entities — but **no claim about retrieval over statutory
+text is supported by these results.**
+
+As built: **40 schemes × 2 languages = 80 documents → 694 passages** (491 English,
+203 Hindi). The Hindi/English passage imbalance is inherent: Hindi Wikipedia
+articles run roughly a third the length of their English counterparts. 694 falls
+below the 800 floor in §5.1; the shortfall is recorded rather than papered over,
+and it slightly reduces the pool from which Hindi-evidence questions can be drawn.
+
+### 5.5 Licensing and redistribution
 
 Indian government documents of this kind are generally published under the Government Open Data Licence – India (GODL-India) or equivalent permissive terms, which allow reuse with attribution. The repository therefore commits **derived passages and the manifest with source URLs**, not the original PDFs, and attributes each scheme to its issuing ministry. Any document whose licence cannot be established is excluded rather than assumed permissive, and the exclusion is recorded in the manifest's `notes` field.
 

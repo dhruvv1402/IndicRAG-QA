@@ -63,6 +63,10 @@ HINDI_STOPWORDS = frozenset(
 
 _WORD_RE = re.compile(r"[ऀ-ॿ]+")
 
+#: Zero-width joiner / non-joiner / BOM. Stripped before validation, not just
+#: before indexing -- see `validate` for why that distinction matters.
+_ZERO_WIDTH = dict.fromkeys(map(ord, "​‌‍﻿"), None)
+
 
 def _is_devanagari(cp: int) -> bool:
     return DEVANAGARI_RANGE[0] <= cp <= DEVANAGARI_RANGE[1]
@@ -192,8 +196,21 @@ def validate(text: str, *, expect_hindi: bool = True) -> IntegrityReport:
     `expect_hindi=False` skips the script-ratio and stopword checks, so the same
     function can sanity-check an English document (where only the replacement-
     character check is meaningful) without reporting spurious failures.
+
+    Zero-width characters are stripped first, and that is not cosmetic. Hindi
+    source text -- government prose especially -- writes ZWNJ after a virama to
+    force an explicit halant rather than a conjunct ligature, as in उद्देश्‍य
+    (उद्देश + virama + ZWNJ + य). ZWNJ sits outside the Devanagari block, so it
+    splits the word token and leaves the first half apparently ending in a bare
+    virama. Three genuinely clean Hindi documents failed the dangling-virama
+    check for exactly this reason before the strip was added.
+
+    Stripping here also keeps the validator honest in a second way: it now checks
+    the same string the indexer will see, since `normalize.normalize_text` strips
+    these too. Validating text that differs from what gets indexed would mean
+    passing documents that then behave differently in retrieval.
     """
-    text = unicodedata.normalize("NFC", text)
+    text = unicodedata.normalize("NFC", text).translate(_ZERO_WIDTH)
     chars = [c for c in text if not c.isspace()]
     n_chars = len(chars)
 

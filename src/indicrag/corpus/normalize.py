@@ -166,14 +166,37 @@ def normalize_text(text: str, *, join_softwrap: bool = True) -> str:
     return text
 
 
+#: Abbreviations whose trailing full stop is not a sentence boundary. `Rs.` is
+#: the one that matters: it precedes an amount in most answers in this corpus, so
+#: splitting after it truncates "Rs. 12,000 per annum" to "12,000 per annum" --
+#: which then scores as a miss on Exact Match against the document's own wording.
+#: Found by reading an extracted answer, not from a failing test.
+_ABBREVIATIONS = (
+    "rs", "no", "sr", "jr", "dr", "mr", "mrs", "ms", "smt", "shri", "st",
+    "vs", "etc", "viz", "approx", "govt", "deptt", "dept", "ltd", "pvt",
+    "i.e", "e.g", "fig", "vol", "pp", "ch", "sec", "art", "cl",
+)
+_ABBREV_RE = re.compile(
+    r"(?<![\w.])(" + "|".join(re.escape(a) for a in _ABBREVIATIONS) + r")\.\s",
+    re.IGNORECASE,
+)
+_SENT_SPLIT_RE = re.compile(rf"(?<=[.!?{DANDA}{DOUBLE_DANDA}])\s+")
+_ABBREV_GUARD = "\x00"
+
+
 def split_sentences(text: str) -> list[str]:
     """Split on both Latin and Devanagari sentence terminators.
 
     Danda (।) and double danda (॥) are Hindi's full stops; a Latin-only splitter
     returns an entire Hindi paragraph as one sentence, which breaks segmentation
     and every sentence-level scorer downstream.
+
+    Abbreviation stops are protected first -- see `_ABBREVIATIONS`. The guard is a
+    NUL placeholder rather than a lookbehind because Python's `re` requires
+    fixed-width lookbehind and the abbreviations differ in length.
     """
     if not text:
         return []
-    parts = re.split(rf"(?<=[.!?{DANDA}{DOUBLE_DANDA}])\s+", text)
-    return [p.strip() for p in parts if p.strip()]
+    guarded = _ABBREV_RE.sub(lambda m: m.group(1) + _ABBREV_GUARD, text)
+    parts = _SENT_SPLIT_RE.split(guarded)
+    return [p.replace(_ABBREV_GUARD, ". ").strip() for p in parts if p.strip()]

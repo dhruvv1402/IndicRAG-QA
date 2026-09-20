@@ -88,3 +88,34 @@ def test_empty_input_is_safe():
     assert normalize_text("") == ""
     assert canonical_amounts("") == []
     assert split_sentences("") == []
+
+
+def test_an_abbreviation_stop_does_not_end_a_sentence():
+    """Regression. "Rs." precedes an amount in most answers in this corpus, so
+    splitting after it truncated "Rs. 12,000 per annum" to "12,000 per annum",
+    which then scores as a miss on Exact Match against the document's wording.
+    Found by reading an extracted answer, not from a failing test."""
+    assert split_sentences("The scheme provides Rs. 12,000 per annum. Students are eligible.") == [
+        "The scheme provides Rs. 12,000 per annum.",
+        "Students are eligible.",
+    ]
+
+
+def test_other_common_abbreviations_are_protected():
+    assert len(split_sentences("See Sec. 4 and Art. 21. Both apply here.")) == 2
+    assert len(split_sentences("Submit Form No. 5 to the office.")) == 1
+    assert len(split_sentences("Income under Rs. 3,50,000 per annum qualifies.")) == 1
+
+
+def test_abbreviation_protection_leaves_real_boundaries_alone():
+    assert len(split_sentences("Apply online. Then submit the form.")) == 2
+    assert len(split_sentences("यह योजना 1995 में शुरू हुई। राशि दी जाती है।")) == 2
+
+
+def test_the_guard_character_never_survives_into_output():
+    """The splitter protects abbreviation stops with a NUL placeholder; it must
+    never leak into a passage or an answer."""
+    from indicrag.corpus.normalize import _ABBREV_GUARD
+
+    for text in ["Rs. 12,000 per annum.", "See Sec. 4. Done.", "Plain text."]:
+        assert all(_ABBREV_GUARD not in part for part in split_sentences(text))

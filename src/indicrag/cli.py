@@ -293,6 +293,87 @@ def dataset_split(
     typer.echo("The test split is now sealed: tune only on dev until P5.")
 
 
+eval_app = typer.Typer(no_args_is_help=True, help="Run and report the evaluations.")
+app.add_typer(eval_app, name="eval")
+
+
+@eval_app.command("qa")
+def eval_qa(
+    gold: Path = typer.Option(GOLD_PATH, "--gold"),
+    report: Path = typer.Option(None, "--report"),
+    gguf: str = typer.Option("", "--gguf", help="GGUF model; omit for the extractive baseline."),
+    arms: str = typer.Option("A,B,C,D", "--arms"),
+    k: int = typer.Option(5, "--k"),
+    no_model: bool = typer.Option(False, "--no-model", help="Extractive provider only."),
+) -> None:
+    """Module 4: direct LLM vs retrieval-augmented question answering."""
+    from .evaluation.qa_run import format_module4, run_module4
+    from .index.dense import DenseIndex, Encoder
+    from .index.encoders import get
+    from .index.hybrid import script_aware_rrf
+    from .index.lexical import LexicalIndex
+    from .query.langid import classify
+    from .rag.arms import GenerationCache
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    items = [i for i in read_jsonl(gold, QAItem) if i.answerable]
+    if not items:
+        raise typer.BadParameter(f"no answerable items in {gold}")
+
+    verified = sum(1 for i in items if i.verified)
+    if verified < len(items):
+        typer.echo(
+            f"WARNING: {len(items) - verified} of {len(items)} items are unverified. "
+            "Results below are preliminary and must not be reported as gold-set numbers."
+        )
+
+    # Retrievers for arms B and C.
+    retrievers: dict = {}
+    lex = LexicalIndex.load(cfg.lex_dir)
+    try:
+        spec = get(cfg.encoder_primary)
+        dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+        enc = Encoder(spec)
+        script_of = {p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages}
+        qvec = {i.id: enc.encode_query(i.question) for i in items}
+        retrievers["B"] = lambda i: [h.passage_id for h in dense.search_vector(qvec[i.id], k)]
+        retrievers["C"] = lambda i: [
+            h.passage_id
+            for h in script_aware_rrf(
+                lex.search_bm25(i.question, 50),
+                dense.search_vector(qvec[i.id], 50),
+                script_of=script_of,
+                query_script=classify(i.question).script,
+                k=k,
+            )
+        ]
+    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
+        typer.echo(f"dense index unavailable ({exc}); arms B and C will be skipped")
+
+    if gguf and not no_model:
+        from .rag.providers import LlamaCppProvider
+
+        provider = LlamaCppProvider(gguf, n_ctx=cfg.llm_n_ctx, n_threads=cfg.llm_n_threads)
+        complete = provider.complete
+        model = Path(gguf).stem
+    else:
+        from .rag.extractive_json import extractive_complete
+
+        complete = extractive_complete(passages)
+        model = "extractive"
+
+    result = run_module4(
+        items, passages, complete,
+        retrievers=retrievers,
+        cache=GenerationCache(cfg.gen_dir / f"{model}.jsonl"),
+        model=model, k=k,
+        arms=[a.strip().upper() for a in arms.split(",") if a.strip()],
+        progress=typer.echo,
+    )
+    _emit(format_module4(result), report)
+
+
 @app.command("ask")
 def ask(
     query: str = typer.Argument(..., help="The question, in English, Hindi or Hinglish."),

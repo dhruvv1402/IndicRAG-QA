@@ -44,16 +44,32 @@ def _passages(n_schemes: int = 6, per_scheme: int = 6) -> list[Passage]:
 
 
 class _Stub:
-    """Returns valid grammar-shaped JSON, recording every prompt it saw."""
+    """A scripted model that answers each prompt type plausibly.
+
+    It has to be language-aware because the semantic checks in
+    `dataset/validate.py` reject a Hindi prompt answered in English, a
+    translation that returns its input, and a romanization that is really a
+    translation. A stub returning one fixed English string for every call fails
+    those checks -- correctly -- so it would test nothing but the rejection path.
+    """
 
     def __init__(self):
         self.prompts: list[str] = []
 
     def __call__(self, prompt: str, grammar: str | None = None) -> str:
         self.prompts.append(prompt)
-        return json.dumps(
-            {"question": "What is the annual amount?", "answer": "Rs. 1000", "kind": "number"}
-        )
+        if "Rewrite this Hindi question" in prompt:
+            reply = {"question": "Yojana kitne rupye deti hai?", "answer": "", "kind": "fact"}
+        elif "अंग्रेज़ी प्रश्न:" in prompt:  # translate -> Hindi (not the base prompt,
+            # which also contains "अनुवाद" in its keys-stay-English instruction)
+            reply = {"question": "योजना कितने रुपये देती है?", "answer": "", "kind": "fact"}
+        elif "Translate this Hindi question" in prompt:
+            reply = {"question": "How much does the scheme provide?", "answer": "", "kind": "fact"}
+        elif "अनुच्छेद" in prompt:  # base generation, Hindi passage
+            reply = {"question": "योजना कितने रुपये देती है?", "answer": "1000 रुपये", "kind": "number"}
+        else:  # base generation, English passage
+            reply = {"question": "What is the annual amount provided?", "answer": "Rs. 1000", "kind": "number"}
+        return json.dumps(reply, ensure_ascii=False)
 
 
 # --- parsing -------------------------------------------------------------------

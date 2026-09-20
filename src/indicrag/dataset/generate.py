@@ -44,6 +44,7 @@ from .prompts import (
     build_prompt,
     build_translate_prompt,
 )
+from .validate import check_base, check_romanization, check_translation
 
 #: PRD §6.2. (query_lang, passage_lang) -> count. Sums to 320.
 MATRIX: dict[tuple[str, str], int] = {
@@ -139,6 +140,10 @@ def generate_candidates(
     say = progress or (lambda _m: None)
     items: list[QAItem] = []
     used: set[str] = set()
+    # Semantic rejections are tracked separately from parse failures. A model can
+    # return perfectly valid JSON containing an invented translation, and only
+    # this list sees it.
+    rejected: list[str] = []
 
     for (query_lang, passage_lang), count in matrix.items():
         # Over-select: some passages yield an empty reply, and a cell short of
@@ -162,7 +167,11 @@ def generate_candidates(
                     QA_GRAMMAR,
                 )
             )
-            if base is None or len(base.question) < 8:
+            if base is None:
+                continue
+            verdict = check_base(base, passage.text, passage.lang)
+            if not verdict:
+                rejected.append(f"{passage.passage_id}: base: {verdict.reason}")
                 continue
 
             question = base.question
@@ -173,6 +182,10 @@ def generate_candidates(
                 )
                 if translated is None:
                     continue
+                verdict = check_translation(question, translated.question, to=query_lang)
+                if not verdict:
+                    rejected.append(f"{passage.passage_id}: translate: {verdict.reason}")
+                    continue
                 question = translated.question
             elif query_lang == "hinglish":
                 hindi = question
@@ -182,9 +195,17 @@ def generate_candidates(
                     )
                     if step is None:
                         continue
+                    verdict = check_translation(question, step.question, to="hi")
+                    if not verdict:
+                        rejected.append(f"{passage.passage_id}: translate-hi: {verdict.reason}")
+                        continue
                     hindi = step.question
                 romanised = parse_reply(complete(build_hinglish_prompt(hindi), QA_GRAMMAR))
                 if romanised is None:
+                    continue
+                verdict = check_romanization(hindi, romanised.question)
+                if not verdict:
+                    rejected.append(f"{passage.passage_id}: romanize: {verdict.reason}")
                     continue
                 question = romanised.question
 
@@ -215,5 +236,10 @@ def generate_candidates(
                 say(f"  {query_lang}->{passage_lang}: {made}/{count}")
 
         say(f"  {query_lang}->{passage_lang}: {made}/{count} generated")
+
+    if rejected:
+        say(f"  {len(rejected)} candidates rejected by semantic checks")
+        for line in rejected[:8]:
+            say(f"    {line}")
 
     return items

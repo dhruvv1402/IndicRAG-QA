@@ -1,13 +1,13 @@
 DATASET COVERAGE vs PRD §6.2 / §6.3
 ------------------------------------------------------------------------------
   cell                    target  actual   delta
-  en->en                      70       0     -70  <-- off target
+  en->en                      70      70      +0
   en->hi                      45       0     -45  <-- off target
   hi->en                      45       0     -45  <-- off target
   hi->hi                      60       0     -60  <-- off target
   hinglish->en                55       0     -55  <-- off target
   hinglish->hi                45       0     -45  <-- off target
-  TOTAL answerable           320       0    -320
+  TOTAL answerable           320      70    -250
 
   unanswerable class      target  actual   delta
   false-premise               15      15      +0
@@ -16,6 +16,6 @@ DATASET COVERAGE vs PRD §6.2 / §6.3
   under-specified             10      10      +0
   TOTAL unanswerable          80      80      +0
 
-  GRAND TOTAL                400      80
+  GRAND TOTAL                400     150
 
-0 verified, 0 rejected, 80 remaining of 80
+0 verified, 0 rejected, 150 remaining of 150

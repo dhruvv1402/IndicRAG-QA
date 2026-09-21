@@ -194,3 +194,47 @@ def format_provenance(counts: dict[str, int]) -> list[str]:
         "  what the verification pass exists to correct.",
     ]
     return out
+
+
+def format_unknown_fields(items) -> list[str]:
+    """Report keys the loader dropped, which nothing else surfaces.
+
+    `models.py` deserializes tolerantly so a schema addition mid-annotation does
+    not invalidate the file an annotator is halfway through, and it stashes the
+    dropped keys in `unknown_fields` rather than discarding them. Nothing read
+    that field, so the stated mitigation did not function: a typo'd key --
+    `answer_gold_hin` for `answer_gold_hi` -- was silently ignored exactly as if
+    the stash did not exist.
+
+    This is the command annotators run while annotating, so it is where a
+    dropped key has to appear.
+    """
+    from collections import Counter
+
+    dropped: Counter = Counter()
+    carriers: dict[str, str] = {}
+    for item in items:
+        for key in getattr(item, "unknown_fields", {}) or {}:
+            dropped[key] += 1
+            carriers.setdefault(key, item.id)
+
+    if not dropped:
+        return []
+
+    rule = "-" * 78
+    out = [
+        "",
+        "UNRECOGNISED FIELDS -- these were read and discarded",
+        rule,
+        f"  {'field':<28}{'items':>7}   first seen on",
+    ]
+    for key, count in dropped.most_common():
+        out.append(f"  {key:<28}{count:>7}   {carriers[key]}")
+    out += [
+        "",
+        "  Loading is deliberately tolerant so a schema change does not invalidate",
+        "  a file mid-annotation. The cost is that a misspelled key looks exactly",
+        "  like a new one. If any of these are typos, the values in them are not",
+        "  reaching the evaluation.",
+    ]
+    return out

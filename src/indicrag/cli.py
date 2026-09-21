@@ -441,6 +441,7 @@ def dataset_stats(
         coverage,
         format_coverage,
         format_provenance,
+        format_unknown_fields,
     )
     from .dataset.verify import progress_of
 
@@ -451,6 +452,7 @@ def dataset_stats(
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
     lines = format_coverage(coverage(items))
+    lines += format_unknown_fields(items)
     if passages:
         lines += format_provenance(answer_provenance(items, passages))
     lines += ["", str(progress_of(items))]

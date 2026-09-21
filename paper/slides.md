@@ -1,12 +1,13 @@
 # Slide deck — IndicRAG-QA
 
-14 slides for a ~12 minute talk. One idea per slide; the speaker notes carry the
+16 slides for a ~14 minute talk. One idea per slide; the speaker notes carry the
 argument, the slide carries the evidence.
 
 The deck is built around the fusion finding rather than around the system. A
 system walkthrough invites "so what?" at the end; a failure mode answers it at
-the start. Slides 5–8 are the spine — if time runs short, cut 3, 11 and 13, not
-those.
+the start. Slides 5–8 are the spine and 11–12 are the payoff — if time runs short cut 3,
+then 13, then 14. Never 12: it is the one that stops the talk being a sales
+pitch.
 
 Retrieval figures are `[PROBE]` (180 synthetic probes). Any figure still marked
 `[PROBE]` on the day must be labelled on the slide, not just in the notes.
@@ -181,7 +182,50 @@ anecdote.
 
 ---
 
-## 11. Where this generalises
+## 11. Does it actually help the answers?
+
+Four arms, same generator, differing only in the evidence given.
+
+| Arm | token-F1 | abstains | Citation Support |
+|---|---|---|---|
+| closed-book | 0.065 | 0.486 | **0.162** |
+| RAG dense | 0.207 | 0.417 | 0.762 |
+| RAG hybrid | 0.210 | 0.361 | **0.826** |
+| oracle | 0.403 | 0.194 | 0.948 |
+
+Closed-book answers 37 of 72 questions. **16%** of those answers are supported
+by the evidence.
+
+Script-aware fusion propagates: hybrid beats dense on support *and* abstains
+less, same model, same questions.
+
+*Notes:* This is H3 and it is the cleanest result in the deck. The closed-book
+arm is not refusing — it is confidently reciting eligibility thresholds from
+memory and getting them wrong.
+
+---
+
+## 12. But retrieval is not the bottleneck
+
+| | |
+|---|---|
+| oracle token-F1 | 0.403 |
+| full system token-F1 | 0.210 |
+| **retrieval error** | **0.193** |
+| **generation error** | **0.597** |
+
+Fixing retrieval *entirely* buys 0.193. The 3B generator is losing 0.597.
+
+**Say this out loud:** our own contribution improves the smaller of the two.
+
+*Notes:* The slide that stops the talk being a sales pitch. The fusion result is
+a claim about retrieval, measured as retrieval. It is not a claim that retrieval
+is what limits answer quality here. This ratio is a property of a 3B quantized
+model, not a law — but it is why the oracle arm exists.
+
+---
+
+## 13. Where this generalises
 
 Not about Hindi. Not about script.
 
@@ -198,7 +242,7 @@ depending on whether each *could* have retrieved what the other did.
 
 ---
 
-## 12. A second negative result: answerability
+## 14. A second negative result: answerability
 
 Retrieval-score thresholds carry **no information** about answerability here.
 
@@ -222,7 +266,7 @@ than any single number. Motivates the NLI signal.
 
 ---
 
-## 13. Scope, stated plainly
+## 15. Scope, stated plainly
 
 - Encyclopedic corpus, **not** regulatory text
 - **One** Indic language; two scripts only
@@ -234,7 +278,7 @@ than any single number. Motivates the NLI signal.
 
 ---
 
-## 14. Conclusion
+## 16. Conclusion
 
 Hybrid retrieval inverts cross-lingually because **fusion treats a retriever's
 silence as evidence**.

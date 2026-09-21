@@ -1,13 +1,14 @@
 # Section VI — Results
 
-Modules 1, 2, 3 and 5 are written from measured numbers. Module 4 waits on the
-generation sweep and is marked as such rather than estimated.
+All five modules are written from measured numbers.
 
-**Two different bases, and they must not be conflated.** The retrieval figures
+**Three different bases, and they must not be conflated.** The retrieval figures
 (§VI-B to §VI-F) are `[PROBE]`: 180 synthetic probes over the real corpus. The
-answerability figures (§VI-H) are measured on all 400 gold items, which exist
-but are **not yet human-verified**. Neither may be quoted as a verified gold-set
-result; §VI-A states what the probes can and cannot support.
+question-answering figures (§VI-G) are measured on a 72-item sample of the gold
+set, stratified across the six language-pair cells. The answerability figures
+(§VI-H) use all 400 gold items. **None of the gold items is human-verified
+yet**, so nothing here may be quoted as a verified gold-set result; §VI-A states
+what the probes can and cannot support.
 
 ---
 

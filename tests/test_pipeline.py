@@ -142,3 +142,79 @@ def test_fusion_can_return_a_passage_the_lexical_retriever_cannot_see():
     """A Devanagari passage for a Latin query is unreachable by BM25."""
     result = answer_query("scholarship", CORPUS, retrievers=_retrievers(True), method="hybrid")
     assert "c#p0" in [c["passage_id"] for c in result.citations]
+
+
+# --- generated answering on the interactive path ---------------------------------
+
+
+def _llama_stub(reply: str):
+    """A LlamaCppProvider whose `complete` returns `reply`, with no model load."""
+    from indicrag.rag.providers import LlamaCppProvider
+
+    p = LlamaCppProvider.__new__(LlamaCppProvider)
+    p.calls = 0
+    p.parse_failures = 0
+    p.retries = 0
+    p.complete = lambda prompt, *a, **kw: reply  # type: ignore[method-assign]
+    return p
+
+
+def _lang():
+    from indicrag.query.langid import classify
+
+    return classify("what is the scholarship amount")
+
+
+def test_a_generated_answer_carries_the_model_citation():
+    provider = _llama_stub(
+        '{"answerable": true, "answer": "Rs. 12,000 per annum", '
+        '"citation": "b#p0", "confidence": 0.9}'
+    )
+    got = provider.answer("how much", CORPUS, lang=_lang())
+    assert got.text == "Rs. 12,000 per annum"
+    assert got.citations == ["b#p0"]
+    assert got.answerable and got.confidence == 0.9
+
+
+def test_an_invented_citation_does_not_become_the_displayed_evidence():
+    """The model naming an id that is not in the context must not put that id
+    in front of the user as the source."""
+    provider = _llama_stub(
+        '{"answerable": true, "answer": "Rs. 12,000", '
+        '"citation": "does-not-exist#p9", "confidence": 0.8}'
+    )
+    got = provider.answer("how much", CORPUS, lang=_lang())
+    assert got.citations == [CORPUS[0].passage_id]
+    assert "did not itself cite" in got.explanation
+
+
+def test_a_declined_answer_becomes_the_required_refusal_string():
+    from indicrag.rag.prompts import REFUSAL
+
+    provider = _llama_stub('{"answerable": false, "answer": "", "citation": "", "confidence": 0.0}')
+    got = provider.answer("how much", CORPUS, lang=_lang())
+    assert got.text == REFUSAL
+    assert got.answerable is False
+
+
+def test_unparseable_output_refuses_rather_than_answering_emptily():
+    from indicrag.rag.prompts import REFUSAL
+
+    got = _llama_stub("the model rambled").answer("how much", CORPUS, lang=_lang())
+    assert got.text == REFUSAL
+    assert got.answerable is False
+
+
+def test_the_demo_and_the_evaluation_share_one_prompt():
+    """If these diverged, the demonstrated system would not be the measured
+    one."""
+    seen = {}
+    provider = _llama_stub('{"answerable": true, "answer": "x", "citation": "a#p0", "confidence": 0.5}')
+    original = provider.complete
+    provider.complete = lambda prompt, *a, **kw: (seen.setdefault("p", prompt), original(prompt))[1]
+
+    provider.answer("how much", CORPUS, lang=_lang())
+
+    from indicrag.rag.prompts import build_answer_prompt
+
+    assert seen["p"] == build_answer_prompt("how much", CORPUS)

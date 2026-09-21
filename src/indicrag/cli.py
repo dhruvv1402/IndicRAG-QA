@@ -860,6 +860,10 @@ def ask(
         "hybrid", "--method",
         help="hybrid (script-aware, default) | hybrid-rrf | hybrid-weighted | bm25 | tfidf | dense",
     ),
+    gguf: str = typer.Option(
+        "", "--gguf",
+        help="Generate the answer with this GGUF model instead of extracting a sentence.",
+    ),
 ) -> None:
     """Answer one question and print the full response object."""
     from .pipeline import Retrievers, answer_query
@@ -894,7 +898,18 @@ def ask(
             err=True,
         )
 
-    result = answer_query(query, passages, retrievers=retrievers, method=method, k=k)
+    provider = None
+    if gguf:
+        from .rag.providers import LlamaCppProvider
+
+        cfg_llm = get_settings()
+        provider = LlamaCppProvider(
+            gguf, n_ctx=cfg_llm.llm_n_ctx, n_threads=cfg_llm.llm_n_threads
+        )
+
+    result = answer_query(
+        query, passages, retrievers=retrievers, method=method, k=k, provider=provider
+    )
     import json
 
     typer.echo(json.dumps(result.as_dict(), ensure_ascii=False, indent=2))

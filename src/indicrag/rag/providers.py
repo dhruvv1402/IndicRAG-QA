@@ -439,5 +439,64 @@ class LlamaCppProvider:
 
     def answer(
         self, query: str, passages: Sequence[Passage], *, lang: LangIdResult
-    ) -> Generated:  # pragma: no cover -- requires a model file
-        raise NotImplementedError("RAG answering is P4; see docs/PLAN.md §1.5")
+    ) -> Generated:
+        """Grounded answering for the interactive path.
+
+        Deliberately built on the same prompt and parser as the Module 4 arms
+        rather than on its own. If the demo answered by a different route from
+        the evaluation, the thing being demonstrated would not be the thing
+        being measured, and any divergence between them would surface as a
+        confusing bug report rather than as a number.
+
+        A reply the model declines, or one that will not parse, becomes a
+        refusal carrying the required string from PRD §9 -- not an empty answer
+        presented as though the system had responded.
+        """
+        from .arms import parse_answer
+        from .prompts import REFUSAL, build_answer_prompt
+
+        data = parse_answer(self.complete(build_answer_prompt(query, passages)))
+        by_id = {p.passage_id: p for p in passages}
+
+        if data is None:
+            return Generated(
+                text=REFUSAL,
+                lang=lang.lang,
+                confidence=0.0,
+                answerable=False,
+                explanation="The generator produced no parseable JSON object.",
+                citations=[],
+            )
+
+        text = (data.get("answer") or "").strip()
+        answerable = bool(data.get("answerable", True)) and bool(text)
+        cited = (data.get("citation") or "").strip()
+        # Fall back to the top passage when the model names an id that is not in
+        # the context. Its own citation is preferred, but an invented one must
+        # not become the displayed evidence.
+        citations = [cited] if cited in by_id else ([passages[0].passage_id] if passages else [])
+
+        if not answerable:
+            return Generated(
+                text=REFUSAL,
+                lang=lang.lang,
+                confidence=float(data.get("confidence") or 0.0),
+                answerable=False,
+                explanation="The generator reported the passages do not contain the answer.",
+                citations=citations,
+            )
+
+        source = by_id.get(citations[0]) if citations else None
+        where = f" ({source.scheme}, {source.section_path or 'lead'})" if source else ""
+        return Generated(
+            text=text,
+            lang=source.lang if source else lang.lang,
+            confidence=float(data.get("confidence") or 0.0),
+            answerable=True,
+            explanation=(
+                f"Generated from {citations[0]}{where}"
+                + ("" if cited in by_id else ", which the model did not itself cite")
+                + "."
+            ),
+            citations=citations,
+        )

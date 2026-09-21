@@ -560,21 +560,17 @@ def eval_answerability(
 ) -> None:
     """Module 5: can the system tell an answerable question from an unanswerable one?
 
-    Fits the retrieval-score threshold on a held-in slice and reports on the
-    rest. The per-class recall table is the result, not the aggregate F1 -- an
+    The per-class recall table is the result, not the aggregate F1 -- an
     aggregate can look respectable while the system fails completely on the
-    classes that matter.
+    classes that matter, and it can look poor while the system is merely
+    abstaining on everything.
     """
-    from .answerability.signals import ThresholdSignal, extract_features
-    from .evaluation.answerability import (
-        AnswerabilityOutcome,
-        AnswerabilityReport,
-        format_answerability,
-    )
     from .evaluation.all_reports import provenance
-    from .index.lexical import LexicalIndex
-    from .pipeline import Retrievers, retrieve
-    from .query.langid import classify
+    from .evaluation.answerability import (
+        format_answerability,
+        run_answerability,
+        stratified_by_class,
+    )
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
@@ -587,111 +583,30 @@ def eval_answerability(
             "against a set that is entirely answerable"
         )
 
-    retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
-    try:
-        from .index.dense import DenseIndex, Encoder
-        from .index.encoders import get
-
-        spec = get(cfg.encoder_primary)
-        retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
-        retrievers.encoder = Encoder(spec)
-    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
-        typer.echo(f"dense index unavailable ({exc}); '{method}' falls back to lexical")
-
-    retrievers.script_of = {
-        p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages
-    }
-    scheme_of = {p.passage_id: p.scheme for p in passages}
-
     if sample:
-        # Stratify on the label, not just the language pair. The unanswerable
-        # classes are 80 of 400 and false-premise is 11 of those; a flat sample
-        # drops exactly the rows the per-class table exists to show.
-        items = _stratified_by_class(items, sample)
+        items = stratified_by_class(items, sample)
         typer.echo(f"sampling {len(items)} items, stratified by answerability class")
 
-    typer.echo(f"  retrieving for {len(items)} items ({method}, k={k})")
-    hits = [retrieve(i.question, retrievers, method=method, k=k) for i in items]
-    features = [extract_features(h, scheme_of=scheme_of, k=k) for h in hits]
-    labels = [i.answerable for i in items]
-
-    # Fit on a stratified draw, report on the rest. This is not the dev/test
-    # split -- that needs verified items and `dataset split` -- so the numbers
-    # are preliminary twice over and the banner says so.
-    #
-    # Stratified rather than a prefix by id, because item ids are prefixed by
-    # kind: `qa-*` for answerable, `un-*` for unanswerable. Sorting by id put
-    # all 120 answerable items in dev and all 80 unanswerable in test, so the
-    # fit saw no positive examples, every tau scored F1=0, and the search
-    # returned its initial tau=0 -- a threshold that never abstains. The report
-    # then showed 0.000 recall on every unanswerable class, which reads exactly
-    # like a finding about the signal rather than a broken split.
-    dev_ids = {i.id for i in _stratified_by_class(items, max(1, int(len(items) * dev_fraction)))}
-    dev = [n for n, i in enumerate(items) if i.id in dev_ids]
-    test = [n for n, i in enumerate(items) if i.id not in dev_ids]
-
-    signal, dev_f1 = ThresholdSignal.fit([features[n] for n in dev], [labels[n] for n in dev])
-    result = AnswerabilityReport(system=f"threshold tau={signal.tau:.3f} ({method})")
-    for n in test:
-        item = items[n]
-        result.outcomes.append(
-            AnswerabilityOutcome(
-                item_id=item.id,
-                gold_answerable=item.answerable,
-                pred_answerable=signal.predict_answerable(features[n]),
-                query_type=classify(item.question).query_type,
-                unanswerable_class=item.unanswerable_class or "",
-            )
-        )
+    result, meta = run_answerability(
+        passages, items, method=method, k=k,
+        dev_fraction=dev_fraction, progress=typer.echo,
+    )
 
     lines = provenance(items, str(gold))
-    lines += [f"tau fitted on {len(dev)} items (F1={dev_f1:.3f}); reported on {len(test)} held out.", ""]
+    lines += [
+        f"tau fitted on {len(meta['dev'])} items (F1={meta['dev_f1']:.3f}); "
+        f"reported on {len(meta['test'])} held out.",
+        "",
+    ]
     lines += format_answerability(result)
 
     if gguf:
         lines += ["", "=" * 78, ""] + _self_report_signal(
-            items, passages, hits, labels, dev, test, gguf=gguf, k=k
+            items, passages, meta["hits"], meta["labels"],
+            meta["dev"], meta["test"], gguf=gguf, k=k,
         )
 
     _emit(lines, report)
-
-
-def _stratified_by_class(items: list, n: int, *, seed: int = 20260922) -> list:
-    """Seeded draw of `n` items taking the same *share* of each class.
-
-    Proportional, not round-robin. `_stratified` above round-robins because its
-    job is to spread a small sample evenly over the six language pairs. This
-    function's job is different: it splits a set into two parts that must each
-    look like the whole, and round-robin does the opposite -- the unanswerable
-    classes are the small cells, so it drains them into the first part and
-    leaves the second entirely answerable. Both failures were observed: a
-    prefix by id put every unanswerable item in test, and round-robin put every
-    one of them in dev.
-
-    At least one item is taken from every stratum, so no class is silently
-    absent from the fit.
-    """
-    import random
-    from collections import defaultdict
-
-    if n <= 0 or n >= len(items):
-        return list(items)
-
-    cells: dict[str, list] = defaultdict(list)
-    for item in items:
-        cells["answerable" if item.answerable else (item.unanswerable_class or "other")].append(
-            item
-        )
-
-    rng = random.Random(seed)
-    fraction = n / len(items)
-    out: list = []
-    for key in sorted(cells):
-        group = sorted(cells[key], key=lambda i: i.id)
-        rng.shuffle(group)
-        take = min(len(group), max(1, round(len(group) * fraction)))
-        out.extend(group[:take])
-    return sorted(out, key=lambda i: i.id)
 
 
 def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, k: int) -> list:

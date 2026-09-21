@@ -167,3 +167,126 @@ def format_answerability(report: AnswerabilityReport) -> list[str]:
             "  users for their language rather than for missing evidence.",
         ]
     return out
+
+
+# --- running the evaluation ------------------------------------------------------
+#
+# This lives here rather than in the CLI so that `eval answerability` and
+# `eval all` share one implementation. It previously sat in the CLI, which is
+# precisely why `eval all` -- the command PRD NFR-6 points at for regenerating
+# every committed table -- had no answerability stage and this report could only
+# be produced by remembering to run a second command.
+
+
+def stratified_by_class(items, n: int, *, seed: int = 20260922) -> list:
+    """Seeded draw of `n` items taking the same *share* of each class.
+
+    Proportional, and stratified on the label rather than on anything else,
+    because both obvious alternatives were observed to fail. Fitting on a prefix
+    sorted by item id put every unanswerable item in the test half -- ids are
+    prefixed by kind -- so the fit saw no positive examples, every threshold
+    scored F1 = 0, and the search returned a threshold that never abstains.
+    Round-robin across strata produced the mirror image: the unanswerable
+    classes are the small cells, so it drained all of them into the fitting half
+    and left the reported half entirely answerable.
+
+    Either way one half is single-class and the resulting table reads like a
+    finding about the signal.
+    """
+    import random
+    from collections import defaultdict
+
+    if n <= 0 or n >= len(items):
+        return list(items)
+
+    cells: dict[str, list] = defaultdict(list)
+    for item in items:
+        cells["answerable" if item.answerable else (item.unanswerable_class or "other")].append(
+            item
+        )
+
+    rng = random.Random(seed)
+    fraction = n / len(items)
+    out: list = []
+    for key in sorted(cells):
+        group = sorted(cells[key], key=lambda i: i.id)
+        rng.shuffle(group)
+        take = min(len(group), max(1, round(len(group) * fraction)))
+        out.extend(group[:take])
+    return sorted(out, key=lambda i: i.id)
+
+
+def run_answerability(
+    passages,
+    items,
+    *,
+    method: str = "hybrid",
+    k: int = 5,
+    dev_fraction: float = 0.3,
+    progress=None,
+):
+    """Fit the retrieval-score threshold and report it on held-out items.
+
+    Returns `(report, meta)` where meta carries the fitted signal, the dev F1
+    and the index lists, so a caller that also wants the generator self-report
+    can reuse the same split rather than drawing its own.
+    """
+    from ..answerability.signals import ThresholdSignal, extract_features
+    from ..config import get_settings
+    from ..index.lexical import LexicalIndex
+    from ..models import Passage  # noqa: F401 -- documents the expected type
+    from ..pipeline import Retrievers, retrieve
+    from ..query.langid import classify
+
+    say = progress or (lambda _m: None)
+    cfg = get_settings()
+
+    retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
+    try:
+        from ..index.dense import DenseIndex, Encoder
+        from ..index.encoders import get
+
+        spec = get(cfg.encoder_primary)
+        retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+        retrievers.encoder = Encoder(spec)
+    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
+        say(f"  dense index unavailable ({exc}); '{method}' falls back to lexical")
+
+    retrievers.script_of = {
+        p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages
+    }
+    scheme_of = {p.passage_id: p.scheme for p in passages}
+
+    say(f"  retrieving for {len(items)} items ({method}, k={k})")
+    hits = [retrieve(i.question, retrievers, method=method, k=k) for i in items]
+    features = [extract_features(h, scheme_of=scheme_of, k=k) for h in hits]
+    labels = [i.answerable for i in items]
+
+    dev_ids = {
+        i.id for i in stratified_by_class(items, max(1, int(len(items) * dev_fraction)))
+    }
+    dev = [n for n, i in enumerate(items) if i.id in dev_ids]
+    test = [n for n, i in enumerate(items) if i.id not in dev_ids]
+
+    signal, dev_f1 = ThresholdSignal.fit([features[n] for n in dev], [labels[n] for n in dev])
+    report = AnswerabilityReport(system=f"threshold tau={signal.tau:.3f} ({method})")
+    for n in test:
+        item = items[n]
+        report.outcomes.append(
+            AnswerabilityOutcome(
+                item_id=item.id,
+                gold_answerable=item.answerable,
+                pred_answerable=signal.predict_answerable(features[n]),
+                query_type=classify(item.question).query_type,
+                unanswerable_class=item.unanswerable_class or "",
+            )
+        )
+
+    return report, {
+        "signal": signal,
+        "dev_f1": dev_f1,
+        "dev": dev,
+        "test": test,
+        "hits": hits,
+        "labels": labels,
+    }

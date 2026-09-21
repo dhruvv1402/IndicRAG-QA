@@ -250,7 +250,7 @@ def test_both_halves_of_the_split_contain_unanswerable_items():
     fit saw no positive examples and returned a threshold that never abstains.
     Round-robin then put every one of them in dev. Either way one half is
     single-class and the numbers look like a finding."""
-    from indicrag.cli import _stratified_by_class
+    from indicrag.evaluation.answerability import stratified_by_class as _stratified_by_class
 
     items = _mixed_set()
     dev = _stratified_by_class(items, 120)
@@ -264,7 +264,7 @@ def test_both_halves_of_the_split_contain_unanswerable_items():
 
 
 def test_every_unanswerable_class_survives_into_both_halves():
-    from indicrag.cli import _stratified_by_class
+    from indicrag.evaluation.answerability import stratified_by_class as _stratified_by_class
 
     items = _mixed_set()
     dev = _stratified_by_class(items, 120)
@@ -278,7 +278,7 @@ def test_every_unanswerable_class_survives_into_both_halves():
 
 def test_the_draw_is_proportional_rather_than_even():
     """Even cells would drain the small unanswerable classes into dev."""
-    from indicrag.cli import _stratified_by_class
+    from indicrag.evaluation.answerability import stratified_by_class as _stratified_by_class
 
     dev = _stratified_by_class(_mixed_set(), 120)
     answerable = sum(1 for i in dev if i.answerable)
@@ -286,7 +286,7 @@ def test_the_draw_is_proportional_rather_than_even():
 
 
 def test_the_draw_is_deterministic():
-    from indicrag.cli import _stratified_by_class
+    from indicrag.evaluation.answerability import stratified_by_class as _stratified_by_class
 
     items = _mixed_set()
     assert [i.id for i in _stratified_by_class(items, 120)] == [

@@ -156,6 +156,27 @@ def run_all(
     except Exception as exc:  # noqa: BLE001
         summary.add(StageResult("report-errors", skipped=f"{type(exc).__name__}: {exc}"))
 
+    # --- answerability --------------------------------------------------------
+    say("answerability")
+    try:
+        from .answerability import format_answerability, run_answerability
+
+        if not any(not i.answerable for i in items):
+            raise FileNotFoundError(
+                "no unanswerable items; answerability cannot be measured against a "
+                "set that is entirely answerable"
+            )
+        result, meta = run_answerability(passages, items, progress=lambda m: None)
+        lines = banner + [
+            f"tau fitted on {len(meta['dev'])} items (F1={meta['dev_f1']:.3f}); "
+            f"reported on {len(meta['test'])} held out.",
+            "",
+        ]
+        lines += format_answerability(result)
+        summary.add(_write(out_dir / "report-answerability.txt", lines))
+    except Exception as exc:  # noqa: BLE001
+        summary.add(StageResult("report-answerability", skipped=f"{type(exc).__name__}: {exc}"))
+
     # --- module 4 -------------------------------------------------------------
     if include_qa:
         summary.add(

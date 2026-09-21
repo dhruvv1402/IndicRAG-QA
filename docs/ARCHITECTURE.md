@@ -652,7 +652,7 @@ indicrag dataset stats                             matrix coverage vs PRD §6.2
 
 ## 19. Performance budget
 
-**Measured on the development machine, 2026-09-20.** Encoding figures below are real, not estimates; the generation figures remain estimates until P4.
+**Measured on the development machine, 2026-09-20; generation figures added 2026-09-21.** Encoding and generation figures are real. The final table is the original estimate, retained so the misses are visible.
 
 | Encoder | Params | 694 passages | Rate |
 |---|---|---|---|
@@ -671,8 +671,35 @@ hand-rolled `transformers` loop while the sentence models use SentenceTransforme
 optimised batching. Anything added to the MLM arm should be budgeted at MuRIL's
 rate, not interpolated from its size.
 
-The table below is the original per-stage budget. Generation rows are still
-estimates.
+### 19.1 Generation, measured
+
+**Measured 2026-09-21** on Qwen2.5-3B-Instruct-Q4_K_M, 4 threads, over a
+stratified 72-item Module 4 run.
+
+| Arm | Prompt | Measured | n |
+|---|---|---|---|
+| A closed-book | no passages, ~60 tokens | **8.9 s** | 72 |
+| B RAG-dense | k=5 passages, ~1500 tokens | **57.7 s** | 11 |
+
+The original estimate of 8–12 s per generation was right for the closed-book arm
+and wrong by roughly 5× for the RAG arms, because it budgeted output tokens and
+ignored prefill. At k=5 the prompt is ~1500 tokens against ~80 generated, so
+**prefill dominates and cost scales with the context, not the answer**. The
+practical lever is therefore k and the per-passage excerpt length, not
+`max_tokens` — halving the output budget would save almost nothing.
+
+Revised full-sweep figure: 320 answerable items × 4 arms ≈ **16 h**, against the
+4–5 h in the estimate below. This is why Module 4 runs on a stratified sample
+first (`eval qa --sample N`) and why generations are cached per item rather than
+per run.
+
+One related measurement, since it looks like a contradiction: removing
+schema-constrained decoding sped the closed-book arm up 2.7× (24 s → 8.9 s) but
+the RAG arms only ~1.2× (71 s → 57.7 s). Grammar checking is a per-*generated*-
+token cost, so it is diluted exactly where prefill dominates.
+
+The table below is the original per-stage budget, kept for comparison. Its
+generation rows are the estimates corrected above.
 
 | Stage | Scale | Estimate | Notes |
 |---|---|---|---|

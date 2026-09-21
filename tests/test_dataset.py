@@ -472,3 +472,23 @@ def test_free_ram_probe_returns_a_plausible_value_on_this_machine():
 
     free = T.free_ram_gb()
     assert free is None or 0.1 < free < 2048
+
+
+def test_exclusion_happens_before_selection_not_after():
+    """Regression: en->hi finished at 20/45 while 64 usable passages sat unused.
+
+    Selecting count*3 candidates from the whole corpus and *then* dropping the
+    already-used ones looks equivalent to excluding first and is not. By the
+    third cell drawing on the same language, most of what gets selected is
+    already spent, the over-selection headroom evaporates, and the cell runs out
+    of candidates rather than out of corpus.
+    """
+    passages = _passages(n_schemes=4, per_scheme=6)
+    en = [p for p in passages if p.lang == "en"]
+    # Spend all but four English passages.
+    spent = {p.passage_id for p in en[:-4]}
+    items = generate_candidates(
+        passages, _Stub(), matrix={("en", "en"): 4}, exclude=spent
+    )
+    assert len(items) == 4, "the four remaining passages should all be reachable"
+    assert not ({pid for i in items for pid in i.gold_passage_ids} & spent)

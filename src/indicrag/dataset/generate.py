@@ -153,10 +153,14 @@ def generate_candidates(
     rejected: list[str] = []
 
     for (query_lang, passage_lang), count in matrix.items():
-        # Over-select: some passages yield an empty reply, and a cell short of
-        # its target skews the matrix the evaluation is grouped by.
-        pool = select_passages(passages, passage_lang, count * 3, rng=rng)
-        pool = [p for p in pool if p.passage_id not in used]
+        # Exclude BEFORE selecting, not after. Selecting count*3 from the whole
+        # corpus and then filtering looks equivalent and is not: by the third
+        # Hindi-evidence cell most of what gets selected is already spent, so the
+        # over-selection headroom evaporates and the pool collapses. That is how
+        # en->hi finished at 20/45 while 64 usable Hindi passages sat unused --
+        # the cell ran out of candidates, not out of corpus.
+        available = [p for p in passages if p.passage_id not in used]
+        pool = select_passages(available, passage_lang, count * 3, rng=rng)
         made = 0
 
         for passage in pool:

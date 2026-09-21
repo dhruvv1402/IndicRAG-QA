@@ -292,3 +292,100 @@ def test_the_draw_is_deterministic():
     assert [i.id for i in _stratified_by_class(items, 120)] == [
         i.id for i in _stratified_by_class(items, 120)
     ]
+
+
+# --- score separation reporting --------------------------------------------------
+#
+# These exist because the threshold result was twice written up wrongly: once as
+# 0.000 recall on false-premise, once as 0.93, from the same flat curve. The
+# separation table and the sweep are what make that visible, so their semantics
+# are pinned rather than left to the formatter.
+
+
+def test_separation_is_empty_when_one_class_is_missing():
+    """A table comparing two classes when only one is present says nothing."""
+    from indicrag.evaluation.answerability import format_separation
+
+    assert format_separation([0.1, 0.2], [True, True]) == []
+    assert format_separation([0.1, 0.2], [False, False]) == []
+
+
+def test_separation_warns_when_unanswerable_score_at_least_as_high():
+    """The direction a threshold assumes is answerable-scores-higher. When it
+    does not hold, the table has to say so -- that is the whole finding."""
+    from indicrag.evaluation.answerability import format_separation
+
+    text = "\n".join(format_separation([0.1, 0.3], [True, False]))
+    assert "opposite of the direction" in text
+    assert "not weak here, it is absent" in text
+
+
+def test_separation_stays_quiet_when_the_signal_points_the_right_way():
+    from indicrag.evaluation.answerability import format_separation
+
+    text = "\n".join(format_separation([0.9, 0.1], [True, False]))
+    assert "opposite of the direction" not in text
+
+
+def test_separation_reports_the_base_rate():
+    """Precision at the base rate is how you recognise a useless threshold."""
+    from indicrag.evaluation.answerability import format_separation
+
+    text = "\n".join(format_separation([0.1] * 8 + [0.2] * 2, [True] * 8 + [False] * 2))
+    assert "0.200" in text
+
+
+# --- the threshold sweep ---------------------------------------------------------
+
+
+def test_the_sweep_covers_the_whole_range():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import tau_sweep
+
+    feats = [Features(max_score=s) for s in (0.1, 0.5, 0.9)]
+    rows = tau_sweep(feats, [True, False, True], grid=10)
+    assert len(rows) == 11
+    assert rows[0][0] == 0.0 and rows[-1][0] == 1.0
+
+
+def test_a_perfectly_separable_signal_reaches_f1_one():
+    """Guards the sweep arithmetic itself: if it cannot find a clean split when
+    one exists, a flat result proves nothing."""
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import tau_sweep
+
+    feats = [Features(max_score=s) for s in (1.0, 0.9, 0.1, 0.05)]
+    rows = tau_sweep(feats, [True, True, False, False], grid=20)
+    assert max(r[3] for r in rows) == 1.0
+
+
+def test_an_uninformative_signal_never_beats_the_base_rate_on_precision():
+    """Identical scores in both classes: no threshold can do better than
+    abstaining at random, so precision tops out at the prevalence."""
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import tau_sweep
+
+    labels = [True] * 8 + [False] * 2
+    feats = [Features(max_score=0.5) for _ in labels]
+    rows = tau_sweep(feats, labels, grid=20)
+    assert max(r[1] for r in rows) <= 0.2 + 1e-9
+
+
+def test_abstention_rises_monotonically_with_tau():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import tau_sweep
+
+    feats = [Features(max_score=s / 10) for s in range(1, 11)]
+    rates = [r[4] for r in tau_sweep(feats, [True] * 5 + [False] * 5, grid=20)]
+    assert rates == sorted(rates)
+
+
+def test_the_sweep_report_marks_the_best_row_and_its_cost():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import format_tau_sweep, tau_sweep
+
+    feats = [Features(max_score=s) for s in (1.0, 0.9, 0.1, 0.05)]
+    text = "\n".join(format_tau_sweep(tau_sweep(feats, [True, True, False, False], grid=10)))
+    assert "best F1" in text
+    assert "abstention" in text
+    assert "it is silence" in text

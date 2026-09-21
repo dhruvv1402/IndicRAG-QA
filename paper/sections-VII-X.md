@@ -51,9 +51,17 @@ This concentrates the error in one component. Categories that appear
 linguistically distinct in the taxonomy — code-mixing, transliteration
 variation, the cross-lingual gap — turn out to share a single mechanism once the
 retrieved lists are read side by side, and that mechanism is a retriever that
-cannot cross a script boundary. Categories that are genuinely about generation,
-such as amounts and dates, are comparatively rare in this sample, which is
-itself informative: on this corpus the generator is not the bottleneck.
+cannot cross a script boundary. In 16 of the 20 cases the gold passage is not
+returned at any rank, and all 20 are diagnosed as retrieval failures.
+
+**That unanimity is a property of the selection, not a finding about the
+generator.** The cases are drawn from retrieval failures against a taxonomy of
+retrieval phenomena, so a generation error has no route into this sample. It
+would be a mistake to read "all 20 are retrieval" as evidence that the generator
+is sound, and §VI-G.1 shows the opposite: given the gold passage and nothing to
+find, the generator still loses 0.597 token-F1, three times what retrieval
+loses. The error analysis says where *retrieval* fails and why; the oracle arm
+is what says how the two components compare.
 
 ### C. The case that produced the paper's main result
 

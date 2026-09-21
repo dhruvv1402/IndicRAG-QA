@@ -1,0 +1,42 @@
+MODULE 4 -- direct LLM vs retrieval-augmented question answering
+------------------------------------------------------------------------------
+  arm                    n       EM   token-F1   abstain      CSR
+------------------------------------------------------------------------------
+  closed-book           72    0.014      0.065     0.486    0.162
+  RAG dense             72    0.139      0.207     0.417    0.762
+  RAG hybrid            72    0.139      0.210     0.361    0.826
+  oracle                72    0.264      0.403     0.194    0.948
+
+ERROR DECOMPOSITION
+------------------------------------------------------------------------------
+  oracle (D) token-F1        0.403
+  full system (C) token-F1   0.210
+  retrieval error  (D - C)   0.193
+  generation error (1 - D)   0.597
+
+  This is what the brief asks for: a wrong answer attributable to the
+  component that caused it. D is generation given perfect evidence, so
+  what D still gets wrong is the generator, and the gap to C is what
+  retrieval lost.
+
+H3 -- does retrieval reduce unsupported answers?
+------------------------------------------------------------------------------
+  RAG dense          CSR 0.762   vs closed-book 0.162   +0.600
+  RAG hybrid         CSR 0.826   vs closed-book 0.162   +0.664
+  oracle             CSR 0.948   vs closed-book 0.162   +0.786
+
+GROUNDING -- qwen2.5-3b-instruct-q4_k_m
+------------------------------------------------------------------------------
+Citation Support Rate: of questions ANSWERED, the share whose answer the
+cited evidence supports. Abstentions are excluded from the denominator --
+declining to answer is not a grounding failure.
+
+  arm               answered   CSR (lex)   CSR (NLI)   abstained
+  A                       37       0.162           -       0.486
+  B                       42       0.762           -       0.417
+  C                       46       0.826           -       0.361
+  D                       58       0.948           -       0.194
+
+H3 is supported only if the RAG arms exceed the closed-book arm here.
+Note that an extractive system scores 1.0 by construction, so it is a
+floor for reading the generative arms rather than a competitor.

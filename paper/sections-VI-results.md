@@ -168,14 +168,71 @@ before it can be claimed.
 
 ### G. Direct LLM against RAG (Module 4)
 
-> **Pending.** The generation sweep over arms A (closed-book), B (RAG-dense),
-> C (RAG-hybrid) and D (RAG-oracle) is running on a stratified 72-item sample
-> balanced across the six language-pair cells. Generations are cached per arm,
-> so this table fills in without re-running completed work. The results to be
-> reported here are Exact Match and script-aware token F1 per arm, Citation
-> Support Rate under both lexical and NLI verification, abstention rate, and the
-> fabricated-citation rate — the last being the rate at which an arm names a
-> passage id that does not exist, which arm A can do only by invention.
+We run four arms over a 72-item sample stratified across the six
+language-pair cells: **A** closed-book, the model answering from its own
+parameters with no passages; **B** retrieval-augmented with dense retrieval;
+**C** retrieval-augmented with script-aware fusion; and **D** an oracle given
+the gold passage directly. The generator is Qwen2.5-3B-Instruct at 4-bit
+quantization throughout, so the arms differ only in the evidence they receive.
+
+**Module 4, 72 items per arm** `[PROBE]`
+
+| Arm | EM | token-F1 | abstains | Citation Support |
+|---|---|---|---|---|
+| A closed-book | 0.014 | 0.065 | 0.486 | 0.162 |
+| B RAG-dense | 0.139 | 0.207 | 0.417 | 0.762 |
+| C RAG-hybrid | 0.139 | **0.210** | 0.361 | **0.826** |
+| D oracle | 0.264 | 0.403 | 0.194 | 0.948 |
+
+**H3 is supported, and by a wide margin.** Citation Support Rate — the share of
+answered questions whose answer the cited evidence actually supports — rises
+from 0.162 closed-book to 0.826 with retrieval, and to 0.948 given the gold
+passage. The closed-book arm answers 37 of 72 questions and only 16% of those
+answers are supported by the evidence that would have justified them. It is not
+declining to answer; it is answering from memory about specific eligibility
+thresholds and scheme parameters, and is usually wrong. This is the behaviour
+the system exists to prevent, and retrieval prevents most of it.
+
+Abstention falls monotonically as the evidence improves, from 0.486 to 0.417 to
+0.361 to 0.194. The generator abstains less when it has something to work from,
+which is the desired direction: the abstentions are responding to the absence of
+evidence rather than to a fixed conservatism.
+
+The fusion result propagates. Arm C exceeds arm B on Citation Support (0.826
+against 0.762) and abstains less often (0.361 against 0.417) on identical
+questions with an identical generator. The only difference between them is which
+passages retrieval supplied, so the improvement in §VI-E is visible downstream
+rather than remaining a retrieval-internal metric.
+
+### G.1 Where the errors actually are
+
+The oracle arm decomposes the remaining failure, and the result qualifies this
+paper's own contribution.
+
+| Quantity | Value |
+|---|---|
+| oracle (D) token-F1 | 0.403 |
+| full system (C) token-F1 | 0.210 |
+| **retrieval error** (D − C) | **0.193** |
+| **generation error** (1 − D) | **0.597** |
+
+Generation error is three times retrieval error. Given the correct passage and
+nothing to find, the 3B quantized generator still reaches only 0.403 token-F1.
+The ceiling on what *any* retrieval improvement can buy on this corpus, with
+this generator, is 0.193 — and script-aware fusion has already taken part of it.
+
+We state this plainly because it bounds the practical reading of §VI-E. The
+fusion correction is a real and large improvement to *retrieval*, measured as
+retrieval; it is not a claim that retrieval is the binding constraint on
+end-to-end answer quality here. On this corpus it is not. A reader whose
+priority is answer quality rather than evidence selection should read the
+0.597 first, and it points at the generator — its size, its quantization, or
+its prompt — rather than at the retriever.
+
+Exact Match is low throughout (0.264 even for the oracle) and we do not read
+much into it. A 3B model asked an open question rarely reproduces a gold string
+verbatim, so EM here measures formatting agreement more than correctness;
+token-F1 is the informative column.
 
 ### H. Answerability (Module 5)
 

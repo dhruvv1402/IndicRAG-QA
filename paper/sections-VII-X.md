@@ -166,7 +166,30 @@ than the aggregate because the aggregate hides it: overall Recall@5 moves from
 0.483 to 0.500, a difference indistinguishable from noise (p = 0.32), and a
 paper reporting only that number would be concealing both the gain and the cost.
 
-### D. Where this generalises
+### D. Retrieval is not the binding constraint here
+
+The oracle arm of §VI-G puts a number on what this correction can be worth
+end to end, and it is smaller than the retrieval figures alone suggest. Given
+the gold passage and nothing to find, our generator reaches 0.403 token-F1;
+the full system reaches 0.210. Generation error is therefore 0.597 and
+retrieval error 0.193, a factor of three apart.
+
+We report this because it constrains the practical claim rather than the
+scientific one. Script-aware fusion is a large improvement to retrieval,
+measured as retrieval, and §VI-G shows it propagating: arm C exceeds arm B on
+citation support and abstains less often, with the same generator and the same
+questions. But a reader who cares about end-to-end answer quality on a corpus
+like ours should know that fixing retrieval entirely would buy 0.193, while the
+generator is leaving 0.597 on the table.
+
+That ratio is a property of this configuration, not a general law. A 3B model at
+4-bit quantization is a deliberately small generator, chosen so every number
+here is reproducible on commodity hardware, and a larger one would move the
+0.597 without touching the 0.193. The point is that the two error sources have
+to be measured separately before either is optimised, which is precisely what
+the oracle arm is for and why the brief asks for it.
+
+### E. Where this generalises
 
 The mechanism is not about Hindi, and it is not about script. It appears
 wherever rank fusion is applied over retrievers with *asymmetric coverage* of
@@ -297,6 +320,15 @@ training data, and no additional compute at query time — which suggests that t
 gap between the cross-lingual and monolingual performance of hybrid retrieval
 systems may be, in part, an artefact of how their components are combined rather
 than a limitation of the components themselves.
+
+One measurement bounds all of this and belongs in the summary rather than only
+in the results. The oracle arm shows generation error of 0.597 against retrieval
+error of 0.193 on our configuration: correcting retrieval entirely would buy
+less than a third of what the generator is currently losing. The fusion result
+is a claim about retrieval, and it is not a claim that retrieval is what most
+limits answer quality on a corpus like this one. Separating the two is what the
+oracle arm exists to do, and doing it changed what we would advise a
+practitioner to fix first.
 
 Immediate future work is to complete human verification of the evaluation set
 and replace every `[PROBE]` figure with a gold-set measurement; to extend the

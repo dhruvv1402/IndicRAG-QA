@@ -148,3 +148,75 @@ def test_empty_report_does_not_divide_by_zero():
     r = AnswerabilityReport("s", [])
     assert r.confusion().accuracy == 0.0
     assert r.recall_by_class() == {}
+
+
+# --- generator self-report (ARCHITECTURE §12 signal 2) ---------------------------
+
+
+def _reports():
+    from indicrag.answerability.signals import SelfReport
+
+    return [
+        SelfReport(answerable=True, confidence=0.9),   # answerable, confident
+        SelfReport(answerable=True, confidence=0.2),   # answerable, hedged
+        SelfReport(answerable=False, confidence=0.0),  # abstained
+        SelfReport(answerable=False, confidence=0.9),  # confidently abstained
+    ]
+
+
+def test_an_abstention_scores_zero_however_confident_it_was():
+    """A model abstaining with confidence 0.9 is confidently saying it cannot
+    answer -- that is not a confident answer."""
+    from indicrag.answerability.signals import SelfReport, SelfReportSignal
+
+    signal = SelfReportSignal()
+    assert signal.score(SelfReport(answerable=False, confidence=0.9)) == 0.0
+    assert signal.predict_answerable(SelfReport(answerable=False, confidence=0.9)) is False
+
+
+def test_confidence_gates_an_answer_the_model_did_give():
+    from indicrag.answerability.signals import SelfReport, SelfReportSignal
+
+    signal = SelfReportSignal(min_confidence=0.5)
+    assert signal.predict_answerable(SelfReport(True, 0.9)) is True
+    assert signal.predict_answerable(SelfReport(True, 0.2)) is False
+
+
+def test_fitting_maximises_f1_on_the_unanswerable_class():
+    from indicrag.answerability.signals import SelfReportSignal
+
+    reports = _reports()
+    signal, f1 = SelfReportSignal.fit(reports, [True, False, False, False])
+    assert f1 == 1.0
+    assert [signal.predict_answerable(r) for r in reports] == [True, False, False, False]
+
+
+def test_a_zero_threshold_is_a_real_outcome_not_a_failed_fit():
+    """If the flag carries the decision and confidence adds nothing, 0.0 is the
+    right answer and means something."""
+    from indicrag.answerability.signals import SelfReport, SelfReportSignal
+
+    reports = [SelfReport(True, 0.9), SelfReport(False, 0.9)]
+    signal, f1 = SelfReportSignal.fit(reports, [True, False])
+    assert signal.min_confidence == 0.0
+    assert f1 == 1.0
+
+
+def test_fitting_on_nothing_does_not_raise():
+    from indicrag.answerability.signals import SelfReportSignal
+
+    signal, f1 = SelfReportSignal.fit([], [])
+    assert f1 == 0.0 and signal.min_confidence == 0.0
+
+
+def test_it_reads_a_generation_without_importing_one():
+    from indicrag.rag.arms import Generation
+    from indicrag.answerability.signals import SelfReport
+
+    gen = Generation(
+        item_id="i", arm="B", question="q", answerable=True,
+        answer="Rs. 12,000 per annum", citation="p1", confidence=0.8,
+    )
+    report = SelfReport.from_generation(gen)
+    assert report.answerable and report.confidence == 0.8
+    assert report.answer_length == 4

@@ -147,3 +147,89 @@ def unanswerable_f1(pred_answerable: Sequence[bool], gold_answerable: Sequence[b
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
     return 2 * precision * recall / (precision + recall)
+
+
+@dataclass
+class SelfReport:
+    """What the generator claimed about one question.
+
+    Two separate claims, deliberately kept apart. `answerable` is the model's
+    verdict; `confidence` is how sure it says it is. A model that abstains with
+    confidence 0.9 is making a confident claim that it cannot answer, which is
+    not the same as answering with low confidence, and collapsing them loses the
+    distinction that makes this signal worth having.
+    """
+
+    answerable: bool = True
+    confidence: float = 0.0
+    answer_length: int = 0
+
+    @classmethod
+    def from_generation(cls, gen) -> SelfReport:
+        """Build from a `rag.arms.Generation` without importing it."""
+        return cls(
+            answerable=bool(gen.answerable),
+            confidence=float(gen.confidence or 0.0),
+            answer_length=len((gen.answer or "").split()),
+        )
+
+
+@dataclass
+class SelfReportSignal:
+    """Abstain when the generator says it cannot answer, or says so weakly.
+
+    ARCHITECTURE §12 signal 2, and the only one of the four that sees the
+    passage *text* rather than a retrieval score. That is the whole reason it is
+    evaluated separately rather than folded into the calibrated combination: the
+    threshold signal scores 0.000 on false-premise questions because such a
+    question retrieves confidently -- the scheme it names is real -- and no
+    function of retrieval scores can separate it from an answerable one. A
+    signal that reads the passage can, in principle, notice that the asserted
+    fact is absent.
+
+    Whether it does is an empirical question, and it is the one this signal
+    exists to answer. It is free: the fields are already generated.
+    """
+
+    #: Minimum self-reported confidence to accept an answer the model did give.
+    min_confidence: float = 0.0
+
+    def score(self, report: SelfReport) -> float:
+        """Confidence that the question is ANSWERABLE, in [0, 1]."""
+        if not report.answerable:
+            return 0.0
+        return max(0.0, min(1.0, report.confidence))
+
+    def predict_answerable(self, report: SelfReport) -> bool:
+        return report.answerable and report.confidence >= self.min_confidence
+
+    @classmethod
+    def fit(
+        cls,
+        reports: Sequence[SelfReport],
+        labels: Sequence[bool],
+        *,
+        grid: int = 20,
+    ) -> tuple[SelfReportSignal, float]:
+        """Choose `min_confidence` by maximising F1 on the UNANSWERABLE class.
+
+        Same objective as the threshold signal, for the same reason: accuracy is
+        maximised by never abstaining, which is the failure being guarded
+        against.
+
+        Note that a fitted threshold of 0.0 is a real and informative outcome,
+        not a failure to fit. It means the model's own `answerable` flag carries
+        the decision and its confidence adds nothing -- which is what one would
+        expect from a small model that reports 0.9 for almost everything it
+        answers.
+        """
+        if not reports:
+            return cls(), 0.0
+        best = (cls(), -1.0)
+        for i in range(grid + 1):
+            signal = cls(min_confidence=i / grid)
+            preds = [signal.predict_answerable(r) for r in reports]
+            f1 = unanswerable_f1(preds, labels)
+            if f1 > best[1]:
+                best = (signal, f1)
+        return best

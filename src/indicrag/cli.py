@@ -312,6 +312,52 @@ def dataset_verify(
     typer.echo(str(progress))
 
 
+@dataset_app.command("second-pass")
+def dataset_second_pass(
+    path: Path = typer.Option(GOLD_PATH, "--path"),
+    sample_out: Path = typer.Option(Path("evals/second-pass.jsonl"), "--sample"),
+    compare_with: Path = typer.Option(None, "--compare", help="Score a filled-in sample."),
+    fraction: float = typer.Option(0.15, "--fraction"),
+    seed: int = typer.Option(20260922, "--seed"),
+    report: Path = typer.Option(None, "--report"),
+) -> None:
+    """Draw a blind re-labelling sample, or score one and report Cohen's kappa.
+
+    Without --compare, writes a stratified sample with the first pass's verdict
+    stripped out. Fill in each `answerable` field independently, then re-run with
+    --compare pointing at the filled file.
+
+    PRD §10.2 gates Module 5 on kappa >= 0.70.
+    """
+    from .dataset.second_pass import compare, draw_sample, format_agreement, write_blind_sample
+
+    items = list(read_jsonl(path, QAItem))
+    if not items:
+        raise typer.BadParameter(f"no items at {path}")
+
+    if compare_with is not None:
+        _emit(format_agreement(compare(items, compare_with)), report)
+        return
+
+    sample = draw_sample(items, fraction=fraction, seed=seed)
+    if not sample:
+        raise typer.BadParameter(
+            "no verified items to sample; run `dataset verify` first -- "
+            "agreement on unverified labels would measure nothing"
+        )
+    n = write_blind_sample(sample, sample_out)
+    from collections import Counter
+
+    strata = Counter(
+        "answerable" if i.answerable else (i.unanswerable_class or "other") for i in sample
+    )
+    typer.echo(f"{n} items -> {sample_out}")
+    typer.echo(f"  strata: {dict(strata)}")
+    typer.echo("")
+    typer.echo("Label each item's `answerable` field WITHOUT consulting the first pass,")
+    typer.echo(f"then: indicrag dataset second-pass --compare {sample_out}")
+
+
 @dataset_app.command("stats")
 def dataset_stats(
     path: Path = typer.Option(GOLD_PATH, "--path"),

@@ -464,43 +464,88 @@ Each shows the full output object: detected type, answerability, answer, confide
 
 ## 10. Status and what is not built yet
 
-**Updated 2026-09-20.** P0–P2 are done, P3 is partly done, P4–P6 have not started.
+**Updated 2026-09-21.** P0–P3 are done, P4 is running, P5 is blocked on human
+verification, P6 is substantially drafted.
 
 | Phase | State |
 |---|---|
-| **P0** Environment | Done. CPU-only stack, caches redirected to G:, measured throughput written into ARCHITECTURE §19 |
+| **P0** Environment | Done. CPU-only stack, caches redirected to G:, measured throughput in ARCHITECTURE §19 |
 | **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation |
-| **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, two fusion methods, all evaluated. First results in `evals/report-retrieval-probes.txt` |
-| **P3** Dataset | **Partly done.** Infrastructure complete and tested; 80/80 unanswerable items scaffolded; 0/320 answerable items generated |
-| **P4** Generation | Not started |
-| **P5** Experiments | Not started (probe-based retrieval results exist, but they are not gold-set results) |
-| **P6** Write-up | Not started |
+| **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, three fusion methods. `script_aware_rrf` came out of the P2 error analysis and is now the default |
+| **P3** Dataset | **Done.** 400/400 items generated — 320 answerable across six language-pair cells, 80 unanswerable across four classes. **0/400 human-verified**, which is the gate on everything in P5 |
+| **P4** Generation | **Running.** Arms A–D over a stratified 72-item sample; arm A complete, B–D in progress. Generations cache per item, so the run is resumable |
+| **P5** Experiments | **Blocked on verification, not on code.** The harness runs end to end; every number it currently produces is `[PROBE]` and may not be reported |
+| **P6** Write-up | Paper drafted in full (§I–§X, ~10.8k words, `paper/paper.md`), 14-slide deck, 4 figures, IEEE `.docx`. §VI's Module 4 table is the one hole |
 
-### 10.1 The P3 blocker
+### 10.1 The one real blocker
 
-The 320 answerable items need a generator, and the generator is not running yet. Two independent obstacles, both environmental rather than design:
+**Human verification: 0 of 400 items.** PRD §10.2 excludes unverified items from
+any reported result, and `dataset split` enforces this by refusing to run — it
+splits verified items only, so there is currently no dev/test split and no
+tuning discipline to violate. Every retrieval, answerability and QA number in
+the repository is therefore `[PROBE]`, and every report says so in its own
+banner.
 
-1. **`llama-cpp-python` will not build here.** No prebuilt wheel exists for this Python/platform, so it compiles. Three attempts failed: MSVC's environment was not initialised; then, once `vcvars64` was sourced and MSVC 19.44 was correctly detected, CMake resolves to MinGW's CMake 4.0 against an MSVC/Ninja toolchain and the compiler ABI check fails on the mismatch. The backend was switched to `transformers`, which needs no compiler and was already installed for the MuRIL arm.
-2. **The model download is crawling.** HuggingFace is serving at roughly 250 KB/s with intermittent stalls, so the 3.1 GB `Qwen2.5-1.5B-Instruct` snapshot has not landed. This is transient — the 4.5 GB of encoders downloaded quickly earlier in the same session.
-
-Everything downstream is ready and tested against a scripted stub. When the weights land:
+This is annotation work, not engineering. The commands are:
 
 ```bash
-indicrag dataset generate --merge-into evals/gold.jsonl   # 320 answerable candidates
-indicrag dataset stats                                    # confirm matrix coverage
-indicrag dataset verify --annotator a1                    # the human pass, resumable
-indicrag dataset split                                    # seals the test split
+indicrag dataset verify --annotator a1     # resumable, 400 items
+indicrag dataset second-pass --draw        # blind 15% stratified sample
+indicrag dataset second-pass --compare     # Cohen's kappa, gated at 0.70
+indicrag dataset split                     # seals the test split
+indicrag eval all --report evals/          # regenerates every table as [GOLD]
 ```
 
-### 10.2 Cost of the backend change
+### 10.2 Resolved since the last update
 
-Switching from llama.cpp to `transformers` loses **GBNF grammar-constrained decoding**, which ARCHITECTURE §11.4 calls the highest-value detail in the generation stage. The concern was never malformed JSON in itself — it is that unparseable generations are not a random sample. They skew towards longer, messier passages, so dropping them silently biases the dataset towards easy ones.
+Recorded because the previous version of this section named them as blockers:
 
-`TransformersProvider` mitigates rather than ignores this: it extracts the first balanced JSON object from whatever the model emits, retries once with a stricter instruction, and **counts every failure**, so `parse_failure_rate` is reported alongside the dataset. A measured bias is a caveat that belongs in the limitations section; an unmeasured one is a flaw.
+- **`llama-cpp-python` would not build.** Three compile attempts failed on an
+  MSVC/MinGW CMake toolchain mismatch. Resolved by installing from the
+  project's own prebuilt CPU wheel index
+  (`https://abetlen.github.io/llama-cpp-python/whl/cpu`), which took 66ms. The
+  lesson is worth keeping: try a project's own wheel index before debugging its
+  build.
+- **The model download was crawling at 250 KB/s.** Transient; the GGUF weights
+  landed and Qwen2.5-3B-Instruct-Q4_K_M is the generator.
+- **GBNF grammar decoding segfaults** (`OSError: access violation` inside
+  `llama_sampler_sample` on llama-cpp-python 0.3.35). Worked around via
+  `response_format`, then dropped entirely: measured slower *and* no more
+  reliable. §10.3 below replaces the old note on the backend change.
 
-### 10.3 Still not built
+### 10.3 Grammar-constrained decoding, and why it is not used
 
-Items already expected to remain unbuilt at submission, recorded here so they are not mistaken for oversights:
+The concern that motivated it stands — unparseable generations are not a random
+sample, they skew towards longer, messier passages, so dropping them biases the
+dataset towards easy ones. The measurements did not support the remedy:
+
+| | wall clock | per token |
+|---|---|---|
+| no schema | 2.6s | 0.05s |
+| schema | 15.2s | 0.19s |
+| schema + maxLength | 7.0s | 0.13s |
+
+Grammar checking against a 151k vocabulary costs more per token than the forward
+pass, and it bought no reliability: on Hindi passages the constrained path
+parsed 60% against 64% unconstrained. The real Hindi failure was elsewhere
+entirely — the model was translating the JSON *keys* — and is fixed in
+`dataset/prompts.py` by pinning them in English.
+
+Parse failures are counted rather than assumed away: `parse_failure_rate` is
+reported alongside the dataset. A measured bias is a caveat; an unmeasured one
+is a flaw.
+
+One hazard this left behind, now fixed: the schema was being applied
+unconditionally in `LlamaCppProvider.complete()`, including to the Module 4
+answering prompt, whose `{answerable, answer, citation, confidence}` contract
+shares no fields with the QA-candidate schema. Three of four fields were
+unreachable and every arm returned an empty citation. It is opt-in now, with
+tests pinning the default.
+
+### 10.4 Still not built
+
+Items already expected to remain unbuilt at submission, recorded here so they
+are not mistaken for oversights:
 
 - **Reranking arm** — first cut if the schedule slips.
 - **API-model comparison** — requires a key that does not exist on this machine; bonus work only.
@@ -509,3 +554,4 @@ Items already expected to remain unbuilt at submission, recorded here so they ar
 - **Languages beyond Hindi** — PRD §14.
 - **Multi-hop question answering** — excluded at annotation time.
 - **A Hindi morphological analyser** — the light suffix stripper is a known approximation, and its cost to BM25 recall on Hindi should be noted when that number is read.
+- **Script-aware fusion over LaBSE** — §VI-F of the paper reports LaBSE alone beating the fused system on code-mixed (0.332 against 0.173). The correction is orthogonal to encoder choice and this combination is untested; it is the most obvious next experiment, not an oversight.

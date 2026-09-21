@@ -105,13 +105,34 @@ false-premise class is 0.000 and near-miss 0.143. A retrieval score measures
 whether a question is *about* something in the corpus; it cannot measure whether
 the specific asserted fact exists. No choice of threshold fixes that.
 
+**Pick the encoder by query script, not by language coverage.** LaBSE was
+expected to lead the cross-lingual slice and does not (0.097, below MiniLM at
+0.136). It instead dominates code-mixed at 0.332 — 2.5× the next best system,
+and above script-aware fusion's own 0.173. On code-mixed queries a better
+encoder beats correcting the fusion over a weaker one. MuRIL, meanwhile,
+pretrained on 17 Indian languages, scores exactly 0.000 on both cross-lingual
+and code-mixed: pretraining-language coverage does not substitute for retrieval
+training.
+
 See `evals/report-retrieval-probes.txt`, `evals/report-script-aware-fusion.txt`,
 `evals/report-answerability.txt` and `evals/report-errors.txt`.
 
 ## Status
 
-P0-P2 complete, P3 in progress, P4-P6 not started. `docs/PLAN.md` §10 carries the
-phase table and what is not built yet, and that list is kept honest.
+P0–P3 complete, P4 running, P5 blocked, P6 substantially drafted. `docs/PLAN.md`
+§10 carries the phase table and what is not built yet, and that list is kept
+honest.
+
+**The one real blocker is human verification: 0 of 400 items.** PRD §10.2
+excludes unverified items from any reported result, so every number in this
+repository is `[PROBE]` and every report says so in its own banner.
+`indicrag dataset split` enforces this by refusing to run — it splits verified
+items only. That is annotation work, not engineering.
+
+The paper is drafted in full (`paper/paper.md`, §I–§X), with a 14-slide deck, 4
+figures and an IEEE `.docx`. All three are built by script from the committed
+data — `scripts/build-paper.py`, `build-figures.py`, `build-docx.py` — so a
+figure cannot quietly disagree with the table beside it.
 
 ## Attribution
 

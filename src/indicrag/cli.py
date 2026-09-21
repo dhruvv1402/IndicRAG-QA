@@ -656,6 +656,18 @@ def eval_answerability(
     )
 
     lines = provenance(items, str(gold))
+    if sample and enrich:
+        n_un = sum(1 for i in items if not i.answerable)
+        lines += [
+            "ENRICHED SAMPLE. Every unanswerable item is kept and the rest filled",
+            f"with answerable ones, giving a base rate of {n_un / len(items):.3f} against",
+            "0.200 on the full set. This is what makes the per-class table readable",
+            "at a tenth of the generation cost, and it means PRECISION AND F1 HERE",
+            "ARE NOT COMPARABLE to a proportional run -- a threshold abstaining at",
+            "chance scores its precision at the base rate, and the base rate moved.",
+            "Recall and the per-class breakdown are unaffected.",
+            "",
+        ]
     lines += [
         f"tau fitted on {len(meta['dev'])} items (F1={meta['dev_f1']:.3f}); "
         f"reported on {len(meta['test'])} held out.",

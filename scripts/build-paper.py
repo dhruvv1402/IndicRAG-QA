@@ -129,6 +129,39 @@ def build() -> tuple[str, list[str]]:
     return "\n".join(out), missing
 
 
+def dangling_references(text: str) -> list[str]:
+    """Cross-references pointing at sections that do not exist.
+
+    The paper is assembled from five files and its section letters move when
+    anything is inserted: §VIII-D became §VIII-E when the error-decomposition
+    discussion landed, and §VI grew G.1 and G.2 the same evening. A reference
+    to a section that no longer exists is invisible in the file containing it,
+    because the target lives in a different file.
+    """
+    heads: set[str] = set()
+    subs: set[str] = set()
+    current = None
+    for line in text.splitlines():
+        m = re.match(r"^## ([IVX]+)\. ", line)
+        if m:
+            current = m.group(1)
+            heads.add(current)
+            continue
+        m = re.match(r"^### ([A-Z](?:\.[0-9])?)\.? ", line)
+        if m and current:
+            subs.add(f"{current}-{m.group(1)}")
+
+    bad: list[str] = []
+    found = set(re.findall(r"§([IVX]+)(?:-([A-Z](?:\.[0-9])?))?", text))
+    for section, subsection in sorted(found):
+        label = f"§{section}" + (f"-{subsection}" if subsection else "")
+        if section not in heads:
+            bad.append(f"{label} -- no such section")
+        elif subsection and f"{section}-{subsection}" not in subs:
+            bad.append(f"{label} -- no such subsection")
+    return bad
+
+
 def main() -> int:
     text, missing = build()
     target = PAPER / "paper.md"
@@ -138,6 +171,8 @@ def main() -> int:
     print(f"wrote {target.relative_to(ROOT)}  ({words} words)")
     for name in missing:
         print(f"  MISSING: {name}")
+    for ref in dangling_references(text):
+        print(f"  DANGLING: {ref}")
     if missing:
         print("\nThis is a draft. Sections above are placeholders, not omissions.")
     return 0

@@ -318,7 +318,7 @@ z-score leaves the fused ranking dominated by lexical outliers; both are
 implemented so the choice is ablatable rather than asserted. RRF is left untuned
 to keep it an honest baseline against a tuned α.
 
-We additionally propose **script-aware fusion**, which is the subject of §VI-C
+We additionally propose **script-aware fusion**, which is the subject of §VI-E
 and is described there in full. In brief: a passage is scored over the retrievers
 *eligible* to return it, where a lexical retriever is ineligible for a passage
 whose script differs from the query's.

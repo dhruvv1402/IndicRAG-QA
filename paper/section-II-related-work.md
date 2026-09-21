@@ -121,7 +121,7 @@ RRF rewards documents ranked highly by several retrievers and, by construction,
 penalises a document returned by only one. This is the intended semantics and is
 well founded **when every retriever is capable of returning every document** — a
 condition that holds on the monolingual collections where fusion was developed
-and validated. Our §VI-C result concerns what happens when it does not.
+and validated. Our §VI-E result concerns what happens when it does not.
 
 Tu and Padmanabhan (MIA 2022 shared task submission, arXiv:2207.01940) come
 closest to the problem, restricting the sparse index to the question's language

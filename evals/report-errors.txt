@@ -1,40 +1,11 @@
-IndicRAG-QA -- Module 6 error analysis
-==============================================================================
-Generated: 2026-09-21 00:16
-Source: hybrid RRF (BM25 + e5-base) failures on 180 synthetic probes.
-PRELIMINARY -- probes are not the gold set. See report-retrieval-probes.txt.
+Generated: 2026-09-22 02:47
+Source:    evals/gold.jsonl
+Items:     400 (320 answerable, 80 unanswerable)
+Verified:  0/400
 
-HEADLINE FINDING FROM THESE CASES
-------------------------------------------------------------------------------
-Naive hybrid fusion actively destroys cross-lingual retrieval.
-
-Of the 20 failure cases below, e5-base ALONE retrieved the gold passage in 8.
-Hybrid RRF lost all 8 of them. Not some -- all.
-
-The mechanism is visible in E02. The query is Romanized Hinglish, the gold is a
-Hindi passage. e5-base returns the Hindi passages at ranks 2 and 3. BM25 returns
-English passages that match the query's Latin tokens, confidently and wrongly.
-RRF fuses by rank and cannot tell a confidently-right list from a
-confidently-wrong one, so the English hits outvote the correct Hindi ones and
-push them below the cut.
-
-This explains the aggregate numbers exactly. On the cross-lingual slice e5-base
-scores 0.125 and hybrid RRF scores 0.022; on code-mixed, 0.132 against 0.028.
-Hybrid is not merely failing to help on these slices, it is roughly five times
-worse than its own dense component.
-
-Language of the top hit against language of the gold, across all 20 cases:
-    7  en gold, en retrieved      <- ordinary ranking errors
-    6  en gold, hi retrieved
-    5  hi gold, en retrieved      <- fusion pulled toward the query script
-    2  hi gold, hi retrieved
-
-REMEDY, for P5: fusion must be language-aware. Down-weight the lexical component
-when the detected query script does not match the candidate passage script, or
-gate it on the query-type classifier that already exists. A single global alpha
-cannot serve both monolingual and cross-lingual queries, because the lexical
-signal is informative for one and actively misleading for the other. This is a
-sharper and more useful statement of H2 than the alpha sweep produced.
+PRELIMINARY. Items that have not been through human verification are
+included in these numbers. PRD §10.2 excludes unverified items from any
+reported result, so nothing here may be quoted as a gold-set figure.
 
 MODULE 6 -- ERROR ANALYSIS
 ==============================================================================
@@ -44,6 +15,15 @@ Cases are selected by rule, not by hand: within each category, the failure
 where the system was most confident and most wrong. A confident miss is a
 systematic blind spot and the case a user would actually be harmed by,
 because nothing in the output warns them.
+
+WHAT A SINGLE COMPONENT WOULD HAVE RECOVERED
+------------------------------------------------------------------------------
+  bm25       found the gold in  1 of 20; the fused system lost 1 of those
+  e5         found the gold in  8 of 20; the fused system lost 8 of those
+
+  A fusion that discards what its stronger component got right is not a
+  method with a disappointing coefficient. This table is where the
+  script-aware correction came from.
 
 ------------------------------------------------------------------------------
 [E01] code-mixing   (Code-Mixed)

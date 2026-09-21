@@ -165,3 +165,56 @@ def test_case_round_trips_through_jsonl_form():
 
 def test_taxonomy_is_fixed_and_non_empty():
     assert len(CATEGORIES) == len(set(CATEGORIES)) >= 10
+
+
+# --- the recovery summary --------------------------------------------------------
+
+
+def test_the_report_computes_what_a_single_component_recovered():
+    """The paper's origin story rests on this number -- the dense retriever
+    alone found the gold in several cases and fusion lost every one. It used to
+    be hand-written prose in the committed report, so regenerating the cases
+    could change the figure while the sentence quoting it stayed put."""
+    from indicrag.evaluation.errors import ErrorCase, format_errors
+
+    cases = [
+        ErrorCase(
+            case_id="E1", category="code-mixing", query="q", query_type="Code-Mixed",
+            gold_passage_ids=["g1"],
+            retrieved={"primary": ["x"], "e5": ["g1"], "bm25": ["y"]},
+        ),
+        ErrorCase(
+            case_id="E2", category="amount", query="q", query_type="English",
+            gold_passage_ids=["g2"],
+            retrieved={"primary": ["x"], "e5": ["g2"], "bm25": ["y"]},
+        ),
+    ]
+    text = "\n".join(format_errors(cases, []))
+    assert "e5         found the gold in  2 of 2; the fused system lost 2 of those" in text
+    assert "bm25       found the gold in  0 of 2" in text
+
+
+def test_a_component_the_fused_system_agreed_with_is_not_counted_as_lost():
+    from indicrag.evaluation.errors import ErrorCase, format_errors
+
+    cases = [
+        ErrorCase(
+            case_id="E1", category="amount", query="q", query_type="English",
+            gold_passage_ids=["g1"],
+            retrieved={"primary": ["g1"], "e5": ["g1"]},
+        )
+    ]
+    text = "\n".join(format_errors(cases, []))
+    assert "found the gold in  1 of 1; the fused system lost 0 of those" in text
+
+
+def test_no_summary_when_only_the_primary_run_is_recorded():
+    from indicrag.evaluation.errors import ErrorCase, format_errors
+
+    cases = [
+        ErrorCase(
+            case_id="E1", category="amount", query="q", query_type="English",
+            gold_passage_ids=["g1"], retrieved={"primary": ["x"]},
+        )
+    ]
+    assert "WOULD HAVE RECOVERED" not in "\n".join(format_errors(cases, []))

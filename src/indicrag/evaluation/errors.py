@@ -240,6 +240,47 @@ def _remedy(category: str) -> str:
     return _REMEDIES.get(category, "")
 
 
+def _recovery_summary(cases: Sequence[ErrorCase]) -> list[str]:
+    """How many of these failures a single component would have got right.
+
+    This is the number the paper's origin story rests on -- that of the hybrid
+    failures, the dense retriever alone had found the gold passage in several,
+    and fusion lost every one of them. It was previously hand-written prose in
+    the committed report, so regenerating the cases could have changed the
+    figure while the sentence quoting it stayed put. It is computed here so the
+    report cannot disagree with its own data.
+    """
+    systems: set[str] = set()
+    for case in cases:
+        systems.update(k for k in (case.retrieved or {}) if k != "primary")
+    if not systems:
+        return []
+
+    rule = "-" * 78
+    out = ["WHAT A SINGLE COMPONENT WOULD HAVE RECOVERED", rule]
+    for name in sorted(systems):
+        gold_found = [
+            c for c in cases
+            if set(c.gold_passage_ids) & set((c.retrieved or {}).get(name, []))
+        ]
+        lost_by_primary = [
+            c for c in gold_found
+            if not (set(c.gold_passage_ids) & set((c.retrieved or {}).get("primary", [])))
+        ]
+        out.append(
+            f"  {name:<10} found the gold in {len(gold_found):>2} of {len(cases)}; "
+            f"the fused system lost {len(lost_by_primary)} of those"
+        )
+    out += [
+        "",
+        "  A fusion that discards what its stronger component got right is not a",
+        "  method with a disappointing coefficient. This table is where the",
+        "  script-aware correction came from.",
+        "",
+    ]
+    return out
+
+
 def format_errors(cases: Sequence[ErrorCase], passages: Sequence[Passage]) -> list[str]:
     by_id = {p.passage_id: p for p in passages}
     rule = "-" * 78
@@ -254,6 +295,7 @@ def format_errors(cases: Sequence[ErrorCase], passages: Sequence[Passage]) -> li
         "because nothing in the output warns them.",
         "",
     ]
+    out += _recovery_summary(cases)
     for case in cases:
         out += [rule, f"[{case.case_id}] {case.category}   ({case.query_type})", ""]
         out.append(f"  query      {case.query}")

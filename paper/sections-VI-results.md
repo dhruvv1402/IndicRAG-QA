@@ -78,8 +78,8 @@ systems behave in categorically different ways.
 | LaBSE | 0.435 | 0.097 | **0.332** |
 | MuRIL (mean-pooled) | 0.357 | **0.000** | **0.000** |
 
-Lexical retrieval does not cross the language boundary at all. BM25 scores 0.740
-monolingual and 0.006 cross-lingual — a factor of more than a hundred. This is
+Figure 2 plots the same numbers. Lexical retrieval does not cross the language
+boundary at all: BM25 scores 0.740 monolingual and 0.006 cross-lingual — a factor of more than a hundred. This is
 not a weakness to be tuned away but the expected consequence of matching surface
 tokens between a Devanagari query and a Latin-script passage that share
 essentially none. It is the empirical form of the structural claim in §VIII, and
@@ -125,8 +125,10 @@ trials)** `[PROBE]`
 | monolingual | 0.712 | 0.668 | −0.044 | 0.032 * |
 | overall | 0.483 | 0.500 | +0.017 | 0.32 |
 
-Against dense alone — the comparison that decides whether hybrid retrieval earns
-its place at all — script-aware fusion gains +0.028 cross-lingual (p = 0.037),
+Figure 3 plots the table, with the monolingual regression on the same axes as
+the gains rather than in a separate panel. Against dense alone — the comparison
+that decides whether hybrid retrieval earns its place at all — script-aware
+fusion gains +0.028 cross-lingual (p = 0.037),
 +0.041 code-mixed (p = 0.074) and +0.050 overall (p = 0.0086).
 
 Three things should be read from this table rather than one.
@@ -138,7 +140,8 @@ the same passage and agreement between them genuinely was evidence. Third, the
 overall row is indistinguishable from noise, and a paper reporting only that row
 would conceal both the gain and the cost.
 
-This also revises the negative result of the α sweep, which found no interior
+This also revises the negative result of the α sweep, plotted as Figure 4, which
+found no interior
 weighting beating both endpoints by more than 0.001 and recorded the hybrid
 hypothesis as unsupported. That verdict was correct about weighted fusion and
 wrong about the hypothesis: hybrid retrieval does beat its components here, once
@@ -303,9 +306,9 @@ classes.
 
 The medians are indistinguishable, and in two of the three retrievers the
 *unanswerable* questions score marginally higher — the opposite of the direction
-a threshold assumes. Across the full sweep of τ, precision never leaves the
-neighbourhood of 0.21–0.24 against an unanswerable base rate of 0.20, which is
-the signature of a signal carrying no information: abstaining at random achieves
+a threshold assumes. Across the full sweep of τ, plotted as Figure 5, precision
+never leaves the neighbourhood of 0.21–0.24 against an unanswerable base rate of
+0.20, which is the signature of a signal carrying no information: abstaining at random achieves
 precision equal to the prevalence.
 
 The best F1 of 0.372 is reached at 86% abstention. Those two numbers have to be

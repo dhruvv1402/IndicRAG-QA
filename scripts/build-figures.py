@@ -34,6 +34,7 @@ DENSE = "#4878a8"
 LEXICAL = "#b0b0b0"
 GOOD = "#2e7d4f"
 BAD = "#b04a4a"
+MUTED = "#7a7a7a"
 
 plt.rcParams.update(
     {
@@ -74,13 +75,21 @@ ALPHA = [
     (1.0, 0.499),
 ]
 
-#: Threshold-signal recall by unanswerable class, from report-answerability.txt.
-ANSWERABILITY = [
-    ("out-of-scope", 0.688, 16),
-    ("under-specified", 0.286, 7),
-    ("near-miss", 0.143, 21),
-    ("false-premise", 0.000, 11),
+#: Threshold sweep from evals/report-answerability.txt: (tau, precision, recall,
+#: F1, abstention). The per-class recall figure this replaced plotted a single
+#: fitted operating point, and that point moved from 0.000 to 0.93 recall on the
+#: same data depending only on the split. The sweep is what shows why: the curve
+#: underneath is flat.
+SWEEP = [
+    (0.000, 0.000, 0.000, 0.000), (0.300, 0.000, 0.000, 0.003),
+    (0.400, 0.000, 0.000, 0.025), (0.450, 0.091, 0.037, 0.083),
+    (0.500, 0.192, 0.312, 0.325), (0.550, 0.214, 0.925, 0.865),
+    (0.600, 0.216, 0.938, 0.868), (0.650, 0.216, 0.938, 0.870),
+    (0.700, 0.212, 0.938, 0.882), (0.750, 0.212, 0.950, 0.895),
+    (0.800, 0.206, 0.950, 0.922), (0.850, 0.205, 0.963, 0.940),
+    (0.900, 0.201, 0.963, 0.958), (0.950, 0.205, 1.000, 0.978),
 ]
+BASE_RATE = 0.20
 
 
 def fig2_by_language_group() -> Path:
@@ -187,29 +196,38 @@ def fig4_alpha_sweep() -> Path:
     return _save(fig, "fig4-alpha-sweep.png")
 
 
-def fig5_answerability_by_class() -> Path:
-    """Why the aggregate F1 was the wrong number to read."""
-    fig, ax = plt.subplots(figsize=(4.6, 2.7))
-    labels = [f"{name}\n(n={n})" for name, _, n in ANSWERABILITY]
-    values = [v for _, v, _ in ANSWERABILITY]
-    colours = [GOOD if v >= 0.5 else BAD for v in values]
+def fig5_answerability_sweep() -> Path:
+    """Why no threshold works: precision never leaves the base rate."""
+    fig, ax = plt.subplots(figsize=(5.6, 3.1))
+    taus = [r[0] for r in SWEEP]
 
-    bars = ax.barh(range(len(labels)), values, color=colours, height=0.6)
-    ax.set_yticks(range(len(labels)))
-    ax.set_yticklabels(labels, fontsize=7.5)
-    ax.invert_yaxis()
-    ax.set_xlabel("recall (threshold signal)")
-    ax.set_xlim(0, 0.8)
+    ax.plot(taus, [r[1] for r in SWEEP], marker="o", markersize=3,
+            color=BAD, linewidth=1.6, label="precision")
+    ax.plot(taus, [r[2] for r in SWEEP], marker="s", markersize=3,
+            color=DENSE, linewidth=1.6, label="recall")
+    ax.plot(taus, [r[3] for r in SWEEP], linestyle="--", color=MUTED,
+            linewidth=1.2, label="abstention rate")
 
-    for rect, value in zip(bars, values, strict=True):
-        ax.text(
-            max(value, 0) + 0.015, rect.get_y() + rect.get_height() / 2,
-            f"{value:.3f}", va="center", fontsize=7.5,
-            color=BAD if value < 0.5 else GOOD, fontweight="bold" if value == 0 else "normal",
-        )
+    ax.axhline(BASE_RATE, color=INK, linestyle=":", linewidth=1)
+    ax.annotate(f"base rate {BASE_RATE:.2f}", xy=(0.02, BASE_RATE + 0.02),
+                fontsize=7, color=INK)
 
-    ax.set_title("A retrieval threshold cannot see a false premise", fontsize=8.5)
-    return _save(fig, "fig5-answerability-by-class.png")
+    best = max(SWEEP, key=lambda r: (2 * r[1] * r[2] / (r[1] + r[2])) if r[1] + r[2] else 0)
+    ax.annotate(
+        f"best F1 at {best[3]:.0%}\nabstention",
+        xy=(best[0], best[2]), xytext=(0.42, 0.62),
+        fontsize=7, color=BAD,
+        arrowprops={"arrowstyle": "->", "color": BAD, "linewidth": 0.8},
+    )
+
+    ax.set_xlabel("τ  (normalised retrieval score)")
+    ax.set_ylabel("rate")
+    ax.set_ylim(-0.02, 1.05)
+    ax.legend(frameon=False, fontsize=7.5, loc="upper left")
+    ax.set_title(
+        "Precision never leaves the base rate at any threshold", fontsize=8.5
+    )
+    return _save(fig, "fig5-answerability-sweep.png")
 
 
 def _save(fig, name: str) -> Path:
@@ -226,7 +244,7 @@ def main() -> int:
         fig2_by_language_group,
         fig3_script_aware_fusion,
         fig4_alpha_sweep,
-        fig5_answerability_by_class,
+        fig5_answerability_sweep,
     ):
         path = build()
         print(f"  {path.relative_to(ROOT)}  ({path.stat().st_size // 1024} KB)")

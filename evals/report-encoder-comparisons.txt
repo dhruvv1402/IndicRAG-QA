@@ -1,0 +1,18 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+180 probes
+--- code-mixed  (n=30)
+    script-aware fusion  0.173 [0.091, 0.282]
+    LaBSE alone          0.332 [0.220, 0.451]
+    LaBSE - fusion       delta=+0.159 p=0.0094* (n=30)
+--- cross-lingual  (n=30)
+    script-aware fusion  0.153 [0.086, 0.236]
+    LaBSE alone          0.097 [0.033, 0.185]
+    LaBSE - fusion       delta=-0.056 p=0.3379  (n=30)
+--- monolingual  (n=120)
+    script-aware fusion  0.668 [0.593, 0.747]
+    LaBSE alone          0.435 [0.349, 0.516]
+    LaBSE - fusion       delta=-0.233 p=0.0001* (n=120)
+--- MiniLM vs MuRIL, overall
+    MiniLM  0.303 [0.239, 0.366]
+    MuRIL   0.238 [0.178, 0.299]
+    MiniLM - MuRIL  delta=+0.065 p=0.0687  (n=180)

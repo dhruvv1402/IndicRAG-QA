@@ -1,27 +1,27 @@
-IndicRAG-QA -- answerability, retrieval-threshold signal only
-==============================================================================
-Generated: 2026-09-21 00:11
-Items: 180 synthetic answerable probes + 80 unanswerable scaffolds.
-tau fitted on 86 dev items (F1=0.488); reported on 174 held out.
+Generated: 2026-09-21 22:50
+Source:    evals\gold.jsonl
+Items:     400 (320 answerable, 80 unanswerable)
+Verified:  0/400
 
-PRELIMINARY. The answerable side is synthetic probes and the unanswerable side
-is unverified scaffolding, so neither has had a human pass. This measures the
-SIGNAL, not the system. It is reported now because the per-class result is
-decisive enough to change what P4 must build.
+PRELIMINARY. Items that have not been through human verification are
+included in these numbers. PRD §10.2 excludes unverified items from any
+reported result, so nothing here may be quoted as a gold-set figure.
 
-ANSWERABILITY -- retrieval threshold tau=0.97 (hybrid RRF, e5-base)
+tau fitted on 120 items (F1=0.355); reported on 280 held out.
+
+ANSWERABILITY -- threshold tau=0.525 (hybrid)
 ------------------------------------------------------------------------------
-  n = 174   (UNANSWERABLE is the positive class)
+  n = 280   (UNANSWERABLE is the positive class)
 
-  accuracy   0.695
-  precision  0.533
-  recall     0.291
-  F1         0.376
+  accuracy   0.293
+  precision  0.211
+  recall     0.929
+  F1         0.344
 
                         predicted
                   UNANSWERABLE   ANSWERABLE
-  gold UNANSWERABLE         16           39
-  gold ANSWERABLE           14          105
+  gold UNANSWERABLE         52            4
+  gold ANSWERABLE          194           30
 
   fn = gold UNANSWERABLE answered anyway -- the hallucination risk.
   fp = gold ANSWERABLE refused -- the cost of a conservative threshold.
@@ -29,10 +29,10 @@ ANSWERABILITY -- retrieval threshold tau=0.97 (hybrid RRF, e5-base)
 RECALL BY UNANSWERABLE CLASS
 ------------------------------------------------------------------------------
   class                   recall     n
-  false-premise            0.000    11
-  near-miss                0.143    21  <-- the real test
-  out-of-scope             0.688    16
-  under-specified          0.286     7
+  false-premise            0.909    11
+  near-miss                0.905    21  <-- the real test
+  out-of-scope             0.941    17
+  under-specified          1.000     7
 
   Out-of-scope questions are trivially rejected; near-miss is where a
   threshold either works or does not. A good aggregate F1 can hide a
@@ -41,47 +41,55 @@ RECALL BY UNANSWERABLE CLASS
 ABSTENTION BY QUERY TYPE
 ------------------------------------------------------------------------------
   query type         abstained  over-abstained     n
-  Code-Mixed             0.225           0.091    40
-  English                0.173           0.133    81
-  Indic                  0.132           0.108    53
+  Code-Mixed             0.908           0.889    87
+  English                0.840           0.844   100
+  Indic                  0.892           0.867    93
 
   A global threshold that abstains more on one query type is refusing
   users for their language rather than for missing evidence.
 
-FINDINGS
+SCORE SEPARATION -- hybrid
 ------------------------------------------------------------------------------
-1. A retrieval-score threshold is not sufficient, and the aggregate hides how
-   insufficient. F1 is 0.376 against the 0.75 target in PRD S10.2, but the
-   per-class row is the real story:
+  Top retrieval score, by gold label. If these two rows agree, no
+  threshold over this score can separate the classes at any setting.
 
-     out-of-scope     0.688   caught -- but these are trivial
-     under-specified  0.286
-     near-miss        0.143   near-total failure
-     false-premise    0.000   COMPLETE failure
+                      median      mean      n
+  answerable          0.0327    0.0348    320
+  UNanswerable        0.0325    0.0336     80
 
-2. The false-premise result is 0.000 and that is not a bug, it is the mechanism.
-   "How much laptop allowance does <scheme> provide?" retrieves that scheme's
-   passages at high similarity, because the scheme name matches and the topic is
-   right. The retrieval score measures whether the question is ABOUT something in
-   the corpus. It cannot measure whether the specific asserted fact exists. No
-   choice of tau fixes this -- the signal simply does not carry the information.
+  difference in medians: +0.0001
 
-3. Near-miss at 0.143 is the same mechanism, slightly weaker. These are the two
-   classes PRD S6.3 was designed around, and a project reporting only the
-   aggregate F1 would have called 0.376 "needs tuning" and moved on.
+  Base rate of UNANSWERABLE: 0.200. A precision at or near this
+  value means the threshold is abstaining about as usefully as chance.
 
-4. The fairness failure predicted in ARCHITECTURE S12.3 is present. Code-Mixed
-   queries abstain at 0.225 against 0.132 for Indic -- roughly 70% more often --
-   while their OVER-abstention is lowest (0.091). A single global threshold is
-   refusing Hinglish users partly for their query script rather than for missing
-   evidence. A per-language-type threshold is the obvious remedy and the fact
-   that one is needed belongs in the paper.
-
-WHAT THIS MEANS FOR P4
+THRESHOLD SWEEP
 ------------------------------------------------------------------------------
-The generator self-report and the NLI entailment check are not optional extras.
-They are the only signals in the design that can see whether a specific asserted
-fact is present in the retrieved passage, which is exactly what false-premise and
-near-miss require. The calibrated combination should be fit with the margin and
-scheme-agreement features included, since max_score alone is demonstrably blind
-to both classes.
+  Every operating point, so the shape of the trade-off is visible rather
+  than one fitted value standing in for it.
+
+     tau  precision   recall      F1  abstains
+   0.000      0.000    0.000   0.000     0.000
+   0.050      0.000    0.000   0.000     0.000
+   0.100      0.000    0.000   0.000     0.000
+   0.150      0.000    0.000   0.000     0.000
+   0.200      0.000    0.000   0.000     0.000
+   0.250      0.000    0.000   0.000     0.000
+   0.300      0.000    0.000   0.000     0.003
+   0.350      0.000    0.000   0.000     0.010
+   0.400      0.000    0.000   0.000     0.025
+   0.450      0.091    0.037   0.053     0.083
+   0.500      0.192    0.312   0.238     0.325
+   0.550      0.214    0.925   0.347     0.865
+   0.600      0.216    0.938   0.351     0.868  <-- best F1
+   0.650      0.216    0.938   0.350     0.870
+   0.700      0.212    0.938   0.346     0.882
+   0.750      0.212    0.950   0.347     0.895
+   0.800      0.206    0.950   0.339     0.922
+   0.850      0.205    0.963   0.338     0.940
+   0.900      0.201    0.963   0.333     0.958
+   0.950      0.205    1.000   0.340     0.978
+   1.000      0.201    1.000   0.334     0.998
+
+  Best F1 0.351 is reached at 86.8% abstention. Read those two
+  together: a high recall on the unanswerable class bought by refusing
+  most answerable questions is not detection, it is silence.

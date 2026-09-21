@@ -396,3 +396,65 @@ def format_tau_sweep(rows) -> list[str]:
             "  most answerable questions is not detection, it is silence.",
         ]
     return out
+
+
+def separation_across_methods(passages, items, *, methods=("bm25", "tfidf"), k: int = 5):
+    """Score separation under several retrievers, not just the configured one.
+
+    The claim in the paper is that *retrieval scores* carry no answerability
+    signal, not that one particular fusion does. That is a claim about more than
+    one retriever, so the report has to show more than one. BM25 and TF-IDF cost
+    nothing extra here -- they need no encoder -- and they are the two where the
+    unanswerable questions score visibly higher, which the fused score obscures
+    by being nearly constant.
+
+    Returns {method: (answerable_median, unanswerable_median, best_f1, precision)}.
+    """
+    import statistics
+
+    from ..answerability.signals import extract_features
+    from ..config import get_settings
+    from ..index.lexical import LexicalIndex
+    from ..pipeline import Retrievers, retrieve
+
+    cfg = get_settings()
+    retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
+    scheme_of = {p.passage_id: p.scheme for p in passages}
+    labels = [i.answerable for i in items]
+
+    out: dict[str, tuple[float, float, float, float]] = {}
+    for method in methods:
+        features = [
+            extract_features(
+                retrieve(i.question, retrievers, method=method, k=k), scheme_of=scheme_of, k=k
+            )
+            for i in items
+        ]
+        scores = [f.max_score for f in features]
+        ans = [s for s, lab in zip(scores, labels, strict=True) if lab]
+        una = [s for s, lab in zip(scores, labels, strict=True) if not lab]
+        if not ans or not una:
+            continue
+        best = max(tau_sweep(features, labels), key=lambda r: r[3])
+        out[method] = (statistics.median(ans), statistics.median(una), best[3], best[1])
+    return out
+
+
+def format_separation_across_methods(table) -> list[str]:
+    rule = "-" * 78
+    if not table:
+        return []
+    out = [
+        "SCORE SEPARATION ACROSS RETRIEVERS",
+        rule,
+        "  The claim is about retrieval scores in general, not one fusion, so it",
+        "  is shown for more than one retriever.",
+        "",
+        f"  {'method':<12}{'answerable':>12}{'UNanswerable':>14}{'best F1':>10}{'precision':>11}",
+    ]
+    for method, (a_med, u_med, f1, precision) in table.items():
+        flag = "  <-- UNanswerable higher" if u_med > a_med else ""
+        out.append(
+            f"  {method:<12}{a_med:>12.4f}{u_med:>14.4f}{f1:>10.3f}{precision:>11.3f}{flag}"
+        )
+    return out

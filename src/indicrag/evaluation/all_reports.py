@@ -162,8 +162,10 @@ def run_all(
         from .answerability import (
             format_answerability,
             format_separation,
+            format_separation_across_methods,
             format_tau_sweep,
             run_answerability,
+            separation_across_methods,
             tau_sweep,
         )
 
@@ -180,6 +182,9 @@ def run_all(
         ]
         lines += format_answerability(result)
         lines += [""] + format_separation(meta["scores"], meta["labels"], method=meta["method"])
+        lines += [""] + format_separation_across_methods(
+            separation_across_methods(passages, items)
+        )
         lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
         summary.add(_write(out_dir / "report-answerability.txt", lines))
     except Exception as exc:  # noqa: BLE001

@@ -569,8 +569,10 @@ def eval_answerability(
     from .evaluation.answerability import (
         format_answerability,
         format_separation,
+        format_separation_across_methods,
         format_tau_sweep,
         run_answerability,
+        separation_across_methods,
         stratified_by_class,
         tau_sweep,
     )
@@ -603,6 +605,9 @@ def eval_answerability(
     ]
     lines += format_answerability(result)
     lines += [""] + format_separation(meta["scores"], meta["labels"], method=method)
+    lines += [""] + format_separation_across_methods(
+        separation_across_methods(passages, items, k=k)
+    )
     lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
 
     if gguf:

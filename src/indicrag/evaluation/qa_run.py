@@ -86,7 +86,8 @@ def score_arm(
                 abstained=abstained,
                 evidence=evidence,
                 query_type=classify(item.question).query_type,
-                cited_found=bool(cited and cited in by_pid),
+                cited=bool(cited),
+                cited_found=cited in by_pid,
             )
         )
 

@@ -77,7 +77,18 @@ class GroundingOutcome:
     abstained: bool = False
     lexical_support: float = 0.0
     entailment: float | None = None
+    #: Whether the generation named a citation at all.
+    cited: bool = False
+    #: Whether the named citation resolved to a real passage. Meaningless, and
+    #: left True, when `cited` is False -- the two must stay separate, because
+    #: collapsing them scores "declined to cite" as "cited something that does
+    #: not exist", and only the second is a hallucination.
     cited_found: bool = True
+
+    @property
+    def fabricated_citation(self) -> bool:
+        """Named a passage id that is not in the corpus."""
+        return self.cited and not self.cited_found
 
     @property
     def lexically_supported(self) -> bool:
@@ -121,6 +132,29 @@ class GroundingReport:
         sel = [o for o in self.outcomes if arm is None or o.arm == arm]
         return sum(1 for o in sel if o.abstained) / len(sel) if sel else 0.0
 
+    def citation_rate(self, arm: str | None = None) -> float:
+        """Of answered questions, the share that named a citation at all."""
+        sel = self._answered(arm)
+        return sum(1 for o in sel if o.cited) / len(sel) if sel else 0.0
+
+    def fabricated_citation_rate(self, arm: str | None = None) -> float | None:
+        """Of answers that cited something, the share citing a passage that does
+        not exist.
+
+        Reported separately from Citation Support Rate because it is a different
+        failure. An unsupported answer cites real evidence that does not back it;
+        a fabricated citation invents the evidence. The second is worse and is
+        invisible in CSR, which falls back to the retrieved context when the
+        named id does not resolve and so scores the answer as though the model
+        had cited honestly.
+
+        Returns None when nothing cited, since a rate over an empty denominator
+        would read as 0.0 -- indistinguishable from a system that cites
+        faithfully.
+        """
+        sel = [o for o in self._answered(arm) if o.cited]
+        return sum(1 for o in sel if o.fabricated_citation) / len(sel) if sel else None
+
     def mean_lexical_support(self, arm: str | None = None) -> float:
         sel = self._answered(arm)
         return sum(o.lexical_support for o in sel) / len(sel) if sel else 0.0
@@ -147,6 +181,7 @@ def score_generation(
     evidence: str,
     query_type: str = "",
     entailment: float | None = None,
+    cited: bool = False,
     cited_found: bool = True,
 ) -> GroundingOutcome:
     return GroundingOutcome(
@@ -156,6 +191,7 @@ def score_generation(
         abstained=abstained,
         lexical_support=0.0 if abstained else rouge_l_precision(answer, evidence),
         entailment=entailment,
+        cited=cited,
         cited_found=cited_found,
     )
 
@@ -184,5 +220,27 @@ def format_grounding(report: GroundingReport, arms: Sequence[str]) -> list[str]:
         "H3 is supported only if the RAG arms exceed the closed-book arm here.",
         "Note that an extractive system scores 1.0 by construction, so it is a",
         "floor for reading the generative arms rather than a competitor.",
+        "",
+        "CITATIONS -- did the system name its evidence, and did that id exist?",
+        rule,
+        "A fabricated citation is a different failure from an unsupported answer:",
+        "the answer does not merely fail to follow from real evidence, it points",
+        "at evidence that does not exist. CSR cannot show this -- it falls back to",
+        "the retrieved context when the named id does not resolve, and so scores",
+        "such an answer as though the model had cited honestly.",
+        "",
+        f"  {'arm':<16}{'cited':>12}{'fabricated':>14}",
+    ]
+    for arm in arms:
+        fab = report.fabricated_citation_rate(arm)
+        out.append(
+            f"  {arm:<16}{report.citation_rate(arm):>12.3f}"
+            f"{(f'{fab:.3f}' if fab is not None else '-'):>14}"
+        )
+    out += [
+        "",
+        "Arm A is the one to read here. It is shown no passages at all, so any id",
+        "it produces is invented outright, and the rate is a direct measure of the",
+        "behaviour retrieval is meant to suppress.",
     ]
     return out

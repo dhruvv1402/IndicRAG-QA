@@ -161,3 +161,66 @@ def test_citation_support_rate_excludes_abstentions():
     )
     assert r.citation_support_rate() == 0.5
     assert r.abstention_rate() == pytest.approx(1 / 3)
+
+
+# --- fabricated citations --------------------------------------------------------
+
+
+def _ground(**kw):
+    from indicrag.evaluation.grounding import score_generation
+
+    base = dict(item_id="i", arm="A", answer="Rs. 12,000", abstained=False, evidence="Rs. 12,000")
+    return score_generation(**{**base, **kw})
+
+
+def test_declining_to_cite_is_not_a_fabricated_citation():
+    """Collapsing these two scores an honest abstention from citing as an
+    invented passage id."""
+    assert _ground(cited=False, cited_found=False).fabricated_citation is False
+
+
+def test_citing_a_passage_that_does_not_exist_is_fabrication():
+    assert _ground(cited=True, cited_found=False).fabricated_citation is True
+
+
+def test_citing_a_real_passage_is_not_fabrication():
+    assert _ground(cited=True, cited_found=True).fabricated_citation is False
+
+
+def test_the_rate_is_none_rather_than_zero_when_nothing_cited():
+    """0.0 would read as a system that cites faithfully."""
+    from indicrag.evaluation.grounding import GroundingReport
+
+    report = GroundingReport(system="s", outcomes=[_ground(cited=False)])
+    assert report.fabricated_citation_rate("A") is None
+    assert report.citation_rate("A") == 0.0
+
+
+def test_the_rate_is_over_citing_answers_not_all_answers():
+    from indicrag.evaluation.grounding import GroundingReport
+
+    report = GroundingReport(
+        system="s",
+        outcomes=[
+            _ground(cited=True, cited_found=False),
+            _ground(cited=True, cited_found=True),
+            _ground(cited=False),
+            _ground(cited=False),
+        ],
+    )
+    assert report.fabricated_citation_rate("A") == 0.5
+    assert report.citation_rate("A") == 0.5
+
+
+def test_abstentions_are_excluded_from_both_rates():
+    from indicrag.evaluation.grounding import GroundingReport
+
+    report = GroundingReport(
+        system="s",
+        outcomes=[
+            _ground(cited=True, cited_found=False),
+            _ground(abstained=True, cited=False),
+        ],
+    )
+    assert report.citation_rate("A") == 1.0
+    assert report.fabricated_citation_rate("A") == 1.0

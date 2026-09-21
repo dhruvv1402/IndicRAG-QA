@@ -517,8 +517,11 @@ def test_the_report_flags_a_feature_that_actually_separates():
     assert "<-- separates" in text
 
 
-def test_the_report_says_combining_chance_features_cannot_help():
-    """The point of the table: it bounds what the calibrated signal can do."""
+def test_the_report_bounds_the_combination_without_overclaiming():
+    """The table bounds what the calibrated signal can do, but combining really
+    does recover more than any single feature (+0.064 AUC measured), so the
+    wording must not deny it -- that would contradict the calibrated section
+    printed directly below it in the same report."""
     from indicrag.answerability.signals import Features
     from indicrag.evaluation.answerability import feature_separation, format_feature_separation
 
@@ -526,7 +529,8 @@ def test_the_report_says_combining_chance_features_cannot_help():
     text = "\n".join(
         format_feature_separation(feature_separation(feats, [True, True, False, False]))
     )
-    assert "cannot be rescued by combining" in text
+    assert "bounded by what its inputs carry" in text
+    assert "cannot be rescued" not in text
 
 
 # --- the calibrated combination --------------------------------------------------

@@ -277,6 +277,21 @@ that combination, and until we do, our results establish that script-aware
 fusion repairs a specific defect in rank fusion, not that the resulting system
 is the strongest available configuration.
 
+**Most of our own pre-registered targets were missed.** We fixed eight success
+criteria before collecting any number — retrieval recall by language group,
+answerability F1, citation support, annotator agreement — and met one of them:
+that the closed-book arm would sit far below the retrieval arms on citation
+support. We report this rather than quietly dropping the targets, and two of the
+misses are informative. The retrieval targets (0.85 monolingual, 0.70
+cross-lingual) were set against an imagined corpus of official scheme
+guidelines, where a question and its answer share vocabulary; they were never
+recalibrated when that corpus proved unobtainable and an encyclopedic one was
+substituted, which is an error in our planning rather than in the system. The
+answerability target of 0.75 was unreachable by the signal it assumed, for the
+reason §VI-H gives. A target missed because the question changed under it is
+worth separating from a target missed because the method failed, and these are
+mostly the former.
+
 **No component is fine-tuned.** All encoders and the generator are used
 off-the-shelf. Fine-tuning any of them on in-domain data would likely improve
 absolute numbers, and would confound the comparison we are making, which is

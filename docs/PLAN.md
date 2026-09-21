@@ -473,7 +473,7 @@ verification, P6 is substantially drafted.
 | **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation |
 | **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, three fusion methods. `script_aware_rrf` came out of the P2 error analysis and is now the default |
 | **P3** Dataset | **Done.** 400/400 items generated — 320 answerable across six language-pair cells, 80 unanswerable across four classes. **0/400 human-verified**, which is the gate on everything in P5 |
-| **P4** Generation | **Running.** Arms A–D over a stratified 72-item sample; arm A complete, B–D in progress. Generations cache per item, so the run is resumable |
+| **P4** Generation | **Done.** 288 generations, arms A–D over a stratified 72-item sample. H3 supported: citation support 0.162 closed-book against 0.826 with fusion. Decomposition: generation error 0.597, retrieval error 0.193 |
 | **P5** Experiments | **Blocked on verification, not on code.** The harness runs end to end; every number it currently produces is `[PROBE]` and may not be reported |
 | **P6** Write-up | Paper drafted in full (§I–§X, ~10.8k words, `paper/paper.md`), 14-slide deck, 4 figures, IEEE `.docx`. §VI's Module 4 table is the one hole |
 

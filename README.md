@@ -119,8 +119,23 @@ pretrained on 17 Indian languages, scores exactly 0.000 on both cross-lingual
 and code-mixed: pretraining-language coverage does not substitute for retrieval
 training.
 
+**Retrieval-augmented generation works, and the generator is the bottleneck.**
+Four arms over a 72-item stratified sample, one generator throughout, differing
+only in the evidence supplied. Citation Support Rate -- the share of answered
+questions whose answer the cited evidence supports -- goes 0.162 closed-book,
+0.762 with dense retrieval, 0.826 with script-aware fusion, 0.948 given the gold
+passage. The closed-book arm answers 37 of 72 and only 16% of those answers are
+supported: it recites eligibility thresholds from memory and is usually wrong.
+
+The oracle arm then bounds the whole thing. Generation error is 0.597 against
+retrieval error of 0.193, so fixing retrieval entirely would buy less than a
+third of what the 3B generator is losing. The fusion result is a claim about
+retrieval measured as retrieval; it is not a claim that retrieval is what limits
+answer quality here.
+
 See `evals/report-retrieval-probes.txt`, `evals/report-script-aware-fusion.txt`,
-`evals/report-answerability.txt` and `evals/report-errors.txt`.
+`evals/report-qa.txt`, `evals/report-answerability.txt` and
+`evals/report-errors.txt`.
 
 ## Status
 

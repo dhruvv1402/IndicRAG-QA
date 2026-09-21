@@ -47,7 +47,11 @@ SECTIONS: list[tuple[str, str, str | None]] = [
     ("sections-VII-X.md", "## VII. Error Analysis", None),
 ]
 
-REFERENCES = ("section-II-related-work.md", "## Bibliography", None)
+#: Stop before `### Still open`. That is the bibliography's working checklist --
+#: "fill from the paper", "Do not cite" -- and it was being carried into the
+#: assembled paper, and from there into the .docx, because the extraction ran to
+#: end of file. A submission is not the place to publish one's own TODOs.
+REFERENCES = ("section-II-related-work.md", "## Bibliography", "### Still open")
 
 PLACEHOLDER = """## VI. Results
 

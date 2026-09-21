@@ -11,7 +11,7 @@ verified gold set.
 
 ## Abstract
 
-*(178 words. Figures marked `[PROBE]`; to be re-measured on the gold set.)*
+*(~210 words. Figures marked `[PROBE]`; to be re-measured on the gold set.)*
 
 > Retrieval-augmented generation over multilingual corpora is commonly built by
 > fusing a lexical retriever with a dense one, on the assumption that their
@@ -26,7 +26,10 @@ verified gold set.
 > queries against 0.125 for its own dense component. We propose **script-aware
 > fusion**, which scores each candidate over the retrievers *eligible* to return
 > it, recovering 0.153 cross-lingual and 0.173 code-mixed Recall@5
-> (p = 0.0001, p = 0.0002) at a cost of 0.044 monolingual Recall@5. We release a
+> (p = 0.0001, p = 0.0002) at a cost of 0.044 monolingual Recall@5. An oracle
+> arm bounds what this buys end to end: generation error is 0.597 against
+> retrieval error of 0.193, and the fusion gain is not separable from dense
+> retrieval alone in downstream answer quality at our sample size. We release a
 > 400-item bilingual QA set with an explicit query-language × evidence-language
 > matrix and a four-class unanswerable taxonomy.
 

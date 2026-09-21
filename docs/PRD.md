@@ -368,14 +368,20 @@ A 400-item, single-domain, two-language dataset annotated largely by one person 
 
 ## 11. Deliverables
 
+**Updated 2026-09-21.**
+
 | Brief §11 item | Repository path | Status |
 |---|---|---|
-| Source code with README and execution instructions | `src/indicrag/`, `README.md` | Not started |
-| Research paper (IEEE style, Word and PDF) | `paper/IndicRAG-QA.docx`, `paper/IndicRAG-QA.pdf` | Not started |
-| Presentation slides | `paper/slides.pptx` | Not started |
-| Dataset / document collection description and QA set | `docs/PRD.md` §5–6, `evals/gold.jsonl`, `data/corpus_manifest.jsonl` | This document; data not started |
-| Retrieval, QA, answerability and error-analysis results | `evals/report-*.txt` | Not started |
-| Working demonstration | `indicrag ask`, optional local web interface | Not started |
+| Source code with README and execution instructions | `src/indicrag/`, `README.md` | **Done.** 231 tests passing |
+| Research paper (IEEE style, Word and PDF) | `paper/paper.md`, `paper/IndicRAG-QA.docx` | **Drafted**, §I–§X, ~10.8k words. Built by `scripts/build-paper.py` and `build-docx.py`. §VI's Module 4 table is the one hole. **PDF: export from Word** — no converter on this machine |
+| Presentation slides | `paper/slides.md`, `paper/IndicRAG-QA-slides.pptx` | **Drafted**, 14 slides with speaker notes |
+| Dataset / document collection description and QA set | §5–6 above, `evals/gold.jsonl`, `data/corpus_manifest.jsonl` | **Generated, not verified.** 400/400 items; **0/400 human-verified**, which gates §10.2 |
+| Retrieval, QA, answerability and error-analysis results | `evals/report-*.txt`, `paper/figures/` | **Preliminary.** Five reports and four figures, every one `[PROBE]` and labelled so in its own banner |
+| Working demonstration | `indicrag ask`, `docs/DEMO.md` | **Done.** Three real transcripts, including one wrong answer kept deliberately. No web interface; the CLI is the deliverable |
+
+The single gate on promoting any of the `[PROBE]` rows to reportable is human
+verification of the 400 items. §10.2 excludes unverified items from any reported
+result and `dataset split` enforces it by refusing to run.
 
 ---
 

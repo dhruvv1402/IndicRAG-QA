@@ -28,7 +28,6 @@ agreement rather than anchoring.
 
 from __future__ import annotations
 
-import random
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date

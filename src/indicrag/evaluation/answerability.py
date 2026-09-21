@@ -258,7 +258,6 @@ def run_answerability(
     from ..answerability.signals import ThresholdSignal, extract_features
     from ..config import get_settings
     from ..index.lexical import LexicalIndex
-    from ..models import Passage  # noqa: F401 -- documents the expected type
     from ..pipeline import Retrievers, retrieve
     from ..query.langid import classify
 

@@ -9,7 +9,14 @@ requires is visible in one place rather than summarised.
 indicrag ask "Sukanya Samriddhi account kholne ke liye kya chahiye?"
 indicrag ask "मनरेगा के तहत कितने दिन का रोजगार मिलता है?" --k 5
 indicrag ask "What is the eligibility for MGNREGA?" --method bm25
+indicrag ask "How much is the NSAP pension?" --gguf <path-to.gguf>
 ```
+
+Without `--gguf` the answer is **extracted**: the best-supporting sentence from
+the top passage, which is grounded by construction and needs no model. With it,
+the answer is **generated** by the same prompt and parser the Module 4 arms use,
+so the system being demonstrated is the system being measured. Generation costs
+roughly a minute per query on this machine; extraction is instant.
 
 `--method` selects the retriever, which is what makes the demo an argument
 rather than a display: the same query can be run through `hybrid` (script-aware,
@@ -111,8 +118,13 @@ says so.
 
 - **No web interface.** The CLI is the deliverable; a Streamlit surface was
   listed as optional and is not built.
-- **No abstention on the interactive path**, for the reason above.
+- **No retrieval-score abstention on the interactive path**, for the reason
+  above — and note that a calibrated threshold would not help anyway: §VI-H of
+  the paper shows the retrieval score carries no answerability signal on this
+  corpus. With `--gguf` the system *can* abstain, because the generator reports
+  whether the passages contain the answer and that report becomes the PRD §9
+  refusal string; that is the generator self-report signal, not a threshold.
 - **First call is slow.** The dense index and encoder load per invocation
-  (~30 s). There is no server mode; the evaluation harness amortises this by
-  loading once per run, which is why `eval` exists as a separate command rather
-  than a loop over `ask`.
+  (~30 s), and generation adds roughly a minute. There is no server mode; the
+  evaluation harness amortises this by loading once per run, which is why `eval`
+  exists as a separate command rather than a loop over `ask`.

@@ -37,6 +37,38 @@ def _emit(lines: list[str], report: Path | None) -> None:
         typer.echo(f"\nwritten to {report}")
 
 
+def _stratified(items: list, n: int, *, seed: int = 20260922) -> list:
+    """A seeded sample of `n` items spread evenly over the language pairs.
+
+    Round-robins across the cells rather than taking a proportional slice of
+    each, so a short sample still reaches every pair: the cross-lingual cells
+    are the smallest and the ones the system exists to be measured on, and
+    proportional rounding is exactly what drops them first.
+    """
+    import random
+    from collections import defaultdict
+
+    if n <= 0 or n >= len(items):
+        return list(items)
+
+    cells: dict[tuple[str, str], list] = defaultdict(list)
+    for item in items:
+        cells[(item.query_lang, item.passage_lang)].append(item)
+
+    rng = random.Random(seed)
+    for group in cells.values():
+        group.sort(key=lambda i: i.id)
+        rng.shuffle(group)
+
+    out: list = []
+    order = sorted(cells)
+    while len(out) < n and any(cells[key] for key in order):
+        for key in order:
+            if cells[key] and len(out) < n:
+                out.append(cells[key].pop())
+    return sorted(out, key=lambda i: i.id)
+
+
 # --- corpus --------------------------------------------------------------------
 
 
@@ -445,6 +477,10 @@ def eval_qa(
     gguf: str = typer.Option("", "--gguf", help="GGUF model; omit for the extractive baseline."),
     arms: str = typer.Option("A,B,C,D", "--arms"),
     k: int = typer.Option(5, "--k"),
+    sample: int = typer.Option(
+        0, "--sample",
+        help="Run a seeded sample stratified by language pair instead of the full set.",
+    ),
     no_model: bool = typer.Option(False, "--no-model", help="Extractive provider only."),
 ) -> None:
     """Module 4: direct LLM vs retrieval-augmented question answering."""
@@ -461,6 +497,16 @@ def eval_qa(
     items = [i for i in read_jsonl(gold, QAItem) if i.answerable]
     if not items:
         raise typer.BadParameter(f"no answerable items in {gold}")
+
+    if sample:
+        # Stratify by language pair, not a flat head(). Generation is the
+        # expensive stage -- roughly 67s per item across four arms on this
+        # machine -- so a partial run is the normal case rather than the
+        # exception, and a flat prefix of a file grouped by cell would report
+        # four arms measured only on en->en. The per-cell contrast is the whole
+        # point of Module 4, so the sample has to preserve it.
+        items = _stratified(items, sample)
+        typer.echo(f"sampling {len(items)} items, stratified by language pair")
 
     verified = sum(1 for i in items if i.verified)
     if verified < len(items):

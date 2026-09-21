@@ -84,8 +84,10 @@ what is committed under `evals/` is byte-identical to what was shown.
 
 ## What has been measured
 
-Preliminary, on synthetic probes rather than the human-verified gold set, and
-labelled as such in every report under `evals/`. Three findings so far:
+All preliminary, and labelled as such in every report under `evals/`. Retrieval
+figures come from 180 synthetic probes; the question-answering and answerability
+figures come from the 400-item set, of which **0 are human-verified**. Nothing
+below may be quoted as a gold-set result. Five findings so far:
 
 **Lexical retrieval does not cross the language boundary at all.** BM25 Recall@5
 is 0.740 monolingual but 0.006 cross-lingual and 0.028 code-mixed. A Romanized or

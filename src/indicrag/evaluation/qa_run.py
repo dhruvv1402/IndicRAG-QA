@@ -186,6 +186,41 @@ def format_module4(result: Module4Result) -> list[str]:
             f"{result.grounding.citation_support_rate(key):>9.3f}"
         )
 
+    # --- intervals and paired tests -------------------------------------------
+    #
+    # §V-E commits every headline figure to a 95% interval and every
+    # system-versus-system claim to a paired test. Module 4's table had neither,
+    # and its most quotable comparison -- arm C above arm B on citation support
+    # -- is 0.064 apart on 72 items, which is exactly the size of difference
+    # that needs a test before it is written down as a result.
+    from .stats import bootstrap_ci, paired_randomization_test
+
+    out += ["", "TOKEN-F1 WITH 95% BOOTSTRAP CI", rule]
+    for key in result.arms():
+        ci = bootstrap_ci(result.qa[key].outcomes, lambda o: o.f1)
+        out.append(f"  {ARMS[key].label:<18}{ci}")
+    out += [
+        "",
+        "  Percentile bootstrap over questions, 1000 resamples. Differences",
+        "  smaller than the interval width are not distinguishable from noise.",
+    ]
+
+    pairs = [("B", "A"), ("C", "B"), ("D", "C")]
+    runnable = [(x, y) for x, y in pairs if x in result.qa and y in result.qa]
+    if runnable:
+        out += ["", "PAIRED TESTS -- token-F1, two-sided randomization", rule]
+        for better, worse in runnable:
+            res = paired_randomization_test(
+                result.qa[better].outcomes, result.qa[worse].outcomes, lambda o: o.f1
+            )
+            out.append(f"  {ARMS[better].label:<18} vs {ARMS[worse].label:<18}{res}")
+        out += [
+            "",
+            "  Paired on question id. The C-vs-B row is the one to read: it is the",
+            "  fusion result carried through to generation, and the two arms differ",
+            "  only in which passages retrieval supplied.",
+        ]
+
     if "C" in result.qa and "D" in result.qa:
         # Paired over the items both arms actually answered. Arm D skips any
         # item whose gold passages do not resolve, so the two arms need not

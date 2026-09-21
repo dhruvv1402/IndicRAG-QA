@@ -449,3 +449,26 @@ def test_no_exclusion_line_when_both_arms_cover_the_same_items():
     )
     assert "item(s) excluded" not in text
     assert "paired over 2 items" in text
+
+
+def test_module4_reports_intervals_and_paired_tests():
+    """§V-E commits every headline figure to an interval and every
+    system-versus-system claim to a test. The most quotable comparison in this
+    module -- arm C above arm B -- is 0.064 apart on 72 items, which is the size
+    of difference that must be tested before it is written down."""
+    from indicrag.evaluation.grounding import GroundingReport
+    from indicrag.evaluation.qa_run import Module4Result, format_module4
+
+    b = _report("B", [(f"i{n}", "wrong", "right") for n in range(10)])
+    c = _report("C", [(f"i{n}", "right", "right") for n in range(10)])
+    text = "\n".join(
+        format_module4(
+            Module4Result(qa={"B": b, "C": c}, grounding=GroundingReport("s"), skipped=[])
+        )
+    )
+    assert "95% BOOTSTRAP CI" in text
+    assert "PAIRED TESTS" in text
+    # A uniform win must come out significant. The exact p is bounded below by
+    # the number of sign assignments -- with n=10 only the all-same-sign flip
+    # reaches the observed mean, so p cannot go below about 2/2**10.
+    assert "*" in text.split("PAIRED TESTS")[1].splitlines()[2]

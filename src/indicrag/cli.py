@@ -508,7 +508,10 @@ def eval_qa(
 def ask(
     query: str = typer.Argument(..., help="The question, in English, Hindi or Hinglish."),
     k: int = typer.Option(5, "--k"),
-    method: str = typer.Option("bm25", "--method", help="bm25 | tfidf | dense | hybrid"),
+    method: str = typer.Option(
+        "hybrid", "--method",
+        help="hybrid (script-aware, default) | hybrid-rrf | hybrid-weighted | bm25 | tfidf | dense",
+    ),
 ) -> None:
     """Answer one question and print the full response object."""
     from .pipeline import answer_query

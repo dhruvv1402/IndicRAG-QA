@@ -17,7 +17,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .index.hybrid import rrf_fusion, weighted_fusion
+from .index.hybrid import rrf_fusion, script_aware_rrf, weighted_fusion
 from .index.lexical import LexicalIndex
 from .models import Answer, Passage, Retrieved
 from .query.langid import classify
@@ -30,13 +30,16 @@ class Retrievers:
     lexical: LexicalIndex | None = None
     dense: object | None = None  # DenseIndex, kept loose to avoid importing numpy here
     encoder: object | None = None  # Encoder
+    #: passage_id -> "deva" | "latin". Required by script-aware fusion, which
+    #: needs to know which passages the lexical retriever could even reach.
+    script_of: dict[str, str] | None = None
 
 
 def retrieve(
     query: str,
     r: Retrievers,
     *,
-    method: str = "bm25",
+    method: str = "hybrid",
     k: int = 5,
     candidates: int = 50,
     alpha: float = 0.4,
@@ -65,15 +68,36 @@ def retrieve(
         vec = r.encoder.encode_query(query)
         return r.dense.search_vector(vec, k)
 
-    if method in {"hybrid", "hybrid-rrf", "hybrid-weighted"}:
-        if r.lexical is None or r.dense is None or r.encoder is None:
-            raise RuntimeError("hybrid requires both a lexical and a dense index")
+    if method in {"hybrid", "hybrid-script", "hybrid-rrf", "hybrid-weighted"}:
+        if r.lexical is None:
+            raise RuntimeError("hybrid requires a lexical index")
+        # Degrade to lexical rather than raise when no dense index is loaded.
+        # `hybrid` is the default, and a default that fails on the simple path --
+        # no embeddings built yet, a unit test, a fresh checkout -- is a default
+        # that makes the library hard to pick up. An explicitly requested
+        # `dense` still raises, because there is nothing sensible to substitute.
+        if r.dense is None or r.encoder is None:
+            return r.lexical.search_bm25(query, k)
         lex = r.lexical.search_bm25(query, candidates)
         vec = r.encoder.encode_query(query)
         den = r.dense.search_vector(vec, candidates)
+
         if method == "hybrid-weighted":
             return weighted_fusion(lex, den, alpha=alpha, k=k)
-        return rrf_fusion(lex, den, k=k)
+        if method == "hybrid-rrf":
+            return rrf_fusion(lex, den, k=k)
+
+        # "hybrid" means script-aware, because plain RRF measurably harms the
+        # cross-lingual and code-mixed cases this system exists to serve:
+        # 0.022 against 0.153 and 0.028 against 0.173 on Recall@5. Shipping the
+        # worse fusion as the default while the finding sits in the paper would
+        # be indefensible. Plain RRF stays reachable as "hybrid-rrf" so the
+        # comparison remains runnable.
+        if r.script_of is None:
+            return rrf_fusion(lex, den, k=k)
+        return script_aware_rrf(
+            lex, den, script_of=r.script_of, query_script=classify(query).script, k=k
+        )
 
     raise ValueError(f"unknown retrieval method {method!r}")
 
@@ -83,7 +107,7 @@ def answer_query(
     passages: Sequence[Passage],
     *,
     retrievers: Retrievers | None = None,
-    method: str = "bm25",
+    method: str = "hybrid",
     k: int = 5,
     tau: float = 0.0,
     provider=None,
@@ -96,6 +120,10 @@ def answer_query(
 
     if retrievers is None:
         retrievers = Retrievers(lexical=LexicalIndex.build(passages))
+    if retrievers.script_of is None:
+        retrievers.script_of = {
+            p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages
+        }
 
     hits = retrieve(query, retrievers, method=method, k=k)
 
@@ -128,6 +156,14 @@ def answer_query(
     # nothing at all, which is the right default before the threshold has been
     # calibrated on the dev split -- an uncalibrated threshold would silently
     # suppress answers and make the retrieval numbers look worse than they are.
+    #
+    # NOTE: tau is compared against the retriever's RAW score, and those scales
+    # differ by orders of magnitude -- BM25 is unbounded and runs around 16 here,
+    # RRF sums reciprocal ranks and runs around 0.03. A tau tuned for one method
+    # is meaningless for another. `answerability.ThresholdSignal` normalises by
+    # an observed scale for exactly this reason and is what the evaluation uses;
+    # this field is the simple interactive knob, and its default of 0 avoids the
+    # trap entirely.
     if not hits or top_score < tau:
         ans = Answer.refusal(
             query=query,
@@ -146,6 +182,18 @@ def answer_query(
         provider = ExtractiveProvider()
 
     generated = provider.answer(query, [by_id[h.passage_id] for h in hits], lang=lang)
+
+    # Lead with the passage the answer actually came from, not with whatever
+    # retrieval ranked first. Those differ whenever the best supporting sentence
+    # sits in a lower-ranked passage, and the result is an answer displayed
+    # beside evidence that does not contain it -- observed in the demo, where an
+    # English answer was shown citing a Hindi passage. For a system whose whole
+    # claim is evidence-grounding, a citation that does not support its answer is
+    # the worst possible defect: it looks exactly like a correct one.
+    cited_ids = [pid for pid in (generated.citations or []) if pid in by_id]
+    if cited_ids:
+        primary = cited_ids[0]
+        citations.sort(key=lambda c: c["passage_id"] != primary)
 
     ans = Answer(
         query=query,

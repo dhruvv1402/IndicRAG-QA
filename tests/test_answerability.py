@@ -202,7 +202,7 @@ def test_a_zero_threshold_is_a_real_outcome_not_a_failed_fit():
     assert f1 == 1.0
 
 
-def test_fitting_on_nothing_does_not_raise():
+def test_fitting_the_self_report_on_nothing_does_not_raise():
     from indicrag.answerability.signals import SelfReportSignal
 
     signal, f1 = SelfReportSignal.fit([], [])
@@ -434,9 +434,9 @@ def test_the_self_report_path_scores_and_caches(tmp_path, monkeypatch):
     from indicrag.config import get_settings
 
     get_settings.cache_clear()
-    from indicrag.cli import _self_report_signal
+    from indicrag.cli import _generator_signals
 
-    lines = _self_report_signal(
+    lines = _generator_signals(
         items, passages, hits, [i.answerable for i in items],
         [0, 1], [0, 1], gguf=str(tmp_path / "m.gguf"), k=5,
     )
@@ -470,9 +470,9 @@ def test_an_unparseable_reply_counts_as_an_abstention(tmp_path, monkeypatch):
     from indicrag.config import get_settings
 
     get_settings.cache_clear()
-    from indicrag.cli import _self_report_signal
+    from indicrag.cli import _generator_signals
 
-    lines = _self_report_signal(
+    lines = _generator_signals(
         items, passages, hits, [False], [0], [0],
         gguf=str(tmp_path / "m.gguf"), k=5,
     )
@@ -572,3 +572,45 @@ def test_the_report_names_the_gain_over_the_best_single_feature():
     text = "\n".join(format_calibrated(report, meta, best_single_auc=0.6))
     assert "best single feature" in text
     assert "combination gains" in text
+
+
+# --- the entailment signal -------------------------------------------------------
+
+
+def test_an_abstention_is_unanswerable_without_consulting_the_score():
+    """There is no answer to entail; scoring the empty string measures nothing."""
+    from indicrag.answerability.signals import EntailmentSignal
+
+    signal = EntailmentSignal(tau=0.1)
+    assert signal.predict_answerable(0.99, abstained=True) is False
+    assert signal.predict_answerable(None) is False
+
+
+def test_the_entailment_threshold_is_fit_on_unanswerable_f1():
+    from indicrag.answerability.signals import EntailmentSignal
+
+    signal, f1 = EntailmentSignal.fit([0.9, 0.2, 0.8, 0.1], [True, False, True, False])
+    assert f1 == 1.0
+    assert [signal.predict_answerable(e) for e in (0.9, 0.2, 0.8, 0.1)] == [
+        True, False, True, False
+    ]
+
+
+def test_abstentions_are_honoured_during_the_fit():
+    """An item the generator declined must count as UNANSWERABLE while fitting,
+    or tau is chosen against labels the signal will not produce at predict
+    time."""
+    from indicrag.answerability.signals import EntailmentSignal
+
+    signal, f1 = EntailmentSignal.fit(
+        [None, 0.9], [False, True], abstentions=[True, False]
+    )
+    assert f1 == 1.0
+    assert signal.predict_answerable(None, abstained=True) is False
+
+
+def test_fitting_the_entailment_signal_on_nothing_does_not_raise():
+    from indicrag.answerability.signals import EntailmentSignal
+
+    signal, f1 = EntailmentSignal.fit([], [])
+    assert f1 == 0.0 and signal.tau == 0.5

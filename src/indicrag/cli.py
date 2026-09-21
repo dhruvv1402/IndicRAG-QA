@@ -628,7 +628,7 @@ def eval_answerability(
     lines += [""] + format_answerability(cal_report)
 
     if gguf:
-        lines += ["", "=" * 78, ""] + _self_report_signal(
+        lines += ["", "=" * 78, ""] + _generator_signals(
             items, passages, meta["hits"], meta["labels"],
             meta["dev"], meta["test"], gguf=gguf, k=k,
         )
@@ -636,22 +636,26 @@ def eval_answerability(
     _emit(lines, report)
 
 
-def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, k: int) -> list:
-    """ARCHITECTURE §12 signal 2, evaluated beside the retrieval threshold.
+def _generator_signals(items, passages, hits, labels, dev, test, *, gguf: str, k: int) -> list:
+    """ARCHITECTURE §12 signals 2 and 3, evaluated beside the retrieval ones.
 
-    This is the signal the threshold result motivates. The threshold scores the
-    top retrieval score, and on this corpus that quantity does not separate the
-    classes at all -- 55 of the 80 unanswerable items are written about schemes
-    that ARE present, so they retrieve exactly as well as answerable ones (see
-    ARCHITECTURE §12.4). The generator, unlike a retrieval score, sees the
-    passage text, and can in principle notice that the asserted fact is absent
-    from it.
+    These are the two signals that read the passage *text*. Signals 1 and 4 see
+    only score geometry, and §12.4 records that on this corpus that geometry is
+    near chance, because 55 of the 80 unanswerable items are about schemes that
+    are present. A question about a real scheme retrieves like any other; the
+    difference is whether the specific fact is in the passage, and only a reader
+    can tell.
 
-    Whether it does is the open question. It is answered on the per-class table
-    rather than the aggregate, and fitted on the same split as the threshold so
-    the two are comparable.
+    Both are fitted on the same split as the threshold so all four are
+    comparable, and both reuse one generation per item.
     """
-    from .answerability.signals import SelfReport, SelfReportSignal, unanswerable_f1
+    from .answerability.nli import NLIScorer
+    from .answerability.signals import (
+        EntailmentSignal,
+        SelfReport,
+        SelfReportSignal,
+        unanswerable_f1,
+    )
     from .evaluation.answerability import (
         AnswerabilityOutcome,
         AnswerabilityReport,
@@ -666,42 +670,50 @@ def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, 
     model = Path(gguf).stem
     by_id = {p.passage_id: p for p in passages}
     provider = LlamaCppProvider(gguf, n_ctx=cfg.llm_n_ctx, n_threads=cfg.llm_n_threads)
-    # Its own cache file. These generations run over unanswerable items too,
-    # which Module 4 never sees, so mixing them into the arms cache would make
-    # that file's contents depend on which command last wrote it.
+    # Its own cache file. These generations cover unanswerable items, which
+    # Module 4 never sees, so sharing the arms cache would make that file's
+    # contents depend on which command last wrote it.
     cache = GenerationCache(cfg.gen_dir / f"{model}-answerability.jsonl")
 
     reports: list[SelfReport] = []
+    pairs: list[tuple[str, str]] = []
+
     typer.echo(f"  generating for {len(items)} items (this is the slow part)")
     for n, (item, hit) in enumerate(zip(items, hits, strict=True), start=1):
         context = [by_id[h.passage_id] for h in hit[:k] if h.passage_id in by_id]
         prompt = build_answer_prompt(item.question, context)
         key = prompt_hash(prompt, model, "answerability")
 
-        if (hit_gen := cache.get(key)) is not None:
-            reports.append(SelfReport.from_generation(hit_gen))
-            continue
+        gen = cache.get(key)
+        if gen is None:
+            data = parse_answer(provider.complete(prompt))
+            answer = (data.get("answer") or "").strip() if data else ""
+            gen = Generation(
+                item_id=item.id,
+                arm="S",
+                question=item.question,
+                answerable=bool(data and data.get("answerable", True)) and bool(answer),
+                answer=answer,
+                citation=(data.get("citation") or "").strip() if data else "",
+                confidence=float(data.get("confidence") or 0.0) if data else 0.0,
+                context_ids=[p.passage_id for p in context],
+                model=model,
+                prompt_hash=key,
+            )
+            cache.put(gen)
+            if n % 25 == 0:
+                typer.echo(f"    {n}/{len(items)}")
 
-        data = parse_answer(provider.complete(prompt))
-        answer = (data.get("answer") or "").strip() if data else ""
-        answerable = bool(data and data.get("answerable", True)) and bool(answer)
-        gen = Generation(
-            item_id=item.id,
-            arm="S",
-            question=item.question,
-            answerable=answerable,
-            answer=answer,
-            citation=(data.get("citation") or "").strip() if data else "",
-            confidence=float(data.get("confidence") or 0.0) if data else 0.0,
-            context_ids=[p.passage_id for p in context],
-            model=model,
-            prompt_hash=key,
-        )
-        cache.put(gen)
         reports.append(SelfReport.from_generation(gen))
-        if n % 25 == 0:
-            typer.echo(f"    {n}/{len(items)}")
+        # Collected on the cache-hit path too. An earlier version built this
+        # only when generating, so a resumed run scored entailment on whatever
+        # subset happened to be new.
+        cited = [by_id[pid].text for pid in gen.context_ids if pid in by_id]
+        pairs.append((" ".join(cited), gen.answer))
 
+    out: list[str] = []
+
+    # --- signal 2 -----------------------------------------------------------
     signal, dev_f1 = SelfReportSignal.fit(
         [reports[n] for n in dev], [labels[n] for n in dev]
     )
@@ -724,7 +736,7 @@ def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, 
     flag_f1 = unanswerable_f1(
         [flag_only.predict_answerable(reports[n]) for n in test], [labels[n] for n in test]
     )
-    return [
+    out += [
         f"min_confidence fitted on {len(dev)} items (F1={dev_f1:.3f}); "
         f"reported on {len(test)} held out.",
         f"The `answerable` flag alone, with no confidence gate, scores F1={flag_f1:.3f} "
@@ -732,6 +744,60 @@ def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, 
         "",
         *format_answerability(result),
     ]
+
+    # --- signal 3 -----------------------------------------------------------
+    if not NLIScorer.available(cfg.nli_model):
+        out += [
+            "",
+            "=" * 78,
+            "",
+            f"NLI signal skipped: {cfg.nli_model} is not present locally.",
+        ]
+        return out
+
+    typer.echo(f"  scoring entailment for {len(pairs)} pairs")
+    scorer = NLIScorer(
+        cfg.nli_model, cache_path=cfg.gen_dir / "nli-cache.jsonl", threads=cfg.llm_n_threads
+    )
+    abstained = [not r.answerable for r in reports]
+    entailments = [
+        None if abstained[i] else v.entailment
+        for i, v in enumerate(scorer.score_pairs(pairs))
+    ]
+
+    ent_signal, ent_dev_f1 = EntailmentSignal.fit(
+        [entailments[n] for n in dev],
+        [labels[n] for n in dev],
+        abstentions=[abstained[n] for n in dev],
+    )
+    ent_result = AnswerabilityReport(system=f"NLI entailment (tau={ent_signal.tau:.3f})")
+    for n in test:
+        item = items[n]
+        ent_result.outcomes.append(
+            AnswerabilityOutcome(
+                item_id=item.id,
+                gold_answerable=item.answerable,
+                pred_answerable=ent_signal.predict_answerable(
+                    entailments[n], abstained=abstained[n]
+                ),
+                query_type=classify(item.question).query_type,
+                unanswerable_class=item.unanswerable_class or "",
+            )
+        )
+
+    out += [
+        "",
+        "=" * 78,
+        "",
+        f"tau fitted on {len(dev)} items (F1={ent_dev_f1:.3f}); "
+        f"reported on {len(test)} held out.",
+        "An abstention is UNANSWERABLE without consulting the score: there is no",
+        "answer to entail, and scoring the empty string against a passage measures",
+        "nothing.",
+        "",
+        *format_answerability(ent_result),
+    ]
+    return out
 
 
 @eval_app.command("errors")

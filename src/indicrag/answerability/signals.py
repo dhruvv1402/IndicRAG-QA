@@ -233,3 +233,53 @@ class SelfReportSignal:
             if f1 > best[1]:
                 best = (signal, f1)
         return best
+
+
+@dataclass
+class EntailmentSignal:
+    """Abstain when the evidence does not entail the generated answer.
+
+    ARCHITECTURE §12 signal 3, and the only one of the four that reads the
+    passage text *and* checks a specific claim against it. Signals 1 and 4 see
+    score geometry, which on this corpus is near chance because unanswerable
+    questions here are mostly about present topics. Signal 2 asks the generator
+    to introspect, which it may do badly. This one asks a separate model a
+    narrower question -- does this passage support this sentence -- which is the
+    question the other three cannot pose.
+
+    An abstention is treated as UNANSWERABLE without consulting the score: there
+    is no answer to entail, and scoring the empty string against a passage
+    measures nothing.
+    """
+
+    tau: float = 0.5
+
+    def predict_answerable(self, entailment: float | None, *, abstained: bool = False) -> bool:
+        if abstained or entailment is None:
+            return False
+        return entailment >= self.tau
+
+    @classmethod
+    def fit(
+        cls,
+        entailments: Sequence[float | None],
+        labels: Sequence[bool],
+        *,
+        abstentions: Sequence[bool] | None = None,
+        grid: int = 40,
+    ) -> tuple[EntailmentSignal, float]:
+        """Choose tau by maximising F1 on the UNANSWERABLE class."""
+        if not entailments:
+            return cls(), 0.0
+        flags = list(abstentions) if abstentions is not None else [False] * len(entailments)
+        best = (cls(tau=0.0), -1.0)
+        for i in range(grid + 1):
+            signal = cls(tau=i / grid)
+            preds = [
+                signal.predict_answerable(e, abstained=a)
+                for e, a in zip(entailments, flags, strict=True)
+            ]
+            f1 = unanswerable_f1(preds, labels)
+            if f1 > best[1]:
+                best = (signal, f1)
+        return best

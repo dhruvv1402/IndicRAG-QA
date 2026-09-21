@@ -410,6 +410,23 @@ eval_app = typer.Typer(no_args_is_help=True, help="Run and report the evaluation
 app.add_typer(eval_app, name="eval")
 
 
+@eval_app.command("all")
+def eval_all(
+    out_dir: Path = typer.Option(Path("evals"), "--report", help="Directory for reports."),
+    gold: Path = typer.Option(GOLD_PATH, "--gold"),
+) -> None:
+    """Regenerate every committed report from cached artefacts (PRD NFR-6).
+
+    Each stage degrades rather than fails: a stage whose inputs are missing is
+    skipped with a reason and the rest still run.
+    """
+    from .evaluation.all_reports import run_all
+
+    summary = run_all(out_dir, gold_path=gold, progress=lambda m: typer.echo(f"  {m}..."))
+    for line in summary.format():
+        typer.echo(line)
+
+
 @eval_app.command("qa")
 def eval_qa(
     gold: Path = typer.Option(GOLD_PATH, "--gold"),

@@ -503,6 +503,46 @@ That last breakdown guards against a specific and likely failure: if code-mixed 
 
 ---
 
+
+### 12.4 Signal 1 is measured, and it does not work here
+
+**Added 2026-09-21.** The table above lists the retrieval threshold first
+because it is free and standard. On this corpus it carries no information at
+all, and the design should not be read as if it does.
+
+Measured over all 400 gold items:
+
+| Retriever | answerable (median) | unanswerable (median) | best F1 | precision at best |
+|---|---|---|---|---|
+| BM25 | 13.55 | **13.82** | 0.372 | 0.237 |
+| TF-IDF | 0.1424 | **0.1485** | 0.370 | 0.231 |
+| Script-aware RRF | 0.0327 | 0.0325 | 0.351 | 0.216 |
+
+The classes do not separate, and under two of the three retrievers the
+*unanswerable* questions score higher. Across the full τ sweep precision stays
+between 0.19 and 0.22 against an unanswerable base rate of 0.20, and the best F1
+is reached at 87% abstention.
+
+The cause is the dataset, not the retriever. 55 of the 80 unanswerable items —
+near-miss, false-premise and under-specified — are written about schemes that
+*are* in the corpus, so they retrieve as well as answerable questions do. A
+retrieval-score threshold is a corpus-absence detector; only the 25 out-of-scope
+items are corpus-absent, and those it catches at 0.688.
+
+Two consequences for the rest of this section. First, §12.3's instruction to fit
+τ by maximising F1 on the UNANSWERABLE class is still right, but the fitted
+value is not meaningful in isolation here: it moved from 0.000 recall to 0.93
+across two splits of the same data while the underlying curve stayed flat, so
+the reporting now always carries the separation table and the full sweep beside
+any fitted point.
+
+Second, the rationale in §12.2 for including the `top1 − top2` margin is a
+*hypothesis*, not a result: near-miss questions were predicted to produce
+several similarly-scoring passages and so to show a small margin with a high max
+score. Max score is now known not to separate the classes. Whether the margin
+does is untested, and it is the obvious next measurement, because the
+calibrated combination in signal 4 leans on it.
+
 ## 13. Grounding metrics
 
 **H3 claims RAG reduces unsupported answers. That requires a measurement of "unsupported", not an assumption.**

@@ -239,6 +239,16 @@ change the absolute answer quality figures. It would not change the retrieval
 results, which are model-independent, and the retrieval results are where our
 contribution lies.
 
+**The fusion correction is demonstrated over one encoder pair.** Script-aware
+fusion is evaluated over BM25 and multilingual-e5-base. As §VI-F reports, LaBSE
+used alone outperforms that fused system on the code-mixed slice by a wide
+margin (0.332 against 0.173), which means that on code-mixed queries a better
+encoder choice beats correcting the fusion over a weaker one. The correction is
+orthogonal to encoder choice and could be applied over LaBSE; we have not tested
+that combination, and until we do, our results establish that script-aware
+fusion repairs a specific defect in rank fusion, not that the resulting system
+is the strongest available configuration.
+
 **No component is fine-tuned.** All encoders and the generator are used
 off-the-shelf. Fine-tuning any of them on in-domain data would likely improve
 absolute numbers, and would confound the comparison we are making, which is

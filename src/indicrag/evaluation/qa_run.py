@@ -44,13 +44,29 @@ def score_arm(
     generations: Sequence[Generation],
     items: Sequence[QAItem],
     passages: Sequence[Passage],
+    *,
+    nli=None,
 ) -> tuple[QAReport, list]:
-    """Score one arm's generations for answer quality and grounding."""
+    """Score one arm's generations for answer quality and grounding.
+
+    `nli`, when given, is an `answerability.nli.NLIScorer`. It fills in the
+    entailment half of the Citation Support Rate -- whether the cited evidence
+    actually *entails* the answer, rather than merely sharing its words. Without
+    it that column reports nothing, which is what it did for the whole of this
+    module's life before now: `score_generation` was never passed an entailment
+    value, so `entailment_support_rate` returned None and the report printed a
+    dash for every arm.
+
+    Scored in one batch after the loop rather than per item, because the model
+    costs roughly 0.3 s per pair and batching is most of the difference between
+    a few minutes and half an hour.
+    """
     by_item = {i.id: i for i in items}
     by_pid = {p.passage_id: p for p in passages}
 
     qa_outcomes: list[QAOutcome] = []
     grounding_outcomes = []
+    nli_pairs: list[tuple[str, str]] = []
 
     for gen in generations:
         item = by_item.get(gen.item_id)
@@ -78,6 +94,7 @@ def score_arm(
         evidence_ids = [cited] if cited in by_pid else (gen.context_ids or item.gold_passage_ids)
         evidence = " ".join(by_pid[pid].text for pid in evidence_ids if pid in by_pid)
 
+        nli_pairs.append((evidence, gen.answer if not abstained else ""))
         grounding_outcomes.append(
             score_generation(
                 item_id=item.id,
@@ -90,6 +107,15 @@ def score_arm(
                 cited_found=cited in by_pid,
             )
         )
+
+    if nli is not None and nli_pairs:
+        for outcome, verdict in zip(
+            grounding_outcomes, nli.score_pairs(nli_pairs), strict=True
+        ):
+            # An abstention has no answer to entail, so it stays None rather
+            # than becoming a zero that would drag the rate down.
+            if not outcome.abstained:
+                outcome.entailment = verdict.entailment
 
     return QAReport(system=f"{arm.key} ({arm.label})", outcomes=qa_outcomes), grounding_outcomes
 
@@ -104,6 +130,7 @@ def run_module4(
     model: str = "",
     k: int = 5,
     arms: Sequence[str] = tuple(ARM_ORDER),
+    nli=None,
     progress: Callable[[str], None] | None = None,
 ) -> Module4Result:
     """Run every requested arm and score it.
@@ -136,7 +163,7 @@ def run_module4(
             k=k,
             progress=say,
         )
-        report, ground = score_arm(arm, gens, answerable, passages)
+        report, ground = score_arm(arm, gens, answerable, passages, nli=nli)
         qa[key] = report
         grounding.outcomes.extend(ground)
 

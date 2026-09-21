@@ -302,3 +302,98 @@ def test_the_answering_fields_survive_the_default_path():
     assert data["citation"] == "nmms-en#p0003"
     assert data["confidence"] == 0.9
     assert data["answerable"] is True
+
+
+# --- entailment scoring of citations ---------------------------------------------
+
+
+class _StubNLI:
+    """Returns a queued entailment probability per pair, recording the pairs."""
+
+    def __init__(self, scores):
+        self.scores = list(scores)
+        self.pairs = []
+
+    def score_pairs(self, pairs, **kw):
+        from indicrag.answerability.nli import NLIVerdict
+
+        self.pairs.extend(pairs)
+        return [
+            NLIVerdict(self.scores.pop(0) if self.scores else 0.0, 0.0, 0.0) for _ in pairs
+        ]
+
+
+def _module4_fixture():
+    from indicrag.models import Passage, QAItem
+    from indicrag.rag.arms import ARMS, Generation
+
+    passages = [
+        Passage(passage_id="p1", doc_id="d", scheme="s", lang="en",
+                text="Students receive Rs. 12,000 per annum.", section_path="Eligibility")
+    ]
+    items = [
+        QAItem(id="i1", question="How much?", query_lang="en", passage_lang="en",
+               answerable=True, answer_gold="Rs. 12,000", gold_passage_ids=["p1"]),
+        QAItem(id="i2", question="And laptops?", query_lang="en", passage_lang="en",
+               answerable=True, answer_gold="Rs. 5,000", gold_passage_ids=["p1"]),
+    ]
+    gens = [
+        Generation(item_id="i1", arm="C", question="How much?", answerable=True,
+                   answer="Rs. 12,000", citation="p1", confidence=0.9, context_ids=["p1"]),
+        Generation(item_id="i2", arm="C", question="And laptops?", answerable=False,
+                   answer="", citation="", confidence=0.0, context_ids=["p1"]),
+    ]
+    return ARMS["C"], gens, items, passages
+
+
+def test_entailment_is_not_scored_without_a_scorer():
+    """The state this was in: score_generation was never passed an entailment,
+    so the NLI column printed a dash for every arm, permanently."""
+    from indicrag.evaluation.qa_run import score_arm
+
+    arm, gens, items, passages = _module4_fixture()
+    _report, ground = score_arm(arm, gens, items, passages)
+    assert all(o.entailment is None for o in ground)
+
+
+def test_entailment_is_filled_in_when_a_scorer_is_given():
+    from indicrag.evaluation.qa_run import score_arm
+
+    arm, gens, items, passages = _module4_fixture()
+    nli = _StubNLI([0.95, 0.4])
+    _report, ground = score_arm(arm, gens, items, passages, nli=nli)
+    assert ground[0].entailment == 0.95
+
+
+def test_an_abstention_keeps_a_null_entailment_rather_than_a_zero():
+    """A zero would be counted in the denominator and drag the rate down, so an
+    arm that abstains a lot would look less grounded for abstaining."""
+    from indicrag.evaluation.qa_run import score_arm
+
+    arm, gens, items, passages = _module4_fixture()
+    _report, ground = score_arm(arm, gens, items, passages, nli=_StubNLI([0.95, 0.4]))
+    assert ground[1].abstained is True
+    assert ground[1].entailment is None
+
+
+def test_pairs_are_premise_evidence_and_hypothesis_answer():
+    """Reversing them scores whether the passage follows from the answer, which
+    is a different and much weaker claim."""
+    from indicrag.evaluation.qa_run import score_arm
+
+    arm, gens, items, passages = _module4_fixture()
+    nli = _StubNLI([0.95, 0.4])
+    score_arm(arm, gens, items, passages, nli=nli)
+    premise, hypothesis = nli.pairs[0]
+    assert "Rs. 12,000 per annum" in premise
+    assert hypothesis == "Rs. 12,000"
+
+
+def test_the_grounding_report_now_reports_an_nli_rate():
+    from indicrag.evaluation.grounding import GroundingReport
+    from indicrag.evaluation.qa_run import score_arm
+
+    arm, gens, items, passages = _module4_fixture()
+    _report, ground = score_arm(arm, gens, items, passages, nli=_StubNLI([0.95, 0.4]))
+    report = GroundingReport(system="s", outcomes=ground)
+    assert report.entailment_support_rate("C") == 1.0

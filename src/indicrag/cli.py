@@ -790,6 +790,10 @@ def eval_qa(
         help="Run a seeded sample stratified by language pair instead of the full set.",
     ),
     no_model: bool = typer.Option(False, "--no-model", help="Extractive provider only."),
+    nli: bool = typer.Option(
+        False, "--nli",
+        help="Verify citations by entailment as well as word overlap (~0.3s/answer).",
+    ),
 ) -> None:
     """Module 4: direct LLM vs retrieval-augmented question answering."""
     from .evaluation.qa_run import format_module4, run_module4
@@ -858,11 +862,26 @@ def eval_qa(
         complete = extractive_complete(passages)
         model = "extractive"
 
+    scorer = None
+    if nli:
+        from .answerability.nli import NLIScorer
+
+        if not NLIScorer.available(cfg.nli_model):
+            raise typer.BadParameter(
+                f"--nli needs {cfg.nli_model}, which is not present locally. "
+                "Fetch it first, or drop --nli to report lexical support only."
+            )
+        scorer = NLIScorer(
+            cfg.nli_model,
+            cache_path=cfg.gen_dir / "nli-cache.jsonl",
+            threads=cfg.llm_n_threads,
+        )
+
     result = run_module4(
         items, passages, complete,
         retrievers=retrievers,
         cache=GenerationCache(cfg.gen_dir / f"{model}.jsonl"),
-        model=model, k=k,
+        model=model, k=k, nli=scorer,
         arms=[a.strip().upper() for a in arms.split(",") if a.strip()],
         progress=typer.echo,
     )

@@ -203,6 +203,35 @@ The best F1 of 0.372 is reached at 86% abstention. Those two numbers have to be
 read together. A recall of 0.93 on the unanswerable class, bought by refusing
 most of the answerable questions as well, is not detection; it is silence.
 
+The top score is the quantity a threshold uses, but it is not the only
+retrieval-side feature available, and the calibrated combination of §IV-F is fit
+over all of them. None of them separates either.
+
+**Feature separation under BM25, all 400 items.** AUC is P(a random answerable
+question scores above a random unanswerable one); 0.500 is chance.
+
+| Feature | answerable | unanswerable | AUC |
+|---|---|---|---|
+| top1 − top2 margin | 2.1769 | 1.2750 | 0.594 |
+| score spread (top1 − topK) | 5.2127 | 3.7732 | 0.599 |
+| max score | 13.5509 | 13.8179 | 0.545 |
+| mean top-k | 10.2447 | 10.3221 | 0.510 |
+| scheme agreement | 0.4000 | 0.4000 | 0.504 |
+
+The margin deserves comment because it was the feature we expected to work. The
+reasoning was that a near-miss question retrieves several similarly-scoring
+passages — the topic is present, the specific fact is not — and so shows a
+smaller top1-to-top2 gap than a question with one clear answer. The prediction
+holds in direction: 1.28 against 2.18. It fails in magnitude. An AUC of 0.594
+orders a random pair correctly 59% of the time against a chance rate of 50%,
+which is not a basis for abstention.
+
+This bounds what a calibrated combination can achieve, and we report it for that
+reason. A logistic regression cannot extract more information than its features
+carry; with the best feature at 0.599 and the rest at chance, a combined
+retrieval-side signal should be expected to underperform, and doing so would be
+a property of the feature set rather than of the model.
+
 **This follows from the dataset rather than from the retriever.** Of the 80
 unanswerable items, 55 — the near-miss, false-premise and under-specified
 classes — are deliberately written about schemes that *are* in the corpus. A

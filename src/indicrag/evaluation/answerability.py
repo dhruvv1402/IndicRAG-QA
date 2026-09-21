@@ -242,15 +242,21 @@ def run_answerability(
     cfg = get_settings()
 
     retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
-    try:
-        from ..index.dense import DenseIndex, Encoder
-        from ..index.encoders import get
 
-        spec = get(cfg.encoder_primary)
-        retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
-        retrievers.encoder = Encoder(spec)
-    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
-        say(f"  dense index unavailable ({exc}); '{method}' falls back to lexical")
+    # Only load the encoder when the method actually needs it. A dense model is
+    # roughly a gigabyte resident, and `--method bm25` is the configuration that
+    # runs when memory is short -- loading a model it will never call defeats
+    # the point of offering it.
+    if method.lower() not in {"bm25", "tfidf"}:
+        try:
+            from ..index.dense import DenseIndex, Encoder
+            from ..index.encoders import get
+
+            spec = get(cfg.encoder_primary)
+            retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+            retrievers.encoder = Encoder(spec)
+        except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
+            say(f"  dense index unavailable ({exc}); '{method}' falls back to lexical")
 
     retrievers.script_of = {
         p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages

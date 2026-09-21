@@ -569,11 +569,13 @@ def eval_answerability(
     from .evaluation.answerability import (
         feature_separation,
         format_answerability,
+        format_calibrated,
         format_feature_separation,
         format_separation,
         format_separation_across_methods,
         format_tau_sweep,
         run_answerability,
+        run_calibrated,
         separation_across_methods,
         stratified_by_class,
         tau_sweep,
@@ -614,6 +616,16 @@ def eval_answerability(
         feature_separation(meta["features"], meta["labels"]), method=method
     )
     lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
+
+    sep = feature_separation(meta["features"], meta["labels"])
+    cal_report, cal_meta = run_calibrated(
+        meta["features"], meta["labels"], meta["dev"], meta["test"], items=items
+    )
+    lines += ["", "=" * 78, ""] + format_calibrated(
+        cal_report, cal_meta,
+        best_single_auc=max((abs(v[2] - 0.5) for v in sep.values()), default=0.0) + 0.5,
+    )
+    lines += [""] + format_answerability(cal_report)
 
     if gguf:
         lines += ["", "=" * 78, ""] + _self_report_signal(

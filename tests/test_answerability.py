@@ -527,3 +527,44 @@ def test_the_report_says_combining_chance_features_cannot_help():
         format_feature_separation(feature_separation(feats, [True, True, False, False]))
     )
     assert "cannot be rescued by combining" in text
+
+
+# --- the calibrated combination --------------------------------------------------
+
+
+def test_the_calibrated_signal_is_fit_on_dev_and_reported_on_test():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import run_calibrated
+
+    feats = [Features(max_score=s, margin=s / 2, score_spread=s) for s in
+             (0.9, 0.8, 0.7, 0.6, 0.1, 0.15, 0.2, 0.25)]
+    labels = [True, True, True, True, False, False, False, False]
+    report, meta = run_calibrated(feats, labels, [0, 1, 4, 5], [2, 3, 6, 7])
+
+    assert len(report.outcomes) == 4          # test rows only
+    assert 0.0 <= meta["auc"] <= 1.0
+    assert meta["signal"].coefficients        # something was actually fit
+
+
+def test_a_separable_feature_set_is_learned():
+    """Guards the fit itself: a flat result on real data has to mean the data is
+    flat, not that the regression never worked."""
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import run_calibrated
+
+    feats = [Features(score_spread=s) for s in (9, 8, 7, 6, 1, 2, 3, 4)]
+    labels = [True] * 4 + [False] * 4
+    _report, meta = run_calibrated(feats, labels, list(range(8)), list(range(8)))
+    assert meta["auc"] > 0.9
+
+
+def test_the_report_names_the_gain_over_the_best_single_feature():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import format_calibrated, run_calibrated
+
+    feats = [Features(score_spread=s) for s in (9, 8, 1, 2)]
+    labels = [True, True, False, False]
+    report, meta = run_calibrated(feats, labels, [0, 1, 2, 3], [0, 1, 2, 3])
+    text = "\n".join(format_calibrated(report, meta, best_single_auc=0.6))
+    assert "best single feature" in text
+    assert "combination gains" in text

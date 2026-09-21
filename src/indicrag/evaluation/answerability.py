@@ -537,3 +537,72 @@ def format_feature_separation(table, *, method: str = "") -> list[str]:
         "  column cannot be rescued by combining the columns.",
     ]
     return out
+
+
+def run_calibrated(features, labels, dev, test, *, items=None):
+    """ARCHITECTURE §12 signal 4, over the retrieval features alone.
+
+    Fit on the same split as the threshold so the two are comparable. The
+    generator and NLI columns of the feature vector are left at zero here: this
+    is the retrieval-side ceiling, answering what the best possible combination
+    of score geometry can do before any model reads a passage.
+
+    Returns `(report, meta)` in the shape `run_answerability` uses.
+    """
+    from ..answerability.calibrate import CombinedFeatures, fit
+    from ..answerability.signals import unanswerable_f1
+    from ..query.langid import classify
+
+    combined = [CombinedFeatures(retrieval=f) for f in features]
+    signal, dev_f1 = fit([combined[n] for n in dev], [labels[n] for n in dev])
+
+    report = AnswerabilityReport(system=f"calibrated, retrieval features (p>={signal.threshold:.2f})")
+    for n in test:
+        item = items[n] if items else None
+        report.outcomes.append(
+            AnswerabilityOutcome(
+                item_id=item.id if item else str(n),
+                gold_answerable=labels[n],
+                pred_answerable=signal.predict_answerable(combined[n]),
+                query_type=classify(item.question).query_type if item else "",
+                unanswerable_class=(item.unanswerable_class or "") if item else "",
+            )
+        )
+
+    probabilities = [signal.probability(combined[n]) for n in test]
+    test_labels = [labels[n] for n in test]
+    return report, {
+        "signal": signal,
+        "dev_f1": dev_f1,
+        "auc": auc(
+            [p for p, lab in zip(probabilities, test_labels, strict=True) if lab],
+            [p for p, lab in zip(probabilities, test_labels, strict=True) if not lab],
+        ),
+        "test_f1": unanswerable_f1(
+            [signal.predict_answerable(combined[n]) for n in test], test_labels
+        ),
+    }
+
+
+def format_calibrated(report, meta, *, best_single_auc: float | None = None) -> list[str]:
+    from ..answerability.calibrate import format_weights
+
+    rule = "-" * 78
+    out = [
+        "CALIBRATED COMBINATION (signal 4, retrieval features only)",
+        rule,
+        "  Fit on the same split as the threshold, so the two are comparable.",
+        "  The generator and NLI columns are zero here: this is the ceiling for",
+        "  score geometry alone, before any model reads a passage.",
+        "",
+        f"  dev F1              {meta['dev_f1']:.3f}",
+        f"  test F1             {meta['test_f1']:.3f}",
+        f"  AUC of p(answerable){meta['auc']:>8.3f}",
+    ]
+    if best_single_auc is not None:
+        gain = meta["auc"] - best_single_auc
+        out += [
+            f"  best single feature {best_single_auc:>8.3f}   (combination gains {gain:+.3f})",
+        ]
+    out += ["", *format_weights(meta["signal"])]
+    return out

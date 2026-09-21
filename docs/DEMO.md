@@ -103,14 +103,20 @@ Two separate things produced that, and only one is a defect:
   §1 and was retrieved lexically. That was the defect, and it is fixed.
 - The system still does not abstain, because `ask` runs with `tau = 0` and
   abstains only when retrieval returns nothing at all. That default is
-  deliberate — an uncalibrated threshold silently suppresses answers and makes
-  retrieval look worse than it is — but it means the interactive path does not
-  yet carry the answerability signal that `eval answerability` measures.
+  deliberate: an uncalibrated threshold silently suppresses answers and makes
+  retrieval look worse than it is.
 
-Wiring the calibrated threshold into `ask` needs the dev split, which needs
-human verification of the gold set. Until then the honest statement is that the
-demo demonstrates retrieval and grounding, not abstention, and §IX of the paper
-says so.
+The obvious remedy — calibrate the threshold and wire it in — turns out not to
+be one. §VI-H measures the retrieval score against the gold labels and finds it
+carries no answerability signal on this corpus at all: answerable and
+unanswerable questions score the same, and the unanswerable ones marginally
+higher. No value of `tau` would have refused this query while still answering
+the others.
+
+What *would* have caught it is the generator, which sees the passage text rather
+than a score and can report that it does not contain the answer. `--gguf`
+enables exactly that path, and it is the honest form of the abstention story:
+this system abstains on evidence, not on confidence.
 
 ---
 

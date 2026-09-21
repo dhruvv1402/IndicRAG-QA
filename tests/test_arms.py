@@ -397,3 +397,55 @@ def test_the_grounding_report_now_reports_an_nli_rate():
     _report, ground = score_arm(arm, gens, items, passages, nli=_StubNLI([0.95, 0.4]))
     report = GroundingReport(system="s", outcomes=ground)
     assert report.entailment_support_rate("C") == 1.0
+
+
+# --- the error decomposition -----------------------------------------------------
+
+
+def _report(key, pairs):
+    """A QAReport for `arm` from (item_id, prediction, gold) triples."""
+    from indicrag.evaluation.qa import QAOutcome, QAReport
+
+    return QAReport(
+        system=key,
+        outcomes=[
+            QAOutcome(
+                item_id=i, slice_key="EN->EN", language_group="monolingual",
+                prediction=pred, golds=[gold],
+            )
+            for i, pred, gold in pairs
+        ],
+    )
+
+
+def test_the_decomposition_is_paired_over_items_both_arms_answered():
+    """Arm D skips items whose gold passages do not resolve. A difference of
+    means over different item sets is not a decomposition, and would print as
+    one."""
+    from indicrag.evaluation.grounding import GroundingReport
+    from indicrag.evaluation.qa_run import Module4Result, format_module4
+
+    # C answers three; D skips the one C gets wrong, which would flatter D.
+    c = _report("C", [("i1", "right", "right"), ("i2", "right", "right"), ("i3", "wrong", "right")])
+    d = _report("D", [("i1", "right", "right"), ("i2", "right", "right")])
+
+    text = "\n".join(
+        format_module4(Module4Result(qa={"C": c, "D": d}, grounding=GroundingReport("s"), skipped=[]))
+    )
+    assert "paired over 2 items" in text
+    assert "1 item(s) excluded" in text
+    # Paired, both arms score 1.0 on the shared pair, so retrieval error is 0.
+    assert "retrieval error  (D - C)   0.000" in text
+
+
+def test_no_exclusion_line_when_both_arms_cover_the_same_items():
+    from indicrag.evaluation.grounding import GroundingReport
+    from indicrag.evaluation.qa_run import Module4Result, format_module4
+
+    c = _report("C", [("i1", "wrong", "right"), ("i2", "right", "right")])
+    d = _report("D", [("i1", "right", "right"), ("i2", "right", "right")])
+    text = "\n".join(
+        format_module4(Module4Result(qa={"C": c, "D": d}, grounding=GroundingReport("s"), skipped=[]))
+    )
+    assert "item(s) excluded" not in text
+    assert "paired over 2 items" in text

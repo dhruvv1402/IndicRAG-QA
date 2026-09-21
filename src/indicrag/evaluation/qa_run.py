@@ -187,11 +187,29 @@ def format_module4(result: Module4Result) -> list[str]:
         )
 
     if "C" in result.qa and "D" in result.qa:
-        c, d = result.qa["C"].token_f1(), result.qa["D"].token_f1()
+        # Paired over the items both arms actually answered. Arm D skips any
+        # item whose gold passages do not resolve, so the two arms need not
+        # cover the same set -- and a difference of means over different sets
+        # is not a decomposition of anything, while still printing as one.
+        c_by_id = {o.item_id: o for o in result.qa["C"].outcomes}
+        d_by_id = {o.item_id: o for o in result.qa["D"].outcomes}
+        shared = [i for i in c_by_id if i in d_by_id]
+        dropped = len(c_by_id) - len(shared)
+
+        c = sum(c_by_id[i].f1 for i in shared) / len(shared) if shared else 0.0
+        d = sum(d_by_id[i].f1 for i in shared) / len(shared) if shared else 0.0
+
         out += [
             "",
             "ERROR DECOMPOSITION",
             rule,
+            f"  paired over {len(shared)} items answered by both arms",
+        ]
+        if dropped:
+            out.append(
+                f"  {dropped} item(s) excluded: arm D had no resolvable gold passage"
+            )
+        out += [
             f"  oracle (D) token-F1        {d:.3f}",
             f"  full system (C) token-F1   {c:.3f}",
             f"  retrieval error  (D - C)   {d - c:.3f}",

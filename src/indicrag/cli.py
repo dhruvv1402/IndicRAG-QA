@@ -223,8 +223,9 @@ def dataset_scaffold_unanswerable(
 def dataset_merge(
     out: Path = typer.Option(GOLD_PATH, "--out"),
     sources: str = typer.Option(
-        "evals/answerable-candidates.jsonl,evals/hindi-candidates.jsonl,"
-        "evals/hindi-candidates-2.jsonl,evals/hindi-candidates-3.jsonl",
+        "evals/gold.jsonl,evals/answerable-candidates.jsonl,evals/hindi-candidates.jsonl,"
+        "evals/hindi-candidates-2.jsonl,evals/hindi-candidates-3.jsonl,"
+        "evals/hindi-candidates-4.jsonl",
         "--sources",
         help="Comma-separated checkpoint files, in precedence order.",
     ),

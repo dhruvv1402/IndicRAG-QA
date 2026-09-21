@@ -219,6 +219,71 @@ def dataset_scaffold_unanswerable(
     typer.echo("All verified=false. Near-miss items carry a distractor passage to check against.")
 
 
+@dataset_app.command("merge")
+def dataset_merge(
+    out: Path = typer.Option(GOLD_PATH, "--out"),
+    sources: str = typer.Option(
+        "evals/answerable-candidates.jsonl,evals/hindi-candidates.jsonl,evals/hindi-candidates-2.jsonl",
+        "--sources",
+        help="Comma-separated checkpoint files, in precedence order.",
+    ),
+) -> None:
+    """Consolidate generation checkpoints into the gold set.
+
+    Generation checkpoints after every item but only merges into gold.jsonl when
+    a run completes. An interrupted run therefore leaves its work sitting in the
+    checkpoint files, invisible to everything downstream. This recovers it.
+
+    Safe to run repeatedly. Unanswerable items already in the target are
+    preserved -- they come from `scaffold-unanswerable`, not from generation, and
+    re-merging must not drop them.
+
+    Deduplication is on the gold passage set, NOT on the item id. Ids are
+    numbered per cell within a run, so a resumed run reissues `qa-hinglish-hi-000`
+    and an id-keyed merge silently drops the earlier item. The gold passage set is
+    unique per item by construction -- no passage is used twice -- so it is the
+    reliable key. Ids are renumbered on output to restore uniqueness.
+    """
+    seen: set[tuple[str, ...]] = set()
+    answerable: list[QAItem] = []
+    for name in [part.strip() for part in sources.split(",") if part.strip()]:
+        path = Path(name)
+        if not path.exists():
+            typer.echo(f"  (absent, skipped) {name}")
+            continue
+        kept = dropped = 0
+        for item in read_jsonl(path, QAItem):
+            if not item.answerable:
+                continue
+            key = tuple(sorted(item.gold_passage_ids))
+            if key in seen:
+                dropped += 1
+                continue
+            seen.add(key)
+            answerable.append(item)
+            kept += 1
+        note = f" ({dropped} duplicate passages skipped)" if dropped else ""
+        typer.echo(f"  {kept:4d} answerable from {name}{note}")
+
+    # Renumber so ids are unique across the merged set.
+    counters: dict[str, int] = {}
+    for item in answerable:
+        cell = f"{item.query_lang}-{item.passage_lang}"
+        n = counters.get(cell, 0)
+        counters[cell] = n + 1
+        item.id = f"qa-{cell}-{n:03d}"
+
+    existing = list(read_jsonl(out, QAItem)) if out.exists() else []
+    unanswerable = [i for i in existing if not i.answerable]
+    write_jsonl(out, answerable + unanswerable)
+    typer.echo("")
+    typer.echo(
+        f"{len(answerable)} answerable + {len(unanswerable)} unanswerable "
+        f"= {len(answerable) + len(unanswerable)} -> {out}"
+    )
+    typer.echo("Run `indicrag dataset stats` to see coverage against the PRD matrix.")
+
+
 @dataset_app.command("verify")
 def dataset_verify(
     path: Path = typer.Option(GOLD_PATH, "--path"),

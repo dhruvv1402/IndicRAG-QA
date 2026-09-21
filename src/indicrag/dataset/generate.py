@@ -231,7 +231,10 @@ def generate_candidates(
 
             items.append(
                 QAItem(
-                    id=f"qa-{query_lang}-{passage_lang}-{made:03d}",
+                    # Derived from the passage, not from a per-run counter.
+                    # A counter restarts at 000 on every resumed run, so two
+                    # distinct items collide and a merge keyed on id drops one.
+                    id=f"qa-{query_lang}-{passage_lang}-{passage.passage_id.replace('#', '-')}",
                     question=question,
                     query_lang=query_lang,
                     passage_lang=passage_lang,

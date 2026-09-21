@@ -389,3 +389,92 @@ def test_the_sweep_report_marks_the_best_row_and_its_cost():
     assert "best F1" in text
     assert "abstention" in text
     assert "it is silence" in text
+
+
+# --- the generator self-report path ----------------------------------------------
+
+
+class _ScriptedProvider:
+    """Returns a queued reply per call, recording the prompts it saw."""
+
+    def __init__(self, replies):
+        self.replies = list(replies)
+        self.prompts = []
+
+    def complete(self, prompt, *a, **kw):
+        self.prompts.append(prompt)
+        return self.replies.pop(0) if self.replies else "{}"
+
+
+def test_the_self_report_path_scores_and_caches(tmp_path, monkeypatch):
+    """Exercised with a stub because a bug here is only discovered after an
+    hour of generation."""
+    import indicrag.rag.providers as providers
+    from indicrag.models import Passage, QAItem, Retrieved
+
+    passages = [
+        Passage(passage_id="p1", doc_id="d", scheme="s", lang="en",
+                text="Students receive Rs. 12,000 per annum.", section_path="Eligibility")
+    ]
+    items = [
+        QAItem(id="qa-1", question="How much?", query_lang="en", passage_lang="en",
+               answerable=True, gold_passage_ids=["p1"]),
+        QAItem(id="un-1", question="What is the laptop allowance?", query_lang="en",
+               passage_lang="", answerable=False, unanswerable_class="false-premise"),
+    ]
+    hits = [[Retrieved(passage_id="p1", score=0.5, rank=1)] for _ in items]
+
+    stub = _ScriptedProvider([
+        '{"answerable": true, "answer": "Rs. 12,000", "citation": "p1", "confidence": 0.9}',
+        '{"answerable": false, "answer": "", "citation": "", "confidence": 0.0}',
+    ])
+    monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
+
+    from indicrag.config import get_settings
+
+    get_settings.cache_clear()
+    from indicrag.cli import _self_report_signal
+
+    lines = _self_report_signal(
+        items, passages, hits, [i.answerable for i in items],
+        [0, 1], [0, 1], gguf=str(tmp_path / "m.gguf"), k=5,
+    )
+    get_settings.cache_clear()
+
+    text = "\n".join(lines)
+    assert "generator self-report" in text
+    # Both prompts carried the retrieved passage text.
+    assert all("Rs. 12,000 per annum" in p for p in stub.prompts)
+    # The signal separated the two items perfectly, so the flag alone suffices.
+    assert "F1=1.000" in text
+
+
+def test_an_unparseable_reply_counts_as_an_abstention(tmp_path, monkeypatch):
+    """A model that emits garbage has not answered, and must not be scored as
+    though it confidently did."""
+    import indicrag.rag.providers as providers
+    from indicrag.models import Passage, QAItem, Retrieved
+
+    passages = [Passage(passage_id="p1", doc_id="d", scheme="s", lang="en", text="Text.")]
+    items = [
+        QAItem(id="un-1", question="q", query_lang="en", passage_lang="",
+               answerable=False, unanswerable_class="near-miss")
+    ]
+    hits = [[Retrieved(passage_id="p1", score=0.5, rank=1)]]
+
+    stub = _ScriptedProvider(["not json at all"])
+    monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
+
+    from indicrag.config import get_settings
+
+    get_settings.cache_clear()
+    from indicrag.cli import _self_report_signal
+
+    lines = _self_report_signal(
+        items, passages, hits, [False], [0], [0],
+        gguf=str(tmp_path / "m.gguf"), k=5,
+    )
+    get_settings.cache_clear()
+    assert "generator self-report" in "\n".join(lines)

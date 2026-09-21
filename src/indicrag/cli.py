@@ -622,13 +622,17 @@ def eval_answerability(
 def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, k: int) -> list:
     """ARCHITECTURE §12 signal 2, evaluated beside the retrieval threshold.
 
-    This is the signal the false-premise result motivates. A retrieval threshold
-    scores 0.000 on that class because such a question retrieves confidently --
-    the scheme it names is real -- so no function of retrieval scores can
-    separate it from an answerable one. The generator sees the passage text and
-    can in principle notice the asserted fact is absent. Whether it does is the
-    open question, and it is answered on the per-class table rather than the
-    aggregate.
+    This is the signal the threshold result motivates. The threshold scores the
+    top retrieval score, and on this corpus that quantity does not separate the
+    classes at all -- 55 of the 80 unanswerable items are written about schemes
+    that ARE present, so they retrieve exactly as well as answerable ones (see
+    ARCHITECTURE §12.4). The generator, unlike a retrieval score, sees the
+    passage text, and can in principle notice that the asserted fact is absent
+    from it.
+
+    Whether it does is the open question. It is answered on the per-class table
+    rather than the aggregate, and fitted on the same split as the threshold so
+    the two are comparable.
     """
     from .answerability.signals import SelfReport, SelfReportSignal, unanswerable_f1
     from .evaluation.answerability import (

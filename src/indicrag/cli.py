@@ -550,6 +550,13 @@ def eval_answerability(
     method: str = typer.Option("hybrid", "--method"),
     k: int = typer.Option(5, "--k"),
     dev_fraction: float = typer.Option(0.3, "--dev-fraction", help="Share used to fit tau."),
+    gguf: str = typer.Option(
+        "", "--gguf",
+        help="Also evaluate the generator self-report signal. Needs a generation per item.",
+    ),
+    sample: int = typer.Option(
+        0, "--sample", help="Evaluate a seeded sample instead of every item."
+    ),
 ) -> None:
     """Module 5: can the system tell an answerable question from an unanswerable one?
 
@@ -596,20 +603,32 @@ def eval_answerability(
     }
     scheme_of = {p.passage_id: p.scheme for p in passages}
 
+    if sample:
+        # Stratify on the label, not just the language pair. The unanswerable
+        # classes are 80 of 400 and false-premise is 11 of those; a flat sample
+        # drops exactly the rows the per-class table exists to show.
+        items = _stratified_by_class(items, sample)
+        typer.echo(f"sampling {len(items)} items, stratified by answerability class")
+
     typer.echo(f"  retrieving for {len(items)} items ({method}, k={k})")
-    features = [
-        extract_features(retrieve(i.question, retrievers, method=method, k=k),
-                         scheme_of=scheme_of, k=k)
-        for i in items
-    ]
+    hits = [retrieve(i.question, retrievers, method=method, k=k) for i in items]
+    features = [extract_features(h, scheme_of=scheme_of, k=k) for h in hits]
     labels = [i.answerable for i in items]
 
-    # Fit on a deterministic prefix by id, report on the rest. This is not the
-    # dev/test split -- that needs verified items and `dataset split` -- so the
-    # numbers are preliminary twice over and the banner says so.
-    order = sorted(range(len(items)), key=lambda n: items[n].id)
-    cut = max(1, int(len(order) * dev_fraction))
-    dev, test = order[:cut], order[cut:]
+    # Fit on a stratified draw, report on the rest. This is not the dev/test
+    # split -- that needs verified items and `dataset split` -- so the numbers
+    # are preliminary twice over and the banner says so.
+    #
+    # Stratified rather than a prefix by id, because item ids are prefixed by
+    # kind: `qa-*` for answerable, `un-*` for unanswerable. Sorting by id put
+    # all 120 answerable items in dev and all 80 unanswerable in test, so the
+    # fit saw no positive examples, every tau scored F1=0, and the search
+    # returned its initial tau=0 -- a threshold that never abstains. The report
+    # then showed 0.000 recall on every unanswerable class, which reads exactly
+    # like a finding about the signal rather than a broken split.
+    dev_ids = {i.id for i in _stratified_by_class(items, max(1, int(len(items) * dev_fraction)))}
+    dev = [n for n, i in enumerate(items) if i.id in dev_ids]
+    test = [n for n, i in enumerate(items) if i.id not in dev_ids]
 
     signal, dev_f1 = ThresholdSignal.fit([features[n] for n in dev], [labels[n] for n in dev])
     result = AnswerabilityReport(system=f"threshold tau={signal.tau:.3f} ({method})")
@@ -628,7 +647,145 @@ def eval_answerability(
     lines = provenance(items, str(gold))
     lines += [f"tau fitted on {len(dev)} items (F1={dev_f1:.3f}); reported on {len(test)} held out.", ""]
     lines += format_answerability(result)
+
+    if gguf:
+        lines += ["", "=" * 78, ""] + _self_report_signal(
+            items, passages, hits, labels, dev, test, gguf=gguf, k=k
+        )
+
     _emit(lines, report)
+
+
+def _stratified_by_class(items: list, n: int, *, seed: int = 20260922) -> list:
+    """Seeded draw of `n` items taking the same *share* of each class.
+
+    Proportional, not round-robin. `_stratified` above round-robins because its
+    job is to spread a small sample evenly over the six language pairs. This
+    function's job is different: it splits a set into two parts that must each
+    look like the whole, and round-robin does the opposite -- the unanswerable
+    classes are the small cells, so it drains them into the first part and
+    leaves the second entirely answerable. Both failures were observed: a
+    prefix by id put every unanswerable item in test, and round-robin put every
+    one of them in dev.
+
+    At least one item is taken from every stratum, so no class is silently
+    absent from the fit.
+    """
+    import random
+    from collections import defaultdict
+
+    if n <= 0 or n >= len(items):
+        return list(items)
+
+    cells: dict[str, list] = defaultdict(list)
+    for item in items:
+        cells["answerable" if item.answerable else (item.unanswerable_class or "other")].append(
+            item
+        )
+
+    rng = random.Random(seed)
+    fraction = n / len(items)
+    out: list = []
+    for key in sorted(cells):
+        group = sorted(cells[key], key=lambda i: i.id)
+        rng.shuffle(group)
+        take = min(len(group), max(1, round(len(group) * fraction)))
+        out.extend(group[:take])
+    return sorted(out, key=lambda i: i.id)
+
+
+def _self_report_signal(items, passages, hits, labels, dev, test, *, gguf: str, k: int) -> list:
+    """ARCHITECTURE §12 signal 2, evaluated beside the retrieval threshold.
+
+    This is the signal the false-premise result motivates. A retrieval threshold
+    scores 0.000 on that class because such a question retrieves confidently --
+    the scheme it names is real -- so no function of retrieval scores can
+    separate it from an answerable one. The generator sees the passage text and
+    can in principle notice the asserted fact is absent. Whether it does is the
+    open question, and it is answered on the per-class table rather than the
+    aggregate.
+    """
+    from .answerability.signals import SelfReport, SelfReportSignal, unanswerable_f1
+    from .evaluation.answerability import (
+        AnswerabilityOutcome,
+        AnswerabilityReport,
+        format_answerability,
+    )
+    from .query.langid import classify
+    from .rag.arms import Generation, GenerationCache, parse_answer, prompt_hash
+    from .rag.prompts import build_answer_prompt
+    from .rag.providers import LlamaCppProvider
+
+    cfg = get_settings()
+    model = Path(gguf).stem
+    by_id = {p.passage_id: p for p in passages}
+    provider = LlamaCppProvider(gguf, n_ctx=cfg.llm_n_ctx, n_threads=cfg.llm_n_threads)
+    # Its own cache file. These generations run over unanswerable items too,
+    # which Module 4 never sees, so mixing them into the arms cache would make
+    # that file's contents depend on which command last wrote it.
+    cache = GenerationCache(cfg.gen_dir / f"{model}-answerability.jsonl")
+
+    reports: list[SelfReport] = []
+    typer.echo(f"  generating for {len(items)} items (this is the slow part)")
+    for n, (item, hit) in enumerate(zip(items, hits, strict=True), start=1):
+        context = [by_id[h.passage_id] for h in hit[:k] if h.passage_id in by_id]
+        prompt = build_answer_prompt(item.question, context)
+        key = prompt_hash(prompt, model, "answerability")
+
+        if (hit_gen := cache.get(key)) is not None:
+            reports.append(SelfReport.from_generation(hit_gen))
+            continue
+
+        data = parse_answer(provider.complete(prompt))
+        answer = (data.get("answer") or "").strip() if data else ""
+        answerable = bool(data and data.get("answerable", True)) and bool(answer)
+        gen = Generation(
+            item_id=item.id,
+            arm="S",
+            question=item.question,
+            answerable=answerable,
+            answer=answer,
+            citation=(data.get("citation") or "").strip() if data else "",
+            confidence=float(data.get("confidence") or 0.0) if data else 0.0,
+            context_ids=[p.passage_id for p in context],
+            model=model,
+            prompt_hash=key,
+        )
+        cache.put(gen)
+        reports.append(SelfReport.from_generation(gen))
+        if n % 25 == 0:
+            typer.echo(f"    {n}/{len(items)}")
+
+    signal, dev_f1 = SelfReportSignal.fit(
+        [reports[n] for n in dev], [labels[n] for n in dev]
+    )
+    result = AnswerabilityReport(
+        system=f"generator self-report (min_confidence={signal.min_confidence:.2f})"
+    )
+    for n in test:
+        item = items[n]
+        result.outcomes.append(
+            AnswerabilityOutcome(
+                item_id=item.id,
+                gold_answerable=item.answerable,
+                pred_answerable=signal.predict_answerable(reports[n]),
+                query_type=classify(item.question).query_type,
+                unanswerable_class=item.unanswerable_class or "",
+            )
+        )
+
+    flag_only = SelfReportSignal(min_confidence=0.0)
+    flag_f1 = unanswerable_f1(
+        [flag_only.predict_answerable(reports[n]) for n in test], [labels[n] for n in test]
+    )
+    return [
+        f"min_confidence fitted on {len(dev)} items (F1={dev_f1:.3f}); "
+        f"reported on {len(test)} held out.",
+        f"The `answerable` flag alone, with no confidence gate, scores F1={flag_f1:.3f} "
+        "on the same rows.",
+        "",
+        *format_answerability(result),
+    ]
 
 
 @eval_app.command("errors")

@@ -220,3 +220,75 @@ def test_it_reads_a_generation_without_importing_one():
     report = SelfReport.from_generation(gen)
     assert report.answerable and report.confidence == 0.8
     assert report.answer_length == 4
+
+
+# --- the dev/test split for fitting a signal -------------------------------------
+
+
+def _mixed_set():
+    from indicrag.models import QAItem
+
+    items = [
+        QAItem(id=f"qa-en-en-{i:03d}", question=f"q{i}", query_lang="en",
+               passage_lang="en", answerable=True, gold_passage_ids=["p1"])
+        for i in range(320)
+    ]
+    for klass, n in [
+        ("out-of-scope", 25), ("near-miss", 30),
+        ("false-premise", 15), ("under-specified", 10),
+    ]:
+        items += [
+            QAItem(id=f"un-{klass}-{i:03d}", question=f"u{i}", query_lang="en",
+                   passage_lang="", answerable=False, unanswerable_class=klass)
+            for i in range(n)
+        ]
+    return items
+
+
+def test_both_halves_of_the_split_contain_unanswerable_items():
+    """Two ways this broke. Sorting by id put every `un-*` item in test, so the
+    fit saw no positive examples and returned a threshold that never abstains.
+    Round-robin then put every one of them in dev. Either way one half is
+    single-class and the numbers look like a finding."""
+    from indicrag.cli import _stratified_by_class
+
+    items = _mixed_set()
+    dev = _stratified_by_class(items, 120)
+    dev_ids = {i.id for i in dev}
+    test = [i for i in items if i.id not in dev_ids]
+
+    assert any(not i.answerable for i in dev)
+    assert any(not i.answerable for i in test)
+    assert any(i.answerable for i in dev)
+    assert any(i.answerable for i in test)
+
+
+def test_every_unanswerable_class_survives_into_both_halves():
+    from indicrag.cli import _stratified_by_class
+
+    items = _mixed_set()
+    dev = _stratified_by_class(items, 120)
+    dev_ids = {i.id for i in dev}
+    test = [i for i in items if i.id not in dev_ids]
+
+    classes = {"out-of-scope", "near-miss", "false-premise", "under-specified"}
+    assert {i.unanswerable_class for i in dev if not i.answerable} == classes
+    assert {i.unanswerable_class for i in test if not i.answerable} == classes
+
+
+def test_the_draw_is_proportional_rather_than_even():
+    """Even cells would drain the small unanswerable classes into dev."""
+    from indicrag.cli import _stratified_by_class
+
+    dev = _stratified_by_class(_mixed_set(), 120)
+    answerable = sum(1 for i in dev if i.answerable)
+    assert answerable > 80  # 320/400 of the draw, not 1/5 of it
+
+
+def test_the_draw_is_deterministic():
+    from indicrag.cli import _stratified_by_class
+
+    items = _mixed_set()
+    assert [i.id for i in _stratified_by_class(items, 120)] == [
+        i.id for i in _stratified_by_class(items, 120)
+    ]

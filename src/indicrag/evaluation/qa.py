@@ -127,7 +127,6 @@ class QAOutcome:
     prediction: str
     golds: list[str]
     abstained: bool = False
-    supported: bool | None = None  # citation support, when measured
 
     @property
     def em(self) -> float:
@@ -166,10 +165,9 @@ class QAReport:
     def abstention_rate(self, slice_key: str | None = None) -> float:
         return self._mean(lambda o: float(o.abstained), slice_key)
 
-    def citation_support_rate(self, slice_key: str | None = None) -> float:
-        """Of the questions actually answered, the share whose answer the cited
-        passage supports. Abstentions are excluded: refusing to answer is not a
-        grounding failure, and counting it as one would reward a system that
-        answers nothing."""
-        sel = [o for o in self._sel(slice_key) if not o.abstained and o.supported is not None]
-        return sum(1 for o in sel if o.supported) / len(sel) if sel else 0.0
+    # Citation Support Rate deliberately lives on GroundingReport, not here.
+    # A second copy used to sit on this class reading `QAOutcome.supported`, a
+    # field `score_arm` never set -- so it returned 0.0 for every slice, every
+    # run, while looking like the metric it shares a name with. The live one
+    # reports both the lexical and the entailment variant and is what
+    # `format_module4` prints.

@@ -123,7 +123,7 @@ def test_cross_script_answers_score_against_the_matching_gold():
 # --- report ----------------------------------------------------------------------
 
 
-def _o(item_id, pred, gold, *, group="monolingual", abstained=False, supported=None):
+def _o(item_id, pred, gold, *, group="monolingual", abstained=False):
     return QAOutcome(
         item_id=item_id,
         slice_key="EN->EN",
@@ -131,7 +131,6 @@ def _o(item_id, pred, gold, *, group="monolingual", abstained=False, supported=N
         prediction=pred,
         golds=[gold],
         abstained=abstained,
-        supported=supported,
     )
 
 
@@ -150,17 +149,26 @@ def test_report_slices_by_language_group():
 
 def test_citation_support_rate_excludes_abstentions():
     """Refusing to answer is not a grounding failure; counting it as one would
-    reward a system that answers nothing."""
-    r = QAReport(
-        "sys",
-        [
-            _o("a", "x", "x", supported=True),
-            _o("b", "y", "y", supported=False),
-            _o("c", "", "z", abstained=True, supported=None),
+    reward a system that answers nothing.
+
+    Asserted on GroundingReport, which owns this metric. QAReport carried a
+    second copy reading a field nothing ever populated, so it returned 0.0
+    always -- and this test passed regardless, because it set that field by
+    hand. A test that constructs the state production never reaches proves the
+    formula and nothing about the pipeline.
+    """
+    from indicrag.evaluation.grounding import GroundingOutcome, GroundingReport
+
+    report = GroundingReport(
+        system="sys",
+        outcomes=[
+            GroundingOutcome(item_id="a", arm="C", lexical_support=1.0),
+            GroundingOutcome(item_id="b", arm="C", lexical_support=0.0),
+            GroundingOutcome(item_id="c", arm="C", abstained=True),
         ],
     )
-    assert r.citation_support_rate() == 0.5
-    assert r.abstention_rate() == pytest.approx(1 / 3)
+    assert report.citation_support_rate("C") == 0.5
+    assert report.abstention_rate("C") == pytest.approx(1 / 3)
 
 
 # --- fabricated citations --------------------------------------------------------

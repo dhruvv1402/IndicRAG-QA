@@ -15,7 +15,7 @@ import json
 
 from indicrag.dataset.generate import MATRIX, generate_candidates, parse_reply, select_passages
 from indicrag.dataset.split import UNANSWERABLE_TARGET, coverage, stratified_split
-from indicrag.dataset.verify import cohens_kappa, progress_of, sample_for_second_pass
+from indicrag.dataset.verify import cohens_kappa, progress_of
 from indicrag.models import Passage, QAItem
 
 
@@ -245,9 +245,6 @@ def test_progress_counts_rejected_separately_from_remaining():
     assert (p.verified, p.rejected, p.remaining) == (1, 1, 0)
 
 
-def test_second_pass_sample_is_about_fifteen_percent():
-    items = [_item(f"q{i}", "en", "en") for i in range(100)]
-    assert len(sample_for_second_pass(items, fraction=0.15)) == 15
 
 
 def test_kappa_is_one_for_perfect_agreement_and_zero_for_chance():
@@ -491,3 +488,4 @@ def test_exclusion_happens_before_selection_not_after():
     )
     assert len(items) == 4, "the four remaining passages should all be reachable"
     assert not ({pid for i in items for pid in i.gold_passage_ids} & spent)
+

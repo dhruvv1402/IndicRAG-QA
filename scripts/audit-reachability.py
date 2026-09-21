@@ -97,22 +97,32 @@ def public_definitions() -> dict[str, tuple[str, str, bool]]:
     return found
 
 
-def external_uses(names: set[str]) -> collections.Counter:
-    """How often each name is referenced from a file other than its own."""
+def external_uses(names: set[str], roots, *, same_file: bool = False) -> collections.Counter:
+    """How often each name is referenced.
+
+    `same_file` includes references from the defining module. The unreachable
+    check excludes them, because a helper called only by its own module is
+    fine and is allow-listed. The test-only check must include them, or every
+    such helper looks test-only the moment a test imports it.
+
+    A `def` is a FunctionDef node rather than a Name, so a definition never
+    counts as a reference to itself.
+    """
     uses: collections.Counter = collections.Counter()
-    for path in list(SRC.rglob("*.py")) + list(TESTS.rglob("*.py")):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        owner = str(path.relative_to(ROOT))
-        for node in ast.walk(tree):
-            name = None
-            if isinstance(node, ast.Name):
-                name = node.id
-            elif isinstance(node, ast.Attribute):
-                name = node.attr
-            elif isinstance(node, ast.alias):
-                name = node.name.split(".")[-1]
-            if name in names and DEFS[name][0] != owner:
-                uses[name] += 1
+    for root in roots:
+        for path in root.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            owner = str(path.relative_to(ROOT))
+            for node in ast.walk(tree):
+                name = None
+                if isinstance(node, ast.Name):
+                    name = node.id
+                elif isinstance(node, ast.Attribute):
+                    name = node.attr
+                elif isinstance(node, ast.alias):
+                    name = node.name.split(".")[-1]
+                if name in names and (same_file or DEFS[name][0] != owner):
+                    uses[name] += 1
     return uses
 
 
@@ -156,13 +166,26 @@ def unimplemented_methods() -> list[tuple[str, str, int]]:
 def main() -> int:
     global DEFS
     DEFS = public_definitions()
-    uses = external_uses(set(DEFS))
+    names = set(DEFS)
+    src_uses = external_uses(names, [SRC])
+    all_uses = external_uses(names, [SRC, TESTS])
+    # Intra-module callers count here: a helper used only by its own module is
+    # live production code, and excluding it would flag most of the codebase.
+    any_src_uses = external_uses(names, [SRC], same_file=True)
 
     unreachable = []
+    test_only = []
     for name, (path, kind, is_command) in sorted(DEFS.items()):
-        if uses[name] or is_command or name in ALLOWED:
+        if is_command or name in ALLOWED:
             continue
-        unreachable.append((name, path, kind))
+        if not all_uses[name]:
+            unreachable.append((name, path, kind))
+        elif not any_src_uses[name]:
+            # Referenced from tests and nowhere else. `sample_for_second_pass`
+            # was exactly this: a flat sampler superseded by a stratified one,
+            # kept alive by its own test while the CLI used the replacement --
+            # so the audit called it reachable and it was dead.
+            test_only.append((name, path, kind))
 
     stale = sorted(n for n in ALLOWED if n not in DEFS)
 
@@ -188,9 +211,19 @@ def main() -> int:
         print("shipped, so the demo could only ever run the extractive fallback.")
         print()
 
+    if test_only:
+        print(f"{len(test_only)} definition(s) referenced only by tests:")
+        for name, path, kind in test_only:
+            print(f"  {kind:<11} {name:<32} {path}")
+        print()
+        print("A function whose only caller is its own test is dead production")
+        print("code with a passing test attached. Delete it, wire it, or allow-list it.")
+        print()
+
     if not unreachable:
-        print("No unexpected unreachable definitions.")
-        return 1 if (stale or stubs) else 0
+        if not test_only:
+            print("No unexpected unreachable definitions.")
+        return 1 if (stale or stubs or test_only) else 0
 
     print(f"{len(unreachable)} definition(s) nothing outside their own module references:")
     print()

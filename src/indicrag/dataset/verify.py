@@ -182,13 +182,13 @@ def verify_loop(
     return progress_of(items)
 
 
-def sample_for_second_pass(
-    items: Sequence[QAItem], *, fraction: float = 0.15, seed: int = 20260922
-) -> list[QAItem]:
-    """Draw the re-labelling sample for Cohen's kappa (PRD §6.5 step 5)."""
-    verified = [i for i in items if i.verified]
-    n = max(1, round(len(verified) * fraction))
-    return random.Random(seed).sample(verified, min(n, len(verified)))
+# The re-labelling sample for Cohen's kappa is drawn by
+# `dataset.second_pass.draw_sample`, which stratifies over the four unanswerable
+# classes. A flat 15% draw used to live here and was superseded: with
+# false-premise at 15 items of 400, an unstratified sample routinely contains
+# two or three of them, and kappa computed without the hard classes measures the
+# easy boundary. Nothing in the CLI ever called the flat version -- only its own
+# test did -- so it is gone rather than left as a second way to do this wrongly.
 
 
 def cohens_kappa(a: Sequence[bool], b: Sequence[bool]) -> float:

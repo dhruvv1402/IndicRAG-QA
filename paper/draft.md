@@ -1,5 +1,18 @@
 # IndicRAG-QA — paper draft
 
+> **PLANNING DOCUMENT. Not the paper.**
+>
+> This file is the outline, the figure list, the writing order and the notes on
+> what each section is waiting for. It is kept because that reasoning is still
+> useful, but its Abstract and Section I are **superseded** by
+> `sections-I-abstract.md` and are left here only as the drafts they came from.
+>
+> The paper is assembled by `python scripts/build-paper.py` into `paper.md`,
+> from `sections-I-abstract.md`, `section-II-related-work.md`,
+> `sections-III-IV-V.md`, `sections-VI-results.md` (pending) and
+> `sections-VII-X.md`. Edit those, not `paper.md`, and not this file.
+
+
 **Status: working draft.** Every number below is tagged with its provenance.
 `[PROBE]` marks a result from the 180 synthetic retrieval probes; `[GOLD]` marks
 one from the human-verified 400-item set, which is still being built. No `[GOLD]`

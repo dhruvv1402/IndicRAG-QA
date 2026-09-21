@@ -1,4 +1,4 @@
-Generated: 2026-09-21 22:50
+Generated: 2026-09-21 22:59
 Source:    evals\gold.jsonl
 Items:     400 (320 answerable, 80 unanswerable)
 Verified:  0/400
@@ -61,6 +61,15 @@ SCORE SEPARATION -- hybrid
 
   Base rate of UNANSWERABLE: 0.200. A precision at or near this
   value means the threshold is abstaining about as usefully as chance.
+
+SCORE SEPARATION ACROSS RETRIEVERS
+------------------------------------------------------------------------------
+  The claim is about retrieval scores in general, not one fusion, so it
+  is shown for more than one retriever.
+
+  method        answerable  UNanswerable   best F1  precision
+  bm25             13.5509       13.8179     0.366      0.235  <-- UNanswerable higher
+  tfidf             0.1424        0.1485     0.370      0.231  <-- UNanswerable higher
 
 THRESHOLD SWEEP
 ------------------------------------------------------------------------------

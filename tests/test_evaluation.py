@@ -117,3 +117,89 @@ def test_alpha_verdict_accepts_a_clear_win():
     sweep = [(0.0, 0.30), (0.5, 0.62), (1.0, 0.50)]
     assert "SUPPORTED" in alpha_verdict(sweep)
     assert "NOT SUPPORTED" not in alpha_verdict(sweep)
+
+
+# --- calibration of the statistical machinery ------------------------------------
+#
+# The tests above check that the functions behave sensibly on hand-built cases.
+# These check the property that actually makes their output trustworthy: that a
+# 95% interval covers the truth about 95% of the time, and that a test at the
+# 0.05 level rejects a true null about 5% of the time. Every interval and every
+# p-value in the paper rests on these holding, and a wrong percentile index or a
+# mis-built null would leave every hand-built case passing.
+
+
+def _bernoulli_outcomes(rng, n, p):
+    """n queries, each a hit with probability p -- the shape of recall@1."""
+    return [
+        _o(f"q{i}", ["g"], ["g"] if rng.random() < p else ["x"]) for i in range(n)
+    ]
+
+
+def test_the_bootstrap_interval_covers_the_truth_about_95_percent_of_the_time():
+    import random
+
+    true_p, n, sims = 0.6, 60, 200
+    covered = 0
+    for s in range(sims):
+        rng = random.Random(1000 + s)
+        outcomes = _bernoulli_outcomes(rng, n, true_p)
+        ci = bootstrap_ci(
+            outcomes, lambda o: o.recall_at(1), resamples=200, seed=2000 + s
+        )
+        if ci.low <= true_p <= ci.high:
+            covered += 1
+
+    rate = covered / sims
+    # Binomial noise on 200 draws at 0.95 is about +-0.03; the band is wide
+    # enough not to flake and narrow enough that a wrong percentile index --
+    # which would land near 0.50 or 1.00 -- fails it.
+    assert 0.88 <= rate <= 0.99, f"coverage {rate:.3f} over {sims} simulations"
+
+
+def test_the_paired_test_rejects_a_true_null_about_five_percent_of_the_time():
+    """Two systems drawn from the same distribution differ only by noise. A test
+    that reports significance far more often than 5% would make the paper's
+    p-values meaningless, and every hand-built case above would still pass."""
+    import random
+
+    n, sims = 40, 120
+    rejected = 0
+    for s in range(sims):
+        rng = random.Random(3000 + s)
+        a = _bernoulli_outcomes(rng, n, 0.5)
+        b = _bernoulli_outcomes(rng, n, 0.5)
+        result = paired_randomization_test(
+            a, b, lambda o: o.recall_at(1), trials=300, seed=4000 + s
+        )
+        if result.significant():
+            rejected += 1
+
+    rate = rejected / sims
+    assert rate <= 0.15, f"false positive rate {rate:.3f} over {sims} simulations"
+
+
+def test_the_paired_test_finds_a_real_but_modest_difference():
+    """The other side of the same coin: a test tuned to never reject would pass
+    the check above and be useless."""
+    import random
+
+    rng = random.Random(7)
+    a = _bernoulli_outcomes(rng, 200, 0.75)
+    b = _bernoulli_outcomes(rng, 200, 0.45)
+    result = paired_randomization_test(a, b, lambda o: o.recall_at(1), trials=2000)
+    assert result.significant()
+    assert result.delta > 0.15
+
+
+def test_a_p_value_is_never_reported_as_exactly_zero():
+    """With `trials` samples the evidence supports 'below 1/trials', not zero,
+    and a paper quoting p=0.0000 would be claiming more than it measured."""
+    import random
+
+    rng = random.Random(11)
+    a = _bernoulli_outcomes(rng, 80, 1.0)
+    b = _bernoulli_outcomes(rng, 80, 0.0)
+    result = paired_randomization_test(a, b, lambda o: o.recall_at(1), trials=500)
+    assert result.p_value > 0.0
+    assert result.p_value <= 1.0 / 500 + 1e-9

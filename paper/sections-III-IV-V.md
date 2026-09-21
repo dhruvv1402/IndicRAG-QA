@@ -408,6 +408,18 @@ alternative is not recoverable after the fact: once a test figure has been seen,
 it cannot be unseen, and a protocol that permits iteration against it produces
 numbers that are optimistic by an unmeasurable margin.
 
+**That protocol is not yet in force, and no number in this paper was produced
+under it.** The split is drawn over *verified* items only, and human
+verification of the 400-item set is not complete, so the tool that seals it
+refuses to run. The figures reported here therefore come from splits drawn
+per-experiment: answerability fits on a seeded 30% stratified draw and reports
+on the remainder, and the retrieval results use synthetic probes with no
+tuning against them at all. Nothing has been tuned against a held-out set that
+is later reported, which is the specific hazard the protocol guards, but the
+guarantee is currently procedural rather than enforced. Every figure is marked
+`[PROBE]` or as drawn from the unverified set, and they are preliminary in that
+precise sense.
+
 ### D. Metrics
 
 Retrieval is scored with Recall@k, Precision@k and Hit Rate@k for

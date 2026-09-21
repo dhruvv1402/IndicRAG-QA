@@ -539,8 +539,10 @@ def format_feature_separation(table, *, method: str = "") -> list[str]:
     best = max(table.values(), key=lambda v: abs(v[2] - 0.5))
     out += [
         "",
-        f"  Best feature reaches AUC {best[2]:.3f}. A signal at chance in every",
-        "  column cannot be rescued by combining the columns.",
+        f"  Best single feature reaches AUC {best[2]:.3f}. Combining them recovers",
+        "  somewhat more than any one of them -- see the calibrated section below --",
+        "  but a combination is bounded by what its inputs carry, and every column",
+        "  here is closer to chance than to a usable signal.",
     ]
     return out
 

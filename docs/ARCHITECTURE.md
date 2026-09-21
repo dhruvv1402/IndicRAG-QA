@@ -555,12 +555,21 @@ passages and so show a smaller margin, and they do: 1.28 against 2.18. The
 reasoning was sound. But an AUC of 0.594 means the ordering holds on 59% of
 pairs where chance is 50%, which is nowhere near enough to threshold on.
 
-**This bounds signal 4 before it is built.** A logistic regression cannot
-extract more information than its features carry, and the best retrieval-side
-feature here reaches 0.599 while the rest sit at chance. The calibrated
-combination should therefore be expected to underperform, and if it does, that
-is a property of the feature set rather than of the model — which is worth
-stating in advance so the result is not later mistaken for a tuning failure.
+**Signal 4 has now been fit over exactly these features**, on the same split:
+
+| Signal | test F1 | abstains on | AUC |
+|---|---|---|---|
+| 1. threshold | 0.345 | 87.0% | — |
+| 4. calibrated | 0.360 | 37.5% | 0.663 |
+
+The prediction that a near-chance feature set cannot be rescued by combining it
+held for F1, and understated the rest. Combining does extract more than any
+single feature — AUC 0.663 against 0.599 — and it reaches a comparable F1 at a
+far more usable operating point, refusing 37% of questions rather than 87%.
+
+The fitted weights are the sharper result: `score_spread` 0.739, `mean_top_k`
+−0.350, `margin` 0.138, `scheme_agreement` 0.104, **`max_score` 0.011**. The
+feature signal 1 thresholds is the least informative of the five.
 
 It also sharpens why signals 2 and 3 matter: both read the passage *text*, which
 is the only place the missing information can be. Every retrieval-side feature

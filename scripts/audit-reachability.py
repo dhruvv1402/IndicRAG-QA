@@ -116,6 +116,43 @@ def external_uses(names: set[str]) -> collections.Counter:
     return uses
 
 
+def unimplemented_methods() -> list[tuple[str, str, int]]:
+    """Public methods whose body is `raise NotImplementedError`.
+
+    The module-level scan cannot see these -- `LlamaCppProvider.answer` was one,
+    deferring to a phase that had already shipped, which meant the demo could
+    only ever run the extractive fallback. A Protocol's `...` stubs are the
+    legitimate form and are not flagged; a concrete class that raises is either
+    abstract by convention or a gap nobody closed.
+    """
+    out: list[tuple[str, str, int]] = []
+    for path in sorted(SRC.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for cls in ast.walk(tree):
+            if not isinstance(cls, ast.ClassDef):
+                continue
+            # Protocols and ABCs declare stubs on purpose.
+            bases = {
+                b.id if isinstance(b, ast.Name) else getattr(b, "attr", "")
+                for b in cls.bases
+            }
+            if bases & {"Protocol", "ABC"}:
+                continue
+            for node in cls.body:
+                if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                if node.name.startswith("_"):
+                    continue
+                body = [n for n in node.body if not isinstance(n, ast.Expr)]
+                if (
+                    len(body) == 1
+                    and isinstance(body[0], ast.Raise)
+                    and "NotImplementedError" in ast.dump(body[0])
+                ):
+                    out.append((f"{cls.name}.{node.name}", str(path.relative_to(ROOT)), node.lineno))
+    return out
+
+
 def main() -> int:
     global DEFS
     DEFS = public_definitions()
@@ -140,9 +177,20 @@ def main() -> int:
             print(f"  {name}")
         print()
 
+    stubs = unimplemented_methods()
+    if stubs:
+        print(f"{len(stubs)} concrete method(s) that only raise NotImplementedError:")
+        for name, path, line in stubs:
+            print(f"  {name:<44} {path}:{line}")
+        print()
+        print("On a Protocol these are legitimate. On a concrete class they are a")
+        print("gap: LlamaCppProvider.answer deferred to a phase that had already")
+        print("shipped, so the demo could only ever run the extractive fallback.")
+        print()
+
     if not unreachable:
         print("No unexpected unreachable definitions.")
-        return 1 if stale else 0
+        return 1 if (stale or stubs) else 0
 
     print(f"{len(unreachable)} definition(s) nothing outside their own module references:")
     print()

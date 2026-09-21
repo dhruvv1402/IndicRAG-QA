@@ -709,13 +709,17 @@ indicrag index lexical                     fit TF-IDF and BM25
 indicrag index build --encoder <name>      encode + cache; --all for every registry entry
                                            [--pooling mean|cls] [--batch-size 16]
 
-indicrag ask "<query>" [--method hybrid] [--k 5]
-                                           the demo path; prints the §9 object
+indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>]
+                                           the demo path; prints the §9 object.
+                                           Extractive without --gguf, generated with it.
 
 indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4]
+                                           [--sweep/--no-sweep]   alpha sweep, H2
+indicrag eval probes        [--out <p>] [--per-shape 60]   rebuild the probe set
 indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N]
-                                           [--gguf <path>] [--no-model]
+                                           [--gguf <path>] [--no-model] [--nli]
 indicrag eval answerability [--report <p>] [--method hybrid] [--dev-fraction 0.3]
+                                           [--gguf <p>] [--sample N]   signals 2 and 3
 indicrag eval errors        [--report <p>] [--out <p>] [--limit 20]
 indicrag eval all           [--report evals/]     regenerates every table
 

@@ -83,6 +83,34 @@ def main() -> int:
         print(f"    LaBSE alone          {b_ci}")
         print(f"    LaBSE - fusion       {res}")
         print()
+
+    # §VI-D ranks MuRIL below MiniLM-L12 (0.238 against 0.303). The section's
+    # central claim -- MuRIL scoring exactly 0.000 on both cross-script slices
+    # -- needs no test, but the ranking against MiniLM does.
+    try:
+        mini_index, mini_enc = load(
+            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        )
+        muril_index, muril_enc = load("google/muril-base-cased")
+    except Exception as exc:  # noqa: BLE001
+        print(f"MuRIL/MiniLM comparison skipped: {type(exc).__name__}: {exc}")
+        return 0
+
+    mini_q = {i.id: mini_enc.encode_query(i.question) for i in items}
+    muril_q = {i.id: muril_enc.encode_query(i.question) for i in items}
+    mini = evaluate(
+        "MiniLM", items, lambda i: (mini_index.search_vector(mini_q[i.id], 5), 0.0)
+    )
+    muril = evaluate(
+        "MuRIL", items, lambda i: (muril_index.search_vector(muril_q[i.id], 5), 0.0)
+    )
+    print("--- MiniLM vs MuRIL, overall")
+    print(f"    MiniLM  {bootstrap_ci(mini.outcomes, lambda o: o.recall_at(5))}")
+    print(f"    MuRIL   {bootstrap_ci(muril.outcomes, lambda o: o.recall_at(5))}")
+    print(
+        "    MiniLM - MuRIL  "
+        f"{paired_randomization_test(mini.outcomes, muril.outcomes, lambda o: o.recall_at(5))}"
+    )
     return 0
 
 

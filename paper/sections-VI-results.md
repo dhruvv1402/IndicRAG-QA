@@ -391,9 +391,58 @@ unanswerable questions concern present topics**, and reporting a single fitted
 operating point conceals this, because the fitted point moves from 0.000 recall
 to 0.93 depending only on the split while the underlying curve stays flat. The
 second is the motivation for §IV-F: deciding whether a *specific claim* is
-supported requires reading the passage, which is what natural-language inference
-does and what a retrieval score cannot. On the false-premise and near-miss items
-where the threshold is uninformative, NLI entailment identified the unanswerable
-item in 7 of 7 cases tested. That is a small sample and is reported as such;
-the full comparison runs with Module 4.
+supported requires reading the passage, which is what the generator and the
+entailment check do and what a retrieval score cannot.
+
+### H.1 All four signals, on the same items
+
+We evaluate all four on a 120-item sample enriched to hold every unanswerable
+item plus 40 answerable ones, fitting on a seeded 36 and reporting on the
+remaining 84. Enrichment is what makes the per-class table legible — a
+proportional sample of affordable size leaves two or three false-premise items
+in the reported half — and it moves the unanswerable base rate to 0.667, so the
+precision figures below are not comparable to the 0.20-base-rate runs above.
+
+| Signal | reads | accuracy | precision | recall | F1 |
+|---|---|---|---|---|---|
+| 1. retrieval threshold | scores | 0.702 | 0.707 | 0.946 | 0.809 |
+| 4. calibrated combination | scores | 0.667 | 0.667 | **1.000** | 0.800 |
+| 2. generator self-report | passage | **0.821** | **0.825** | 0.929 | **0.874** |
+| 3. NLI entailment | passage | 0.821 | 0.825 | 0.929 | 0.874 |
+
+**The aggregate table is misleading and the confusion matrices are not.** Signal
+4 reaches recall 1.000 by refusing every question in the reported set: 56 of 56
+unanswerable caught, and 0 of 28 answerable answered. Its precision of 0.667 is
+the base rate exactly, which is what a system abstaining unconditionally scores.
+Signal 1 is the same failure in milder form, answering 6 of 28. Only the
+generator's self-report produces a system that answers anything: 17 of 28
+answerable, while still catching 52 of 56 unanswerable.
+
+Per-class recall has to be read against that. Signal 4 scores 1.000 on every
+unanswerable class and the number means nothing, because it abstains on
+everything and every class is "caught" by construction. The generator's figures
+are earned: false-premise 1.000, under-specified 1.000, near-miss 0.952,
+out-of-scope 0.824.
+
+### H.2 Entailment adds nothing once the generator has abstained
+
+Signals 2 and 3 are bit-identical, and that is a result rather than a bug. Both
+fits chose their degenerate threshold — `min_confidence` 0.00 and τ 0.000 — so
+each reduces to the same decision: did the generator decline to answer. Neither
+the model's self-reported confidence nor the entailment probability improves on
+the binary abstention flag.
+
+The reason is visible in the counts. Of the 120 sampled items the generator
+answered only 25, having abstained on the rest, and of those 25 just **two** are
+truly unanswerable. There is almost nothing left for a second filter to catch,
+so no threshold on entailment can improve F1 and the fit correctly declines to
+set one.
+
+Entailment is not uninformative — on those 25 answers it separates the classes
+with an AUC of 0.848, the two false positives scoring a median entailment of
+0.045 against 0.428 for the correctly answered. But an AUC computed against two
+negatives is an observation, not a result, and we report it as one. What can be
+said firmly is that on this corpus the generator's own abstention already does
+the work the entailment check was added to do, and that a verification step has
+value in proportion to how much the generator lets through.
 

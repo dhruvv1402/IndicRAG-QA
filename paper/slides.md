@@ -261,10 +261,19 @@ every threshold.
 A retrieval threshold detects corpus absence — and answerability is not corpus
 absence.
 
-*Notes:* A property of the signal, not the calibration. The fitted operating
-point swings from 0.000 recall to 0.93 depending only on the split, while the
-curve underneath stays flat — which is why the separation table matters more
-than any single number. Motivates the NLI signal.
+Four signals, same items. Of 28 answerable questions, how many get answered?
+
+| signal | catches unanswerable | answers answerable |
+|---|---|---|
+| retrieval threshold | 53/56 | 6/28 |
+| calibrated combination | 56/56 | **0/28** |
+| generator self-report | 52/56 | **17/28** |
+
+*Notes:* The calibrated row is the one to dwell on — perfect recall, achieved by
+refusing every single question. Per-class recall of 1.000 everywhere means
+nothing when the system abstains unconditionally. Only the generator, which
+reads the passage, produces a system that answers anything. Adding NLI on top
+changes nothing: it had 2 false positives left to catch.
 
 ---
 

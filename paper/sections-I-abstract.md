@@ -124,14 +124,18 @@ away from it.
    identifiers, and a documented annotation protocol with blind second-pass
    agreement.
 
-3. **A negative result on retrieval-score answerability thresholds.** We show
-   that the standard abstention signal carries no information on a corpus whose
-   unanswerable questions concern present topics: answerable and unanswerable
-   questions have indistinguishable top retrieval scores — 13.55 against 13.82
-   for BM25, with the *unanswerable* marginally higher — and precision across
-   the full threshold sweep stays at the 0.20 base rate. The mechanism is that a
-   retrieval threshold is a corpus-absence detector, and answerability is not
-   corpus absence.
+3. **A four-signal comparison of answerability, and a negative result on the
+   standard one.** Retrieval-score thresholds carry no information on a corpus
+   whose unanswerable questions concern present topics: answerable and
+   unanswerable questions have indistinguishable top scores — 13.55 against
+   13.82 for BM25, with the *unanswerable* marginally higher — and precision
+   across the full sweep stays at the base rate. A retrieval threshold is a
+   corpus-absence detector and answerability is not corpus absence. Both
+   retrieval-side signals degenerate to near-total abstention, the calibrated
+   combination literally refusing every question in the reported set; the
+   generator's own abstention is the only signal producing a usable system, and
+   an entailment check on top of it adds nothing because the generator has
+   already declined nearly everything it should.
 
 4. **A controlled negative result on Indic MLM checkpoints.** Off-the-shelf
    masked-language-model encoders for Indic languages underperform

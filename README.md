@@ -87,7 +87,7 @@ what is committed under `evals/` is byte-identical to what was shown.
 All preliminary, and labelled as such in every report under `evals/`. Retrieval
 figures come from 180 synthetic probes; the question-answering and answerability
 figures come from the 400-item set, of which **0 are human-verified**. Nothing
-below may be quoted as a gold-set result. Five findings so far:
+below may be quoted as a gold-set result. Six findings so far:
 
 **Lexical retrieval does not cross the language boundary at all.** BM25 Recall@5
 is 0.740 monolingual but 0.006 cross-lingual and 0.028 code-mixed. A Romanized or
@@ -101,6 +101,14 @@ blindness* rather than its own irrelevance. `script_aware_rrf` scores each
 passage over the systems eligible to retrieve it, which takes cross-lingual
 Recall@5 from 0.022 to 0.153 (p=0.0001) and code-mixed from 0.028 to 0.173
 (p=0.0002), at a real cost of -0.044 monolingual (p=0.032).
+
+**Only the generator can tell an answerable question from an unanswerable one.**
+Four signals on the same 120 items: the retrieval threshold answers 6 of 28
+answerable questions, the calibrated combination answers **0 of 28** — it
+refuses everything, which is how it reaches recall 1.000 — and the generator's
+own abstention answers 17 of 28 while still catching 52 of 56 unanswerable.
+Adding an NLI entailment check on top changes nothing, because the generator has
+already declined all but 25 of the 120 and only 2 of those are wrong.
 
 **A retrieval-score threshold carries no answerability signal at all here.**
 Answerable and unanswerable questions have indistinguishable top scores, and the

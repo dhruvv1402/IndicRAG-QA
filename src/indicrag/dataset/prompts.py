@@ -107,17 +107,51 @@ Reply with JSON only, as {{"question": "...", "answer": "", "kind": "fact"}}."""
 #: exists only in the other language, so a retriever must cross the boundary
 #: rather than find a same-language paraphrase. Translating the passage instead
 #: would quietly turn a cross-lingual probe into a monolingual one.
-PROMPT_TRANSLATE_TO_EN = """Translate this Hindi question into natural English. Keep scheme names, numbers and dates exactly as they are.
+#: Both translation prompts are written in ENGLISH and carry a worked example,
+#: and both changes were forced by reading raw output rather than guessing.
+#:
+#: The Hindi-language version of the to-Hindi prompt failed three ways, none of
+#: them the malformed JSON a parse-rate metric would have caught:
+#:
+#:   1. returned the English question unchanged in the `question` field;
+#:   2. copied prompt scaffolding into it -- `"अंग्रेज़ी प्रश्न: How many..."` --
+#:      and invented an answer that was never asked for;
+#:   3. produced Hindi prose with no JSON at all.
+#:
+#: The model was not translating, it was echoing. Three things fix it. The
+#: instruction goes in English, because this model follows English instructions
+#: far more reliably (English base generation parsed 100% where Hindi parsed
+#: 1/8 before its own prompt was fixed). The output script is stated explicitly,
+#: since "translate into Hindi" left the target script implicit. And a one-shot
+#: example shows the transformation, which is the strongest signal available to
+#: a 3B model -- an empty `"..."` placeholder demonstrates nothing.
+#:
+#: The trailing `JSON:` is a completion cue: it gives the model somewhere to
+#: continue rather than somewhere to preface, which is what produced failure 3.
+PROMPT_TRANSLATE_TO_EN = """Translate the question below into English.
 
-Hindi question: {question}
+Keep scheme names, numbers and dates exactly as they appear. Translate only the
+question. Do not answer it. Do not add any preamble.
 
-Reply with JSON only, as {{"question": "...", "answer": "", "kind": "fact"}}."""
+Example:
+Hindi: इस योजना के लिए आय सीमा क्या है?
+JSON: {{"question": "What is the income limit for this scheme?", "answer": "", "kind": "fact"}}
 
-PROMPT_TRANSLATE_TO_HI = """इस अंग्रेज़ी प्रश्न का हिन्दी में अनुवाद कीजिए। योजना के नाम, संख्याएँ और तिथियाँ ज्यों की त्यों रखिए।
+Hindi: {question}
+JSON:"""
 
-अंग्रेज़ी प्रश्न: {question}
+PROMPT_TRANSLATE_TO_HI = """Translate the question below into Hindi.
 
-केवल JSON में उत्तर दें: {{"question": "...", "answer": "", "kind": "fact"}}"""
+Write the translation in Devanagari script. Keep scheme names, numbers and dates
+exactly as they appear. Translate only the question. Do not answer it. Do not add
+any preamble.
+
+Example:
+English: What is the income limit for this scheme?
+JSON: {{"question": "इस योजना के लिए आय सीमा क्या है?", "answer": "", "kind": "fact"}}
+
+English: {question}
+JSON:"""
 
 
 def build_translate_prompt(question: str, *, to: str) -> str:

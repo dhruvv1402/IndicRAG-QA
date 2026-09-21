@@ -85,6 +85,37 @@ def parse_reply(raw: str) -> Candidate | None:
     return Candidate(question=question, answer=answer, kind=data.get("kind") or "fact")
 
 
+def parse_translation(raw: str) -> str | None:
+    """Recover a translated question from a JSON object OR from bare text.
+
+    A translation needs one string back, and demanding JSON for it was a design
+    error. The to-Hindi prompt reliably produced a correct translation as plain
+    text -- `योजना कब लॉन्च किया गया है?` -- which `parse_reply` then discarded as
+    unparseable, so a working translation was thrown away for its packaging.
+
+    JSON is tried first, because the to-English direction does return it. Failing
+    that, the raw text is taken, with any leading label the model prefixed
+    (`JSON:`, `Hindi:`, `Answer:`) stripped off.
+    """
+    if not raw:
+        return None
+    from ..rag.providers import extract_json_object
+
+    found = extract_json_object(raw)
+    if found is not None:
+        candidate = parse_reply(found)
+        if candidate is not None:
+            return candidate.question
+
+    text = raw.strip()
+    for label in ("JSON:", "Hindi:", "English:", "Translation:", "Answer:"):
+        if text.startswith(label):
+            text = text[len(label) :].strip()
+    # A translation is one line; anything after a newline is commentary.
+    text = text.splitlines()[0].strip().strip('"').strip() if text else ""
+    return text or None
+
+
 def select_passages(
     passages: Sequence[Passage], lang: str, n: int, *, rng: random.Random
 ) -> list[Passage]:
@@ -188,29 +219,31 @@ def generate_candidates(
             question = base.question
             # Transform the question only. The passage stays put.
             if query_lang != passage_lang and query_lang != "hinglish":
-                translated = parse_reply(
+                translated = parse_translation(
                     complete(build_translate_prompt(question, to=query_lang), QA_GRAMMAR)
                 )
                 if translated is None:
+                    rejected.append(f"{passage.passage_id}: translate: no output")
                     continue
-                verdict = check_translation(question, translated.question, to=query_lang)
+                verdict = check_translation(question, translated, to=query_lang)
                 if not verdict:
                     rejected.append(f"{passage.passage_id}: translate: {verdict.reason}")
                     continue
-                question = translated.question
+                question = translated
             elif query_lang == "hinglish":
                 hindi = question
                 if passage_lang == "en":
-                    step = parse_reply(
+                    step = parse_translation(
                         complete(build_translate_prompt(question, to="hi"), QA_GRAMMAR)
                     )
                     if step is None:
+                        rejected.append(f"{passage.passage_id}: translate-hi: no output")
                         continue
-                    verdict = check_translation(question, step.question, to="hi")
+                    verdict = check_translation(question, step, to="hi")
                     if not verdict:
                         rejected.append(f"{passage.passage_id}: translate-hi: {verdict.reason}")
                         continue
-                    hindi = step.question
+                    hindi = step
                 # Deterministic transliteration, not a model call. Asking the
                 # model to romanize failed ~83% of the time -- it returned the
                 # Devanagari unchanged or translated to English -- and each

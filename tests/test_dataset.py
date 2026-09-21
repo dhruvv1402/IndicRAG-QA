@@ -60,10 +60,9 @@ class _Stub:
         self.prompts.append(prompt)
         if "Rewrite this Hindi question" in prompt:
             reply = {"question": "Yojana kitne rupye deti hai?", "answer": "", "kind": "fact"}
-        elif "अंग्रेज़ी प्रश्न:" in prompt:  # translate -> Hindi (not the base prompt,
-            # which also contains "अनुवाद" in its keys-stay-English instruction)
+        elif "into Hindi" in prompt:  # translate -> Hindi
             reply = {"question": "योजना कितने रुपये देती है?", "answer": "", "kind": "fact"}
-        elif "Translate this Hindi question" in prompt:
+        elif "into English" in prompt:  # translate -> English
             reply = {"question": "How much does the scheme provide?", "answer": "", "kind": "fact"}
         elif "अनुच्छेद" in prompt:  # base generation, Hindi passage
             reply = {"question": "योजना कितने रुपये देती है?", "answer": "1000 रुपये", "kind": "number"}

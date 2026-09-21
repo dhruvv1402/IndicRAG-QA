@@ -515,10 +515,13 @@ def eval_retrieval(
     gold: Path = typer.Option(GOLD_PATH, "--gold"),
     report: Path = typer.Option(None, "--report"),
     alpha: float = typer.Option(0.4, "--alpha", help="Weighted-fusion mixing weight."),
+    sweep: bool = typer.Option(
+        True, "--sweep/--no-sweep", help="Also sweep alpha end to end (H2)."
+    ),
 ) -> None:
     """Module 1-3: lexical, dense and fusion retrieval, with paired tests."""
     from .evaluation.report import format_by_slice, format_paired, format_retrieval
-    from .evaluation.run import run_retrieval
+    from .evaluation.run import alpha_sweep, alpha_verdict, run_retrieval
     from .evaluation.all_reports import provenance
 
     cfg = get_settings()
@@ -540,7 +543,52 @@ def eval_retrieval(
     lines += [""] + format_paired(reports, baseline="BM25")
     if skipped:
         lines += ["", "NOT EVALUATED", "-" * 78] + [f"  {s}" for s in skipped]
+
+    if sweep:
+        # The alpha sweep produced a number the paper quotes and a figure it
+        # plots, and until now no command produced it -- it existed only in
+        # evals/report-retrieval-probes.txt, from a script that is not in the
+        # repository. NFR-6 says every reported table regenerates from one
+        # command; this is one of the tables.
+        typer.echo("  alpha sweep")
+        points = alpha_sweep(passages, items)
+        if points:
+            lines += ["", "ALPHA SWEEP -- weighted fusion, Recall@5", "-" * 78, ""]
+            lines += ["  alpha=1.0 pure lexical, alpha=0.0 pure dense.", ""]
+            lines += [f"  a={a:.1f}  {r:.3f}" for a, r in points]
+            lines += ["", f"  {alpha_verdict(points)}"]
+        else:
+            lines += ["", "ALPHA SWEEP -- skipped: no dense index available."]
+
     _emit(lines, report)
+
+
+@eval_app.command("probes")
+def eval_probes(
+    out: Path = typer.Option(Path("evals/probes.jsonl"), "--out"),
+    per_shape: int = typer.Option(60, "--per-shape"),
+) -> None:
+    """Rebuild the synthetic probe set used when no verified gold set exists.
+
+    Every preliminary retrieval number in this repository is measured on these,
+    and nothing regenerated them: `evals/probes.jsonl` was committed output from
+    a script that is not. A probe set that cannot be rebuilt cannot be checked.
+    """
+    from .evaluation.run import load_probes
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter("no passages; run `corpus segment` first")
+
+    probes = load_probes(passages, per_shape=per_shape)
+    n = write_jsonl(out, probes)
+    from collections import Counter
+
+    shapes = Counter(p.notes.split()[0] if p.notes else "?" for p in probes)
+    typer.echo(f"{n} probes -> {out}")
+    for shape, count in sorted(shapes.items()):
+        typer.echo(f"  {shape:<16}{count:>5}")
 
 
 @eval_app.command("answerability")

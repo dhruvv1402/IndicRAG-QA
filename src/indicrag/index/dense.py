@@ -187,11 +187,7 @@ class Encoder:
                     return_tensors="pt",
                 )
                 hidden = self._model(**enc).last_hidden_state
-                if self.pooling == "cls":
-                    vec = hidden[:, 0]
-                else:
-                    mask = enc["attention_mask"].unsqueeze(-1).float()
-                    vec = (hidden * mask).sum(1) / mask.sum(1).clamp(min=1e-9)
+                vec = pool(hidden, enc["attention_mask"], self.pooling)
                 out.append(vec.cpu().numpy())
         return np.vstack(out)
 
@@ -223,6 +219,31 @@ class Encoder:
 
     def encode_query(self, text: str, batch_size: int = 1) -> np.ndarray:
         return self.encode([text], is_query=True, batch_size=batch_size)[0]
+
+
+def pool(hidden, attention_mask, how: str):
+    """Pool a transformer's token states into one vector per sequence.
+
+    Extracted from the encoder loop so it can be tested without loading a model,
+    because a paper claim rests on it. §VI-D reports that Indic MLM checkpoints
+    underperform sentence-trained encoders and states the result is not a
+    pooling artefact, having run both mean and CLS. That defence is only worth
+    anything if the pooling is right.
+
+    The failure it has to avoid is mean-pooling across padding. Batches are
+    padded to their longest member, so a short text batched with a long one
+    acquires padding states; averaging those in shrinks the vector toward zero
+    by a factor that depends on what else happened to be in the batch. The
+    result is an encoder whose output changes with batch composition, degrading
+    exactly the mean-pooled MLM arm the claim is about.
+
+    Masking makes the padded positions contribute nothing to either the sum or
+    the count, so a sequence encodes identically however it is batched.
+    """
+    if how == "cls":
+        return hidden[:, 0]
+    mask = attention_mask.unsqueeze(-1).float()
+    return (hidden * mask).sum(1) / mask.sum(1).clamp(min=1e-9)
 
 
 def build_dense(

@@ -160,7 +160,9 @@ def run_all(
     say("answerability")
     try:
         from .answerability import (
+            feature_separation,
             format_answerability,
+            format_feature_separation,
             format_separation,
             format_separation_across_methods,
             format_tau_sweep,
@@ -184,6 +186,9 @@ def run_all(
         lines += [""] + format_separation(meta["scores"], meta["labels"], method=meta["method"])
         lines += [""] + format_separation_across_methods(
             separation_across_methods(passages, items)
+        )
+        lines += [""] + format_feature_separation(
+            feature_separation(meta["features"], meta["labels"]), method=meta["method"]
         )
         lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
         summary.add(_write(out_dir / "report-answerability.txt", lines))

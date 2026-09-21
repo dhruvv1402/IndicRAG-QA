@@ -458,3 +458,82 @@ def format_separation_across_methods(table) -> list[str]:
             f"  {method:<12}{a_med:>12.4f}{u_med:>14.4f}{f1:>10.3f}{precision:>11.3f}{flag}"
         )
     return out
+
+
+def auc(positive, negative) -> float:
+    """P(a random positive ranks above a random negative), ties counted as half.
+
+    The Mann-Whitney U statistic, normalised. Reported instead of a difference
+    in medians because medians can agree while the distributions differ, and can
+    differ while the distributions overlap almost entirely -- both of which
+    happen in this data. 0.5 is chance.
+    """
+    merged = sorted([(v, 0) for v in positive] + [(v, 1) for v in negative])
+    ranks: dict[int, float] = {}
+    i = 0
+    while i < len(merged):
+        j = i
+        while j + 1 < len(merged) and merged[j + 1][0] == merged[i][0]:
+            j += 1
+        shared = (i + j) / 2 + 1
+        for t in range(i, j + 1):
+            ranks[t] = shared
+        i = j + 1
+
+    n_pos, n_neg = len(positive), len(negative)
+    if not n_pos or not n_neg:
+        return 0.5
+    rank_sum = sum(ranks[t] for t, (_v, group) in enumerate(merged) if group == 0)
+    return (rank_sum - n_pos * (n_pos + 1) / 2) / (n_pos * n_neg)
+
+
+#: The retrieval-side features the calibrated signal is fit over.
+FEATURE_FIELDS = ("max_score", "margin", "mean_top_k", "score_spread", "scheme_agreement")
+
+
+def feature_separation(features, labels) -> dict[str, tuple[float, float, float]]:
+    """{feature: (answerable median, unanswerable median, AUC)}.
+
+    Every feature, not only the one the threshold uses. ARCHITECTURE §12.2
+    justifies including the top1-top2 margin on the reasoning that a near-miss
+    question retrieves several similarly-scoring passages and so shows a small
+    margin. That is a testable claim, and the calibrated combination in signal 4
+    rests on it, so it is measured here rather than assumed.
+    """
+    import statistics
+
+    out: dict[str, tuple[float, float, float]] = {}
+    for field_name in FEATURE_FIELDS:
+        ans = [getattr(f, field_name) for f, lab in zip(features, labels, strict=True) if lab]
+        una = [getattr(f, field_name) for f, lab in zip(features, labels, strict=True) if not lab]
+        if not ans or not una:
+            continue
+        out[field_name] = (statistics.median(ans), statistics.median(una), auc(ans, una))
+    return out
+
+
+def format_feature_separation(table, *, method: str = "") -> list[str]:
+    rule = "-" * 78
+    if not table:
+        return []
+    out = [
+        f"FEATURE SEPARATION{f' -- {method}' if method else ''}",
+        rule,
+        "  AUC is P(a random answerable question scores above a random",
+        "  unanswerable one). 0.500 is chance. This is what the calibrated",
+        "  signal has to work with: a logistic regression cannot extract more",
+        "  information than its features carry.",
+        "",
+        f"  {'feature':<20}{'answerable':>12}{'UNanswerable':>14}{'AUC':>8}",
+    ]
+    for name, (a_med, u_med, area) in table.items():
+        note = "  <-- separates" if abs(area - 0.5) > 0.10 else ""
+        out.append(f"  {name:<20}{a_med:>12.4f}{u_med:>14.4f}{area:>8.3f}{note}")
+
+    best = max(table.values(), key=lambda v: abs(v[2] - 0.5))
+    out += [
+        "",
+        f"  Best feature reaches AUC {best[2]:.3f}. A signal at chance in every",
+        "  column cannot be rescued by combining the columns.",
+    ]
+    return out

@@ -567,7 +567,9 @@ def eval_answerability(
     """
     from .evaluation.all_reports import provenance
     from .evaluation.answerability import (
+        feature_separation,
         format_answerability,
+        format_feature_separation,
         format_separation,
         format_separation_across_methods,
         format_tau_sweep,
@@ -607,6 +609,9 @@ def eval_answerability(
     lines += [""] + format_separation(meta["scores"], meta["labels"], method=method)
     lines += [""] + format_separation_across_methods(
         separation_across_methods(passages, items, k=k)
+    )
+    lines += [""] + format_feature_separation(
+        feature_separation(meta["features"], meta["labels"]), method=method
     )
     lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
 

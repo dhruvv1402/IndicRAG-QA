@@ -536,12 +536,36 @@ across two splits of the same data while the underlying curve stayed flat, so
 the reporting now always carries the separation table and the full sweep beside
 any fitted point.
 
-Second, the rationale in §12.2 for including the `top1 − top2` margin is a
-*hypothesis*, not a result: near-miss questions were predicted to produce
-several similarly-scoring passages and so to show a small margin with a high max
-score. Max score is now known not to separate the classes. Whether the margin
-does is untested, and it is the obvious next measurement, because the
-calibrated combination in signal 4 leans on it.
+Second, the rationale in §12.2 for including the `top1 − top2` margin has now
+been measured, and it is *directionally right and far too weak to use*.
+
+**Feature separation under BM25, all 400 items.** AUC is P(a random answerable
+question scores above a random unanswerable one); 0.500 is chance.
+
+| Feature | answerable | unanswerable | AUC |
+|---|---|---|---|
+| `score_spread` | 5.2127 | 3.7732 | 0.599 |
+| `margin` | 2.1769 | 1.2750 | 0.594 |
+| `max_score` | 13.5509 | 13.8179 | 0.545 |
+| `mean_top_k` | 10.2447 | 10.3221 | 0.510 |
+| `scheme_agreement` | 0.4000 | 0.4000 | 0.504 |
+
+The prediction was that near-miss questions retrieve several similarly-scoring
+passages and so show a smaller margin, and they do: 1.28 against 2.18. The
+reasoning was sound. But an AUC of 0.594 means the ordering holds on 59% of
+pairs where chance is 50%, which is nowhere near enough to threshold on.
+
+**This bounds signal 4 before it is built.** A logistic regression cannot
+extract more information than its features carry, and the best retrieval-side
+feature here reaches 0.599 while the rest sit at chance. The calibrated
+combination should therefore be expected to underperform, and if it does, that
+is a property of the feature set rather than of the model — which is worth
+stating in advance so the result is not later mistaken for a tuning failure.
+
+It also sharpens why signals 2 and 3 matter: both read the passage *text*, which
+is the only place the missing information can be. Every retrieval-side feature
+is a summary of score geometry, and the score geometry of a question about a
+present scheme looks the same whether or not the specific fact is there.
 
 ## 13. Grounding metrics
 

@@ -478,3 +478,52 @@ def test_an_unparseable_reply_counts_as_an_abstention(tmp_path, monkeypatch):
     )
     get_settings.cache_clear()
     assert "generator self-report" in "\n".join(lines)
+
+
+# --- feature separation ----------------------------------------------------------
+
+
+def test_auc_is_one_for_a_perfect_separator_and_half_for_none():
+    from indicrag.evaluation.answerability import auc
+
+    assert auc([3, 4, 5], [0, 1, 2]) == 1.0
+    assert auc([0, 1, 2], [3, 4, 5]) == 0.0
+    assert auc([1, 1, 1], [1, 1, 1]) == 0.5
+
+
+def test_auc_handles_an_empty_class_without_dividing_by_zero():
+    from indicrag.evaluation.answerability import auc
+
+    assert auc([], [1, 2]) == 0.5
+
+
+def test_feature_separation_covers_every_feature_the_calibration_uses():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import FEATURE_FIELDS, feature_separation
+
+    feats = [Features(max_score=s, margin=s / 2, mean_top_k=s / 3) for s in (0.1, 0.9)]
+    table = feature_separation(feats, [True, False])
+    assert set(table) == set(FEATURE_FIELDS)
+
+
+def test_the_report_flags_a_feature_that_actually_separates():
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import feature_separation, format_feature_separation
+
+    feats = [Features(margin=m) for m in (0.9, 0.8, 0.1, 0.05)]
+    text = "\n".join(
+        format_feature_separation(feature_separation(feats, [True, True, False, False]))
+    )
+    assert "<-- separates" in text
+
+
+def test_the_report_says_combining_chance_features_cannot_help():
+    """The point of the table: it bounds what the calibrated signal can do."""
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import feature_separation, format_feature_separation
+
+    feats = [Features(max_score=0.5, margin=0.1) for _ in range(4)]
+    text = "\n".join(
+        format_feature_separation(feature_separation(feats, [True, True, False, False]))
+    )
+    assert "cannot be rescued by combining" in text

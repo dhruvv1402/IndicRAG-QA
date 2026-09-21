@@ -100,10 +100,15 @@ passage over the systems eligible to retrieve it, which takes cross-lingual
 Recall@5 from 0.022 to 0.153 (p=0.0001) and code-mixed from 0.028 to 0.173
 (p=0.0002), at a real cost of -0.044 monolingual (p=0.032).
 
-**A retrieval-score threshold cannot detect false premises.** Recall on the
-false-premise class is 0.000 and near-miss 0.143. A retrieval score measures
-whether a question is *about* something in the corpus; it cannot measure whether
-the specific asserted fact exists. No choice of threshold fixes that.
+**A retrieval-score threshold carries no answerability signal at all here.**
+Answerable and unanswerable questions have indistinguishable top scores, and the
+unanswerable ones score marginally *higher*: 13.55 against 13.82 under BM25,
+0.1424 against 0.1485 under TF-IDF, 0.0327 against 0.0325 under script-aware
+RRF. Precision stays at the 0.20 base rate across the entire threshold sweep.
+The cause is the taxonomy, not the retriever: 55 of the 80 unanswerable items
+are deliberately about schemes that *are* in the corpus, so they retrieve
+exactly as well as answerable ones. A retrieval threshold detects corpus
+absence, and answerability is not corpus absence.
 
 **Pick the encoder by query script, not by language coverage.** LaBSE was
 expected to lead the cross-lingual slice and does not (0.097, below MiniLM at

@@ -254,13 +254,17 @@ off-the-shelf. Fine-tuning any of them on in-domain data would likely improve
 absolute numbers, and would confound the comparison we are making, which is
 between fusion methods holding the retrievers fixed.
 
-**The answerability threshold is a retrieval-side signal.** It is calibrated on
-the development split and reaches 0.000 recall on the false-premise class, which
-is a property of the signal rather than of the calibration: a false-premise
-question retrieves confidently, because the scheme it names is real and its
-passages score highly, and no retrieval-score threshold can separate it from an
-answerable question. We therefore evaluate a natural-language-inference signal
-alongside it, which addresses exactly this class.
+**The answerability threshold is a retrieval-side signal, and our negative
+result about it is bounded by our own taxonomy.** We show it carries no
+information here, but the reason is that 55 of our 80 unanswerable items are
+written about schemes present in the corpus. A benchmark whose unanswerable
+questions were predominantly out-of-scope would find the same threshold useful,
+and the 0.688 recall we measure on that one class shows why. The claim is
+therefore conditional: retrieval-score thresholds fail on unanswerable questions
+about *present* topics, which we argue is the deployment-relevant case for a
+system fielding questions about schemes it documents, but we have not shown they
+fail in general. We evaluate a natural-language-inference signal alongside,
+which addresses exactly the classes the threshold cannot see.
 
 ---
 

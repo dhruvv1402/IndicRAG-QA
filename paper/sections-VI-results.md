@@ -3,9 +3,11 @@
 Modules 1, 2, 3 and 5 are written from measured numbers. Module 4 waits on the
 generation sweep and is marked as such rather than estimated.
 
-**All figures are `[PROBE]`**: 180 synthetic probes over the real corpus, not the
-400-item human-verified set. §VI-A states what these probes can and cannot
-support, and that qualification governs every number below.
+**Two different bases, and they must not be conflated.** The retrieval figures
+(§VI-B to §VI-F) are `[PROBE]`: 180 synthetic probes over the real corpus. The
+answerability figures (§VI-H) are measured on all 400 gold items, which exist
+but are **not yet human-verified**. Neither may be quoted as a verified gold-set
+result; §VI-A states what the probes can and cannot support.
 
 ---
 
@@ -177,37 +179,54 @@ before it can be claimed.
 
 ### H. Answerability (Module 5)
 
-A retrieval-score threshold, fitted on 86 development items by maximising F1 on
-the unanswerable class and reported on 174 held-out items, reaches F1 = 0.376
-against the 0.75 target, at precision 0.53 and recall 0.291.
+A retrieval-score threshold is the standard abstention signal, and on this
+corpus it does not work at any operating point. The reason is not that it is
+poorly calibrated. It is that the quantity it thresholds does not separate the
+classes.
 
-The aggregate is not the finding. The per-class breakdown is.
+**Top retrieval score by gold label, all 400 items** `[PROBE]`
 
-**Recall by unanswerable class** `[PROBE]`
+| Retriever | answerable | unanswerable | best F1 | precision at best |
+|---|---|---|---|---|
+| BM25 | 13.55 | **13.82** | 0.372 | 0.237 |
+| TF-IDF | 0.1424 | **0.1485** | 0.370 | 0.231 |
+| Script-aware RRF | 0.0327 | 0.0325 | 0.351 | 0.216 |
 
-| Class | Recall | n |
-|---|---|---|
-| out-of-scope | 0.688 | 16 |
-| under-specified | 0.286 | 7 |
-| near-miss | 0.143 | 21 |
-| false-premise | **0.000** | 11 |
+The medians are indistinguishable, and in two of the three retrievers the
+*unanswerable* questions score marginally higher — the opposite of the direction
+a threshold assumes. Across the full sweep of τ, precision never leaves the
+neighbourhood of 0.21–0.24 against an unanswerable base rate of 0.20, which is
+the signature of a signal carrying no information: abstaining at random achieves
+precision equal to the prevalence.
 
-The ordering is the result, and it is not a calibration failure. Out-of-scope
-questions are about subjects absent from the corpus; they retrieve badly, and
-any threshold catches them. False-premise questions retrieve *confidently*,
-because the scheme they name is real and its passages score highly — the false
-premise is a claim about the scheme, not about its existence. No threshold over
-retrieval scores can separate such a question from an answerable one, because at
-the score level they are identical. The same mechanism, weaker, explains
-near-miss at 0.143.
+The best F1 of 0.372 is reached at 86% abstention. Those two numbers have to be
+read together. A recall of 0.93 on the unanswerable class, bought by refusing
+most of the answerable questions as well, is not detection; it is silence.
 
-This is a limit of the signal rather than of its calibration, and it motivates
-the entailment check: deciding whether a *specific claim* is supported by the
-retrieved passage is exactly the question a retrieval score does not ask. On the
-false-premise and near-miss cases where the threshold scores 0.000 and 0.143,
-NLI entailment identified the unanswerable item in 7 of 7 cases tested. Full
-results are reported with Module 4.
+**This follows from the dataset rather than from the retriever.** Of the 80
+unanswerable items, 55 — the near-miss, false-premise and under-specified
+classes — are deliberately written about schemes that *are* in the corpus. A
+false-premise question names a real scheme and asserts something untrue of it; a
+near-miss question matches a scheme's subject matter without matching any
+particular statement. Such questions retrieve exactly as well as answerable
+ones, because the passages they retrieve are genuinely about the topic. Only the
+25 out-of-scope items concern absent subjects, and those are the only ones a
+retrieval score can see.
 
-An aggregate F1 of 0.376 would have read as "needs tuning" and sent us to
-re-fit the threshold. The per-class table says that no value of the threshold
-would have helped.
+A corpus-absence detector is therefore what a retrieval threshold is, and
+answerability is not corpus absence. The distinction matters for deployment: a
+system fielding questions about schemes it documents will meet the hard classes
+far more often than the easy one.
+
+We draw two conclusions. The first is negative and firm: **retrieval-score
+thresholds should not be used as answerability signals on corpora where
+unanswerable questions concern present topics**, and reporting a single fitted
+operating point conceals this, because the fitted point moves from 0.000 recall
+to 0.93 depending only on the split while the underlying curve stays flat. The
+second is the motivation for §IV-F: deciding whether a *specific claim* is
+supported requires reading the passage, which is what natural-language inference
+does and what a retrieval score cannot. On the false-premise and near-miss items
+where the threshold is uninformative, NLI entailment identified the unanswerable
+item in 7 of 7 cases tested. That is a small sample and is reported as such;
+the full comparison runs with Module 4.
+

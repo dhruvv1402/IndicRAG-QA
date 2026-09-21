@@ -121,11 +121,14 @@ away from it.
    identifiers, and a documented annotation protocol with blind second-pass
    agreement.
 
-3. **A decomposition of answerability.** We show that retrieval-score
-   thresholds, the standard abstention signal, reach 0.000 recall on
-   false-premise questions, and give the mechanism: a false-premise question
-   retrieves confidently because the scheme it names is real, so no threshold
-   over retrieval scores can separate it from an answerable one.
+3. **A negative result on retrieval-score answerability thresholds.** We show
+   that the standard abstention signal carries no information on a corpus whose
+   unanswerable questions concern present topics: answerable and unanswerable
+   questions have indistinguishable top retrieval scores — 13.55 against 13.82
+   for BM25, with the *unanswerable* marginally higher — and precision across
+   the full threshold sweep stays at the 0.20 base rate. The mechanism is that a
+   retrieval threshold is a corpus-absence detector, and answerability is not
+   corpus absence.
 
 4. **A controlled negative result on Indic MLM checkpoints.** Off-the-shelf
    masked-language-model encoders for Indic languages underperform

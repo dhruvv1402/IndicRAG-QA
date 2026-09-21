@@ -198,18 +198,27 @@ depending on whether each *could* have retrieved what the other did.
 
 ---
 
-## 12. A second decomposition: answerability
+## 12. A second negative result: answerability
 
-Retrieval-score thresholds detect **0.000** of false-premise questions.
+Retrieval-score thresholds carry **no information** about answerability here.
 
-Mechanism: a false-premise question retrieves *confidently* — the scheme it
-names is real, its passages score highly. No threshold over retrieval scores can
-separate it from an answerable question.
+| | answerable | unanswerable |
+|---|---|---|
+| BM25 | 13.55 | **13.82** |
+| TF-IDF | 0.1424 | **0.1485** |
+| RRF | 0.0327 | 0.0325 |
 
-→ NLI entailment signal, validated on exactly those cases.
+Unanswerable questions score *higher*. Precision stays at the 0.20 base rate at
+every threshold.
 
-*Notes:* A property of the signal, not of the calibration. Worth stating because
-the threshold approach is the common default.
+**Why:** 55 of 80 unanswerable items are about schemes that ARE in the corpus.
+A retrieval threshold detects corpus absence — and answerability is not corpus
+absence.
+
+*Notes:* A property of the signal, not the calibration. The fitted operating
+point swings from 0.000 recall to 0.93 depending only on the split, while the
+curve underneath stays flat — which is why the separation table matters more
+than any single number. Motivates the NLI signal.
 
 ---
 

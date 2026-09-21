@@ -122,8 +122,10 @@ absence, and answerability is not corpus absence.
 
 **Pick the encoder by query script, not by language coverage.** LaBSE was
 expected to lead the cross-lingual slice and does not (0.097, below MiniLM at
-0.136). It instead dominates code-mixed at 0.332 — 2.5× the next best system,
-and above script-aware fusion's own 0.173. On code-mixed queries a better
+0.136). It instead dominates code-mixed at 0.332 against script-aware fusion's 0.173,
+a paired +0.159 at p=0.0094. The reverse holds monolingually, equally
+significantly: LaBSE loses there by 0.233 (p=0.0001). It is not a better
+retriever, it is a differently shaped one. On code-mixed queries a better
 encoder beats correcting the fusion over a weaker one. MuRIL, meanwhile,
 pretrained on 17 Indian languages, scores exactly 0.000 on both cross-lingual
 and code-mixed: pretraining-language coverage does not substitute for retrieval

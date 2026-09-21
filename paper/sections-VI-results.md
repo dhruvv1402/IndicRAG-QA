@@ -300,7 +300,7 @@ classes.
 
 | Retriever | answerable | unanswerable | best F1 | precision at best |
 |---|---|---|---|---|
-| BM25 | 13.55 | **13.82** | 0.372 | 0.237 |
+| BM25 | 13.55 | **13.82** | 0.366 | 0.235 |
 | TF-IDF | 0.1424 | **0.1485** | 0.370 | 0.231 |
 | Script-aware RRF | 0.0327 | 0.0325 | 0.351 | 0.216 |
 
@@ -311,7 +311,7 @@ never leaves the neighbourhood of 0.21–0.24 against an unanswerable base rate 
 0.20, which is the signature of a signal carrying no information: abstaining at random achieves
 precision equal to the prevalence.
 
-The best F1 of 0.372 is reached at 86% abstention. Those two numbers have to be
+The best F1 of 0.366 is reached at 86% abstention. Those two numbers have to be
 read together. A recall of 0.93 on the unanswerable class, bought by refusing
 most of the answerable questions as well, is not detection; it is silence.
 

@@ -514,7 +514,7 @@ Measured over all 400 gold items:
 
 | Retriever | answerable (median) | unanswerable (median) | best F1 | precision at best |
 |---|---|---|---|---|
-| BM25 | 13.55 | **13.82** | 0.372 | 0.237 |
+| BM25 | 13.55 | **13.82** | 0.366 | 0.235 |
 | TF-IDF | 0.1424 | **0.1485** | 0.370 | 0.231 |
 | Script-aware RRF | 0.0327 | 0.0325 | 0.351 | 0.216 |
 

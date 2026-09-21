@@ -37,6 +37,45 @@ set. The mechanism will not.
 The corpus is 694 passages over 40 schemes in English and Hindi, with all 80
 documents passing Devanagari integrity validation.
 
+### A.1 A first look at the same experiments on the gold set
+
+The retrieval sections below are probe-based. We have since run the identical
+evaluation over the 320 answerable gold items, and report the comparison here
+because two of the probe-based conclusions do not survive it. These items are
+**not verified either**, so this is a second preliminary source rather than a
+correction; the headline sections keep their probe numbers until verification
+settles which to report.
+
+**What the gold set confirms, more strongly than the probes did.** Lexical
+retrieval still collapses across the language boundary: BM25 reaches 0.977
+monolingual and 0.056 cross-lingual, a ratio worse than on the probes. MuRIL
+still scores exactly 0.000 cross-lingually. And the fusion penalty is still
+there and still visible in the same shape — plain RRF reaches 0.111 on the
+cross-lingual slice while the dense retriever it contains reaches 0.367.
+
+**What it contradicts.** Two things.
+
+First, §VI-F's LaBSE result reverses. On the probes LaBSE led the code-mixed
+slice at 0.332; on the gold set it scores 0.050 there, and lexical retrieval
+leads at 0.230. The gold code-mixed questions are Romanized Hindi carrying
+English scheme names, which BM25 can match directly against the English
+passages, and the probe set's code-mixed shape evidently did not reproduce that.
+§VI-F should be read as a claim about the probe set until verification decides.
+
+Second, the α sweep reverses, and with it the H2 verdict. On the probes no
+interior weighting beat the endpoints by more than 0.001. On the gold set
+α = 0.4 reaches 0.547 against 0.484 for pure lexical and 0.416 for pure dense —
+a margin of 0.062, comfortably outside the noise band. Weighted hybrid fusion
+does help on these questions, which is the opposite of what §VI-E reports from
+the probes.
+
+That divergence is itself evidence for the caution in §VI-A. A probe set built
+by lifting phrasing from target passages flatters lexical retrieval and
+compresses the differences between fusion settings; the gold questions are
+written to be answered rather than to be matched, and they separate the methods
+that the probes could not. The full table is committed as
+`evals/report-retrieval-goldset.txt`.
+
 ### B. Lexical against dense retrieval (Module 1)
 
 **Recall@5, overall, with 95% bootstrap confidence intervals** `[PROBE]`

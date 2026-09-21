@@ -176,11 +176,16 @@ retrieval error 0.193, a factor of three apart.
 
 We report this because it constrains the practical claim rather than the
 scientific one. Script-aware fusion is a large improvement to retrieval,
-measured as retrieval, and §VI-G shows it propagating: arm C exceeds arm B on
-citation support and abstains less often, with the same generator and the same
-questions. But a reader who cares about end-to-end answer quality on a corpus
-like ours should know that fixing retrieval entirely would buy 0.193, while the
-generator is leaving 0.597 on the table.
+measured as retrieval. It does **not** produce a measurable improvement in
+answer quality over dense retrieval alone at this sample size: paired over the
+questions both arms answered, arm C exceeds arm B by 0.003 token-F1 (p = 0.89)
+and 0.026 citation support (p = 1.00).
+
+The two facts fit together rather than conflicting. A generator losing 0.597 on
+its own is a noise floor that a retrieval gain has to clear to become visible
+downstream, and on 72 questions a gain of this size does not clear it. A reader
+who cares about end-to-end answer quality should know that fixing retrieval
+entirely would buy 0.193, while the generator is leaving 0.597 on the table.
 
 That ratio is a property of this configuration, not a general law. A 3B model at
 4-bit quantization is a deliberately small generator, chosen so every number

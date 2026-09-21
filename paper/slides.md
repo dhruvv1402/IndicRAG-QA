@@ -194,14 +194,16 @@ Four arms, same generator, differing only in the evidence given.
 | oracle | 0.403 | 0.194 | 0.948 |
 
 Closed-book answers 37 of 72 questions. **16%** of those answers are supported
-by the evidence.
+by the evidence. Paired: **+0.593, p = 0.0001**.
 
-Script-aware fusion propagates: hybrid beats dense on support *and* abstains
-less, same model, same questions.
+**Hybrid vs dense is NOT significant** (+0.026, p = 1.00). Retrieval-or-not is
+the large effect; *which* retriever does not show up downstream at n = 72.
 
 *Notes:* This is H3 and it is the cleanest result in the deck. The closed-book
 arm is not refusing — it is confidently reciting eligibility thresholds from
-memory and getting them wrong.
+memory and getting them wrong. Say the second line out loud: the unpaired rates
+(0.826 vs 0.762) look like a win only because the arms answer different numbers
+of questions. The paired test is what settles it.
 
 ---
 

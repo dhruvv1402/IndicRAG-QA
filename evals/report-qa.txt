@@ -7,8 +7,29 @@ MODULE 4 -- direct LLM vs retrieval-augmented question answering
   RAG hybrid            72    0.139      0.210     0.361    0.826
   oracle                72    0.264      0.403     0.194    0.948
 
+TOKEN-F1 WITH 95% BOOTSTRAP CI
+------------------------------------------------------------------------------
+  closed-book       0.065 [0.027, 0.110]
+  RAG dense         0.207 [0.136, 0.281]
+  RAG hybrid        0.210 [0.136, 0.292]
+  oracle            0.403 [0.311, 0.495]
+
+  Percentile bootstrap over questions, 1000 resamples. Differences
+  smaller than the interval width are not distinguishable from noise.
+
+PAIRED TESTS -- token-F1, two-sided randomization
+------------------------------------------------------------------------------
+  RAG dense          vs closed-book       delta=+0.141 p=0.0003* (n=72)
+  RAG hybrid         vs RAG dense         delta=+0.003 p=0.8926  (n=72)
+  oracle             vs RAG hybrid        delta=+0.193 p=0.0002* (n=72)
+
+  Paired on question id. The C-vs-B row is the one to read: it is the
+  fusion result carried through to generation, and the two arms differ
+  only in which passages retrieval supplied.
+
 ERROR DECOMPOSITION
 ------------------------------------------------------------------------------
+  paired over 72 items answered by both arms
   oracle (D) token-F1        0.403
   full system (C) token-F1   0.210
   retrieval error  (D - C)   0.193
@@ -32,11 +53,38 @@ cited evidence supports. Abstentions are excluded from the denominator --
 declining to answer is not a grounding failure.
 
   arm               answered   CSR (lex)   CSR (NLI)   abstained
-  A                       37       0.162           -       0.486
-  B                       42       0.762           -       0.417
-  C                       46       0.826           -       0.361
-  D                       58       0.948           -       0.194
+  A                       37       0.162       0.297       0.486
+  B                       42       0.762       0.476       0.417
+  C                       46       0.826       0.391       0.361
+  D                       58       0.948       0.569       0.194
 
 H3 is supported only if the RAG arms exceed the closed-book arm here.
 Note that an extractive system scores 1.0 by construction, so it is a
 floor for reading the generative arms rather than a competitor.
+
+CITATIONS -- did the system name its evidence, and did that id exist?
+------------------------------------------------------------------------------
+A fabricated citation is a different failure from an unsupported answer:
+the answer does not merely fail to follow from real evidence, it points
+at evidence that does not exist. CSR cannot show this -- it falls back to
+the retrieved context when the named id does not resolve, and so scores
+such an answer as though the model had cited honestly.
+
+  arm                    cited    fabricated
+  A                      0.054         1.000
+  B                      1.000         0.048
+  C                      1.000         0.000
+  D                      1.000         0.034
+
+Arm A is the one to read here. It is shown no passages at all, so any id
+it produces is invented outright, and the rate is a direct measure of the
+behaviour retrieval is meant to suppress.
+
+PAIRED TESTS -- citation support, two-sided randomization
+------------------------------------------------------------------------------
+  arm B vs arm A   delta=+0.593 p=0.0001* (n=27)
+  arm C vs arm B   delta=+0.026 p=1.0000  (n=39)
+  arm D vs arm C   delta=+0.143 p=0.0675  (n=42)
+
+  n is the questions BOTH arms answered: an abstention has no answer to
+  ground, and counting it as unsupported would penalise refusing.

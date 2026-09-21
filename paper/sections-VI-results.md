@@ -199,11 +199,32 @@ Abstention falls monotonically as the evidence improves, from 0.486 to 0.417 to
 which is the desired direction: the abstentions are responding to the absence of
 evidence rather than to a fixed conservatism.
 
-The fusion result propagates. Arm C exceeds arm B on Citation Support (0.826
-against 0.762) and abstains less often (0.361 against 0.417) on identical
-questions with an identical generator. The only difference between them is which
-passages retrieval supplied, so the improvement in §VI-E is visible downstream
-rather than remaining a retrieval-internal metric.
+**The fusion result does not measurably propagate to generation, and the
+unpaired table is misleading about it.** Arm C's citation support of 0.826
+against arm B's 0.762 is computed over different denominators — the arms answer
+46 and 42 questions respectively — and paired over the 39 questions both
+answered, the difference is +0.026 at p = 1.00. On token-F1 it is +0.003 at
+p = 0.89.
+
+| Comparison | token-F1 | citation support |
+|---|---|---|
+| B vs A | +0.141, p = 0.0003 * | +0.593, p = 0.0001 * |
+| C vs B | +0.003, p = 0.89 | +0.026, p = 1.00 |
+| D vs C | +0.193, p = 0.0002 * | +0.143, p = 0.068 |
+
+So the honest statement is narrower than the retrieval numbers invite. Retrieval
+versus no retrieval is a large, significant effect on both metrics. *Which*
+retriever, at this sample size and with this generator, is not distinguishable:
+the 0.131 Recall@5 gain of §VI-E does not produce a detectable difference in
+answer quality or grounding over dense retrieval alone.
+
+We do not read this as evidence that the fusion gain is illusory — §VI-E
+measures it directly and significantly, and the oracle row shows retrieval
+headroom of 0.193 that is significant at p = 0.0002. We read it as the expected
+consequence of a generator that loses 0.597 on its own (§VI-G.1): a retrieval
+improvement has to survive that noise floor to show up downstream, and on 72
+questions it does not. A larger sample, or a generator that wastes less of the
+evidence it is given, would be the way to detect it if it is there.
 
 ### G.1 Where the errors actually are
 
@@ -229,6 +250,36 @@ end-to-end answer quality here. On this corpus it is not. A reader whose
 priority is answer quality rather than evidence selection should read the
 0.597 first, and it points at the generator — its size, its quantization, or
 its prompt — rather than at the retriever.
+
+### G.2 Lexical and entailment support disagree
+
+The two Citation Support variants rank the arms differently.
+
+| Arm | CSR lexical | CSR entailment |
+|---|---|---|
+| A closed-book | 0.162 | 0.297 |
+| B RAG-dense | 0.762 | 0.476 |
+| C RAG-hybrid | 0.826 | 0.391 |
+| D oracle | 0.948 | 0.569 |
+
+H3 survives under both: every retrieval arm beats closed-book either way. But
+the RAG arms lose roughly half their support when the criterion changes from
+"the answer's tokens appear in order in the cited passage" to "the passage
+entails the answer", and the entailment column puts arm C *below* arm B.
+
+We checked the obvious artefact and it is not the cause. `NLIScorer` truncates
+at 384 tokens, and the retrieved context for arms B and C runs to ~780 words,
+which would truncate most of it away. But the premise actually scored is the
+*cited* passage, not the whole context, and citations resolve for 40 of 42
+answers in arm B and 46 of 46 in arm C. Median premise length is 139–168 words
+and only 3 of 183 scored pairs exceed the limit, so the entailment figures rest
+on short, comparable premises.
+
+The gap is therefore a real property of the answers: they reuse the cited
+passage's wording without saying what the passage says, which is the failure
+mode ROUGE-L precision is structurally blind to. Whether the entailment model is
+itself well calibrated on Hindi and code-mixed answers is a separate question we
+have not established, so we report both columns rather than choosing one.
 
 Exact Match is low throughout (0.264 even for the oracle) and we do not read
 much into it. A 3B model asked an open question rarely reproduces a gold string

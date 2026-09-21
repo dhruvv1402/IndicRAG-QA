@@ -218,3 +218,42 @@ def test_the_demo_and_the_evaluation_share_one_prompt():
     from indicrag.rag.prompts import build_answer_prompt
 
     assert seen["p"] == build_answer_prompt("how much", CORPUS)
+
+
+# --- the seam between language ID and fusion -------------------------------------
+
+
+def test_romanized_hinglish_reaches_fusion_as_latin_script():
+    """The correction depends on this and nothing pinned it.
+
+    `script_aware_rrf` treats the lexical retriever as eligible for everything
+    when the query script is "mixed". Romanized Hinglish -- "Scholarship ke liye
+    kya chahiye?" -- is Code-Mixed by *language* but written wholly in Latin, so
+    BM25 genuinely cannot reach a Devanagari passage and the correction must
+    apply. If classify() reported "mixed" here instead of "latin", the
+    correction would quietly switch off for the entire code-mixed slice, which
+    is one of the two headline results.
+    """
+    from indicrag.query.langid import classify
+
+    romanized = classify("Scholarship ke liye minimum eligibility kya hai?")
+    assert romanized.query_type == "Code-Mixed"
+    assert romanized.script == "latin"
+
+    # A query that really does carry both scripts is the other case: BM25 has
+    # tokens in each, so both retrievers are eligible and no correction is due.
+    both = classify("मनरेगा ke liye eligibility kya hai?")
+    assert both.query_type == "Code-Mixed"
+    assert both.script == "mixed"
+
+
+def test_a_hinglish_query_can_retrieve_a_devanagari_passage():
+    """End to end over the seam: Code-Mixed in, cross-script passage out."""
+    result = answer_query(
+        "Scholarship ke liye kya chahiye?",
+        CORPUS,
+        retrievers=_retrievers(True),
+        method="hybrid",
+    )
+    assert result.query_type == "Code-Mixed"
+    assert "c#p0" in [c["passage_id"] for c in result.citations]

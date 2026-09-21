@@ -43,9 +43,18 @@ class Outcome:
         return sum(1 for p in self.retrieved[:k] if p in self.gold)
 
     def recall_at(self, k: int) -> float:
-        if not self.gold:
+        """Distinct gold passages found in the top k, over distinct gold.
+
+        Counted over sets rather than positions so the value is bounded by 1.0
+        by construction. Retrieval should never return the same passage twice --
+        both fusions key their candidates by id -- but if one ever did, counting
+        positions would push a single-gold item above 1.0 and inflate the mean
+        without anything looking wrong.
+        """
+        gold = set(self.gold)
+        if not gold:
             return 0.0
-        return self.n_hits_at(k) / len(self.gold)
+        return len(gold & set(self.retrieved[:k])) / len(gold)
 
     def precision_at(self, k: int) -> float:
         if k == 0:

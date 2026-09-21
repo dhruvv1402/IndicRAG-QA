@@ -203,3 +203,18 @@ def test_a_p_value_is_never_reported_as_exactly_zero():
     result = paired_randomization_test(a, b, lambda o: o.recall_at(1), trials=500)
     assert result.p_value > 0.0
     assert result.p_value <= 1.0 / 500 + 1e-9
+
+
+def test_recall_is_bounded_by_one_even_if_retrieval_repeats_a_passage():
+    """Counting positions rather than distinct passages would report 2.0 for a
+    single-gold item and inflate the mean silently. Neither fusion can produce
+    a duplicate today -- both key candidates by id -- so this pins the property
+    rather than a current bug."""
+    o = _o("q", ["g1"], ["g1", "g1", "x"])
+    assert o.recall_at(3) == 1.0
+
+
+def test_recall_over_multiple_golds_counts_distinct_matches():
+    o = _o("q", ["g1", "g2"], ["g1", "x", "g2"])
+    assert o.recall_at(3) == 1.0
+    assert o.recall_at(1) == 0.5

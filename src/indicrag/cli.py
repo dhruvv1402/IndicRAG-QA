@@ -364,13 +364,24 @@ def dataset_stats(
     report: Path = typer.Option(None, "--report"),
 ) -> None:
     """Coverage against the PRD matrix. Run this during annotation, not after."""
-    from .dataset.split import coverage, format_coverage
+    from .dataset.split import (
+        answer_provenance,
+        coverage,
+        format_coverage,
+        format_provenance,
+    )
     from .dataset.verify import progress_of
 
     items = list(read_jsonl(path, QAItem))
     if not items:
         raise typer.BadParameter(f"no items at {path}")
-    lines = format_coverage(coverage(items)) + ["", str(progress_of(items))]
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    lines = format_coverage(coverage(items))
+    if passages:
+        lines += format_provenance(answer_provenance(items, passages))
+    lines += ["", str(progress_of(items))]
     _emit(lines, report)
 
 

@@ -136,3 +136,61 @@ def format_coverage(cov: Coverage) -> list[str]:
     out.append(f"  {'TOTAL unanswerable':<22}{ut:>8}{ua:>8}{ua - ut:>+8}")
     out += ["", f"  GRAND TOTAL{'':<11}{total_t + ut:>8}{total_a + ua:>8}"]
     return out
+
+
+# --- annotation burden -----------------------------------------------------------
+
+
+def answer_provenance(items, passages) -> dict[str, int]:
+    """How far each proposed answer sits from its own evidence.
+
+    Verification effort is not uniform across items, and knowing the split before
+    starting is the difference between planning a session and discovering halfway
+    through that a third of it needs rewriting. An answer present verbatim is an
+    accept; a close paraphrase is a trim; one sharing little with its passage has
+    to be written from the passage by hand.
+    """
+    from ..evaluation.grounding import rouge_l_precision
+
+    by_id = {p.passage_id: p for p in passages}
+    counts = {"verbatim": 0, "near": 0, "rewrite": 0, "no_evidence": 0}
+    for item in items:
+        if not item.answerable or not item.answer_gold:
+            continue
+        evidence = " ".join(
+            by_id[pid].text for pid in item.gold_passage_ids if pid in by_id
+        )
+        if not evidence:
+            counts["no_evidence"] += 1
+        elif item.answer_gold.strip() in evidence:
+            counts["verbatim"] += 1
+        elif rouge_l_precision(item.answer_gold, evidence) >= 0.8:
+            counts["near"] += 1
+        else:
+            counts["rewrite"] += 1
+    return counts
+
+
+def format_provenance(counts: dict[str, int]) -> list[str]:
+    total = sum(counts.values())
+    if not total:
+        return []
+    rows = [
+        ("verbatim in the passage", "verbatim", "accept as-is"),
+        ("close paraphrase", "near", "light edit"),
+        ("paraphrased or invented", "rewrite", "write from the passage"),
+        ("gold passage missing", "no_evidence", "fix the reference first"),
+    ]
+    out = ["", "ANNOTATION BURDEN", "-" * 78]
+    for label, key, action in rows:
+        n = counts.get(key, 0)
+        if not n:
+            continue
+        out.append(f"  {label:<26}{n:>5}  ({n / total:>4.0%})  {action}")
+    out += [
+        "",
+        "  Answers were bootstrapped by a 3B model, so a proposed answer that does",
+        "  not appear in its own passage is expected rather than alarming -- it is",
+        "  what the verification pass exists to correct.",
+    ]
+    return out

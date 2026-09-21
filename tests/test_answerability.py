@@ -409,6 +409,7 @@ class _ScriptedProvider:
 def test_the_self_report_path_scores_and_caches(tmp_path, monkeypatch):
     """Exercised with a stub because a bug here is only discovered after an
     hour of generation."""
+    import indicrag.answerability.nli as nli_mod
     import indicrag.rag.providers as providers
     from indicrag.models import Passage, QAItem, Retrieved
 
@@ -429,6 +430,7 @@ def test_the_self_report_path_scores_and_caches(tmp_path, monkeypatch):
         '{"answerable": false, "answer": "", "citation": "", "confidence": 0.0}',
     ])
     monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setattr(nli_mod.NLIScorer, "available", staticmethod(lambda *a, **kw: False))
     monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
 
     from indicrag.config import get_settings
@@ -453,6 +455,7 @@ def test_the_self_report_path_scores_and_caches(tmp_path, monkeypatch):
 def test_an_unparseable_reply_counts_as_an_abstention(tmp_path, monkeypatch):
     """A model that emits garbage has not answered, and must not be scored as
     though it confidently did."""
+    import indicrag.answerability.nli as nli_mod
     import indicrag.rag.providers as providers
     from indicrag.models import Passage, QAItem, Retrieved
 
@@ -465,6 +468,7 @@ def test_an_unparseable_reply_counts_as_an_abstention(tmp_path, monkeypatch):
 
     stub = _ScriptedProvider(["not json at all"])
     monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setattr(nli_mod.NLIScorer, "available", staticmethod(lambda *a, **kw: False))
     monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
 
     from indicrag.config import get_settings
@@ -614,3 +618,92 @@ def test_fitting_the_entailment_signal_on_nothing_does_not_raise():
 
     signal, f1 = EntailmentSignal.fit([], [])
     assert f1 == 0.0 and signal.tau == 0.5
+
+
+def test_the_nli_branch_runs_on_a_stub_without_loading_a_model(tmp_path, monkeypatch):
+    """The NLI section must be exercised deterministically. Left to itself the
+    branch depends on whether HF_HOME happens to point at a cache holding a
+    1.1 GB model, which is not something a unit test may decide."""
+    import indicrag.answerability.nli as nli_mod
+    import indicrag.rag.providers as providers
+    from indicrag.answerability.nli import NLIVerdict
+    from indicrag.models import Passage, QAItem, Retrieved
+
+    passages = [
+        Passage(passage_id="p1", doc_id="d", scheme="s", lang="en",
+                text="Students receive Rs. 12,000 per annum.")
+    ]
+    items = [
+        QAItem(id="qa-1", question="How much?", query_lang="en", passage_lang="en",
+               answerable=True, gold_passage_ids=["p1"]),
+        QAItem(id="un-1", question="Laptop allowance?", query_lang="en", passage_lang="",
+               answerable=False, unanswerable_class="false-premise"),
+    ]
+    hits = [[Retrieved(passage_id="p1", score=0.5, rank=1)] for _ in items]
+
+    stub = _ScriptedProvider([
+        '{"answerable": true, "answer": "Rs. 12,000", "citation": "p1", "confidence": 0.9}',
+        '{"answerable": true, "answer": "Rs. 9,000", "citation": "p1", "confidence": 0.9}',
+    ])
+
+    class _StubScorer:
+        def __init__(self, *a, **kw):
+            pass
+
+        @staticmethod
+        def available(*a, **kw):
+            return True
+
+        def score_pairs(self, pairs, **kw):
+            # High entailment for the real figure, low for the invented one.
+            return [
+                NLIVerdict(0.95 if "12,000" in hyp else 0.05, 0.0, 0.0) for _prem, hyp in pairs
+            ]
+
+    monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setattr(nli_mod, "NLIScorer", _StubScorer)
+    monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
+
+    from indicrag.config import get_settings
+
+    get_settings.cache_clear()
+    from indicrag.cli import _generator_signals
+
+    lines = _generator_signals(
+        items, passages, hits, [i.answerable for i in items],
+        [0, 1], [0, 1], gguf=str(tmp_path / "m.gguf"), k=5,
+    )
+    get_settings.cache_clear()
+
+    text = "\n".join(lines)
+    assert "NLI entailment" in text
+    # Both answered, so the self-report flag cannot separate them; entailment can.
+    assert "generator self-report" in text
+
+
+def test_the_nli_section_says_so_when_the_model_is_absent(tmp_path, monkeypatch):
+    import indicrag.answerability.nli as nli_mod
+    import indicrag.rag.providers as providers
+    from indicrag.models import Passage, QAItem, Retrieved
+
+    passages = [Passage(passage_id="p1", doc_id="d", scheme="s", lang="en", text="Text.")]
+    items = [QAItem(id="qa-1", question="q", query_lang="en", passage_lang="en",
+                    answerable=True, gold_passage_ids=["p1"])]
+    hits = [[Retrieved(passage_id="p1", score=0.5, rank=1)]]
+
+    stub = _ScriptedProvider(['{"answerable": true, "answer": "x", "citation": "p1", "confidence": 0.9}'])
+    monkeypatch.setattr(providers, "LlamaCppProvider", lambda *a, **kw: stub)
+    monkeypatch.setattr(nli_mod.NLIScorer, "available", staticmethod(lambda *a, **kw: False))
+    monkeypatch.setenv("INDICRAG_DATA_DIR", str(tmp_path))
+
+    from indicrag.config import get_settings
+
+    get_settings.cache_clear()
+    from indicrag.cli import _generator_signals
+
+    text = "\n".join(
+        _generator_signals(items, passages, hits, [True], [0], [0],
+                           gguf=str(tmp_path / "m.gguf"), k=5)
+    )
+    get_settings.cache_clear()
+    assert "NLI signal skipped" in text

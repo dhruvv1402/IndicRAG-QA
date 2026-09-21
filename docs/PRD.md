@@ -360,6 +360,49 @@ These are targets for judging whether the system works, **not** predictions of t
 | Citation Support Rate, closed-book arm | expected far below the RAG arms | If it is not, RAG is adding nothing and H3 is false |
 | Cohen's κ, answerability second pass | ≥ 0.70 | The annotation guideline is ambiguous; fix it before trusting any result |
 
+### 10.2a Scorecard against those targets
+
+**Measured 2026-09-22**, on synthetic probes for retrieval and on the unverified
+400-item set for answerability and grounding. One target met, six missed, one
+not yet measurable. The targets were set before any number existed and are
+reported against here because §10.2 says a miss is a finding.
+
+| Criterion | Target | Measured | Verdict |
+|---|---|---|---|
+| Dense Recall@5, monolingual | ≥ 0.85 | 0.610 (e5-base) | **missed** |
+| Dense Recall@5, cross-lingual | ≥ 0.70 | 0.125 (e5-base) | **missed badly** |
+| Dense Recall@5, code-mixed | ≥ 0.60 | 0.132 (e5-base), 0.332 (LaBSE) | **missed** |
+| Hybrid Recall@5 vs best single retriever | ≥ +2 pts | +0.1 pts overall; +2.8 pts vs dense cross-lingual (p=0.037) | **missed overall** |
+| Answerability F1, UNANSWERABLE class | ≥ 0.75 | 0.351 | **missed** |
+| Citation Support Rate, RAG arms | ≥ 0.85 | 0.826 lexical, 0.391 entailment | **missed** |
+| Citation Support Rate, closed-book far below RAG | — | 0.162 against 0.826 | **met** |
+| Cohen's κ, answerability second pass | ≥ 0.70 | not measured | **pending verification** |
+
+What the misses mean, in the terms §10.2 set out:
+
+**The retrieval targets assumed a corpus that does not exist here.** 0.85
+monolingual and 0.70 cross-lingual were set against an imagined corpus of
+official scheme guidelines, where a question and its answer share vocabulary.
+The corpus that could actually be built is encyclopedic (PRD §5.4), so passages
+are discursive and a question's terms often appear in several of them. The
+targets were not recalibrated after that substitution, which was a mistake in
+the planning rather than in the system.
+
+**The hybrid target was measured against the wrong baseline.** "Best single
+retriever" is BM25 at 0.499, which is inflated by a probe set two thirds
+monolingual whose fragment shapes quote the target passage. Against dense
+retrieval — the component hybrid exists to rescue — script-aware fusion gains
++0.050 overall (p = 0.0086) and +0.131 cross-lingual (p = 0.0001). The target as
+written is not the comparison that answers the question it was asked about.
+
+**The answerability target was unreachable by the signal it assumed.** §VI-H
+shows retrieval scores carry no answerability information on this corpus at any
+threshold, because 55 of the 80 unanswerable items concern schemes that are
+present. No calibration reaches 0.75 from a signal at chance.
+
+**The Citation Support target is missed narrowly on one metric and widely on the
+other**, and the gap between them is itself the finding (§VI-G.2).
+
 ### 10.3 What the numbers will not prove
 
 A 400-item, single-domain, two-language dataset annotated largely by one person supports statements about *this corpus under this protocol*. It does not support claims about Indic question answering in general, about languages not tested, or about how these model rankings would hold at production scale. Every reported table carries this caveat, and the paper's limitations section states it in full.

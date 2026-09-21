@@ -242,3 +242,63 @@ def test_disagreements_between_lexical_and_entailment_are_surfaced():
         ],
     )
     assert len(report.disagreements("C")) == 1
+
+
+# --- decoding constraints --------------------------------------------------------
+
+
+class _StubLlama:
+    """Records what `create_chat_completion` was called with."""
+
+    def __init__(self, reply: str):
+        self.reply = reply
+        self.seen: dict = {}
+
+    def create_chat_completion(self, **kwargs):
+        self.seen = kwargs
+        return {"choices": [{"message": {"content": self.reply}}]}
+
+
+def _provider(reply: str):
+    """A LlamaCppProvider around a stub, bypassing the model load."""
+    from indicrag.rag.providers import LlamaCppProvider
+
+    p = LlamaCppProvider.__new__(LlamaCppProvider)
+    p._llm = _StubLlama(reply)
+    p.calls = 0
+    p.parse_failures = 0
+    p.retries = 0
+    return p
+
+
+ANSWER_REPLY = (
+    '{"answerable": true, "answer": "Rs. 12,000 per annum", '
+    '"citation": "nmms-en#p0003", "confidence": 0.9}'
+)
+
+
+def test_generation_is_unconstrained_unless_a_schema_is_asked_for():
+    """The QA-candidate schema was once applied to every call, which made the
+    answering contract's own fields unreachable. It has to be opt-in."""
+    p = _provider(ANSWER_REPLY)
+    p.complete("prompt")
+    assert p._llm.seen["response_format"] is None
+
+
+def test_an_explicit_schema_is_passed_through():
+    from indicrag.rag.providers import LlamaCppProvider
+
+    p = _provider('{"question": "q", "answer": "a", "kind": "fact"}')
+    p.complete("prompt", schema=LlamaCppProvider.QA_SCHEMA)
+    assert p._llm.seen["response_format"]["schema"] is LlamaCppProvider.QA_SCHEMA
+
+
+def test_the_answering_fields_survive_the_default_path():
+    """The regression itself: `citation` and `confidence` came back empty for
+    every arm because the grammar in force could not emit them."""
+    from indicrag.rag.arms import parse_answer
+
+    data = parse_answer(_provider(ANSWER_REPLY).complete("prompt"))
+    assert data["citation"] == "nmms-en#p0003"
+    assert data["confidence"] == 0.9
+    assert data["answerable"] is True

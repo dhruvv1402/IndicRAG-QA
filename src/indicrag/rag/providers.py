@@ -337,8 +337,9 @@ class LlamaCppProvider:
     #: build, so the bug is in the grammar sampler wiring rather than in the
     #: model or the install. `response_format` gets the same guarantee by a route
     #: that does not segfault.
-    #: Retained for reference but NOT used: schema-constrained decoding was
-    #: measured slower and no more reliable than plain generation here.
+    #: Opt-in only, via `complete(..., schema=QA_SCHEMA)`, and not used by
+    #: default: schema-constrained decoding was measured slower and no more
+    #: reliable than plain generation here.
     #:
     #:   no schema            2.6s   0.05 s/token
     #:   schema               15.2s  0.19 s/token
@@ -393,19 +394,36 @@ class LlamaCppProvider:
         prompt: str,
         grammar: str | None = None,
         *,
+        schema: dict | None = None,
         max_tokens: int = 200,
         temperature: float = 0.0,
     ) -> str:
         """Generate one JSON object.
 
         `grammar` is accepted for interface compatibility with the GBNF text the
-        callers hold, but the schema above is what actually constrains decoding.
+        callers hold; `schema` is the route that actually constrains decoding,
+        and it defaults to None because unconstrained generation measured both
+        faster and marginally more reliable (see QA_SCHEMA above).
+
+        Defaulting it to None is not merely a speed choice. `QA_SCHEMA` used to
+        be applied unconditionally here, which silently broke every caller whose
+        output shape is not a QA candidate: the Module 4 answering prompt asks
+        for `{answerable, answer, citation, confidence}`, and a grammar pinned to
+        `{question, answer, kind}` made three of those four fields *unreachable*.
+        The generations still parsed, so nothing raised -- `citation` simply came
+        back empty for every arm and `answerable` defaulted to true, which would
+        have reported a 0.0 Citation Support Rate as a finding about the model
+        rather than a bug in the harness. A constraint that silently rewrites the
+        output contract of its callers has to be opt-in.
         """
         self.calls += 1
+        response_format = (
+            {"type": "json_object", "schema": schema} if schema is not None else None
+        )
         try:
             out = self._llm.create_chat_completion(
                 messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object", "schema": self.QA_SCHEMA},
+                response_format=response_format,
                 max_tokens=max_tokens,
                 temperature=temperature,
             )

@@ -2,12 +2,12 @@ DATASET COVERAGE vs PRD §6.2 / §6.3
 ------------------------------------------------------------------------------
   cell                    target  actual   delta
   en->en                      70      70      +0
-  en->hi                      45       0     -45  <-- off target
-  hi->en                      45       0     -45  <-- off target
-  hi->hi                      60       0     -60  <-- off target
-  hinglish->en                55       0     -55  <-- off target
-  hinglish->hi                45       0     -45  <-- off target
-  TOTAL answerable           320      70    -250
+  en->hi                      45      45      +0
+  hi->en                      45      45      +0
+  hi->hi                      60      60      +0
+  hinglish->en                55      55      +0
+  hinglish->hi                45      45      +0
+  TOTAL answerable           320     320      +0
 
   unanswerable class      target  actual   delta
   false-premise               15      15      +0
@@ -16,6 +16,16 @@ DATASET COVERAGE vs PRD §6.2 / §6.3
   under-specified             10      10      +0
   TOTAL unanswerable          80      80      +0
 
-  GRAND TOTAL                400     150
+  GRAND TOTAL                400     400
 
-0 verified, 0 rejected, 150 remaining of 150
+ANNOTATION BURDEN
+------------------------------------------------------------------------------
+  verbatim in the passage     187  ( 58%)  accept as-is
+  close paraphrase             98  ( 31%)  light edit
+  paraphrased or invented      35  ( 11%)  write from the passage
+
+  Answers were bootstrapped by a 3B model, so a proposed answer that does
+  not appear in its own passage is expected rather than alarming -- it is
+  what the verification pass exists to correct.
+
+0 verified, 0 rejected, 400 remaining of 400

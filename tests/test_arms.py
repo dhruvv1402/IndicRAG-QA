@@ -472,3 +472,43 @@ def test_module4_reports_intervals_and_paired_tests():
     # the number of sign assignments -- with n=10 only the all-same-sign flip
     # reaches the observed mean, so p cannot go below about 2/2**10.
     assert "*" in text.split("PAIRED TESTS")[1].splitlines()[2]
+
+
+def test_citation_support_is_tested_on_the_metric_the_claim_is_made_on():
+    """The results section claims the fusion improvement carries through to
+    generation, and makes that claim on citation support: arm C beats arm B by
+    0.064 there and by 0.003 on token-F1. Testing only F1 would leave the
+    sentence actually written unsupported."""
+    from indicrag.evaluation.grounding import (
+        GroundingOutcome,
+        GroundingReport,
+        format_support_tests,
+    )
+
+    outcomes = []
+    for n in range(20):
+        outcomes.append(GroundingOutcome(item_id=f"i{n}", arm="B", lexical_support=1.0 if n < 12 else 0.0))
+        outcomes.append(GroundingOutcome(item_id=f"i{n}", arm="C", lexical_support=1.0 if n < 18 else 0.0))
+
+    text = "\n".join(format_support_tests(GroundingReport("s", outcomes), ["B", "C"]))
+    assert "arm C vs arm B" in text
+    assert "delta=+0.300" in text
+
+
+def test_abstentions_are_excluded_from_the_support_test():
+    """An abstention has no answer to ground; counting it as unsupported would
+    penalise a system for refusing."""
+    from indicrag.evaluation.grounding import (
+        GroundingOutcome,
+        GroundingReport,
+        format_support_tests,
+    )
+
+    outcomes = [
+        GroundingOutcome(item_id="i0", arm="B", lexical_support=1.0),
+        GroundingOutcome(item_id="i1", arm="B", abstained=True),
+        GroundingOutcome(item_id="i0", arm="C", lexical_support=1.0),
+        GroundingOutcome(item_id="i1", arm="C", abstained=True),
+    ]
+    text = "\n".join(format_support_tests(GroundingReport("s", outcomes), ["B", "C"]))
+    assert "(n=1)" in text

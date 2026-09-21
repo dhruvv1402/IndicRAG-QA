@@ -243,4 +243,42 @@ def format_grounding(report: GroundingReport, arms: Sequence[str]) -> list[str]:
         "it produces is invented outright, and the rate is a direct measure of the",
         "behaviour retrieval is meant to suppress.",
     ]
+
+    out += format_support_tests(report, arms)
+    return out
+
+
+def format_support_tests(report: GroundingReport, arms: Sequence[str]) -> list[str]:
+    """Paired tests on citation support between adjacent arms.
+
+    The claim that the retrieval improvement carries through to generation is
+    made on *citation support*, not on token-F1 -- arm C beats arm B by 0.064
+    there and by 0.003 on F1. So this is the comparison that needs the test, and
+    testing only F1 would leave the sentence the results section actually writes
+    unsupported.
+
+    Paired on item id over the questions both arms answered. An abstention has
+    no answer to ground, so including it would score a refusal as an
+    ungrounded answer.
+    """
+    from .stats import paired_randomization_test
+
+    rule = "-" * 78
+    pairs = [(b, a) for a, b in zip(arms, arms[1:], strict=False)]
+    if not pairs:
+        return []
+
+    out = ["", "PAIRED TESTS -- citation support, two-sided randomization", rule]
+    for better, worse in pairs:
+        a_out = [o for o in report.outcomes if o.arm == worse and not o.abstained]
+        b_out = [o for o in report.outcomes if o.arm == better and not o.abstained]
+        res = paired_randomization_test(
+            b_out, a_out, lambda o: float(o.lexically_supported)
+        )
+        out.append(f"  arm {better} vs arm {worse}   {res}")
+    out += [
+        "",
+        "  n is the questions BOTH arms answered: an abstention has no answer to",
+        "  ground, and counting it as unsupported would penalise refusing.",
+    ]
     return out

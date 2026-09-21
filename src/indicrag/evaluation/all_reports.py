@@ -159,7 +159,13 @@ def run_all(
     # --- answerability --------------------------------------------------------
     say("answerability")
     try:
-        from .answerability import format_answerability, run_answerability
+        from .answerability import (
+            format_answerability,
+            format_separation,
+            format_tau_sweep,
+            run_answerability,
+            tau_sweep,
+        )
 
         if not any(not i.answerable for i in items):
             raise FileNotFoundError(
@@ -173,6 +179,8 @@ def run_all(
             "",
         ]
         lines += format_answerability(result)
+        lines += [""] + format_separation(meta["scores"], meta["labels"], method=meta["method"])
+        lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
         summary.add(_write(out_dir / "report-answerability.txt", lines))
     except Exception as exc:  # noqa: BLE001
         summary.add(StageResult("report-answerability", skipped=f"{type(exc).__name__}: {exc}"))

@@ -568,8 +568,11 @@ def eval_answerability(
     from .evaluation.all_reports import provenance
     from .evaluation.answerability import (
         format_answerability,
+        format_separation,
+        format_tau_sweep,
         run_answerability,
         stratified_by_class,
+        tau_sweep,
     )
 
     cfg = get_settings()
@@ -599,6 +602,8 @@ def eval_answerability(
         "",
     ]
     lines += format_answerability(result)
+    lines += [""] + format_separation(meta["scores"], meta["labels"], method=method)
+    lines += [""] + format_tau_sweep(tau_sweep(meta["features"], meta["labels"]))
 
     if gguf:
         lines += ["", "=" * 78, ""] + _self_report_signal(

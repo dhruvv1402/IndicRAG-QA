@@ -289,4 +289,110 @@ def run_answerability(
         "test": test,
         "hits": hits,
         "labels": labels,
+        "features": features,
+        "scores": [f.max_score for f in features],
+        "method": method,
     }
+
+
+def format_separation(scores, labels, *, method: str = "") -> list[str]:
+    """Do answerable and unanswerable questions even score differently?
+
+    This table belongs beside the confusion matrix because without it the
+    threshold result is unreadable. A fitted threshold can be made to report
+    0.000 recall on every unanswerable class or 0.9+ on all of them, depending
+    only on where it lands, and neither number says anything about the signal if
+    the two score distributions are the same. Reporting an operating point
+    without the separation behind it is how a flat curve gets written up as a
+    finding about one class.
+    """
+    import statistics
+
+    rule = "-" * 78
+    ans = [s for s, lab in zip(scores, labels, strict=True) if lab]
+    una = [s for s, lab in zip(scores, labels, strict=True) if not lab]
+    if not ans or not una:
+        return []
+
+    a_med, u_med = statistics.median(ans), statistics.median(una)
+    base_rate = len(una) / len(scores)
+
+    out = [
+        f"SCORE SEPARATION{f' -- {method}' if method else ''}",
+        rule,
+        "  Top retrieval score, by gold label. If these two rows agree, no",
+        "  threshold over this score can separate the classes at any setting.",
+        "",
+        f"  {'':<16}{'median':>10}{'mean':>10}{'n':>7}",
+        f"  {'answerable':<16}{a_med:>10.4f}{statistics.fmean(ans):>10.4f}{len(ans):>7}",
+        f"  {'UNanswerable':<16}{u_med:>10.4f}{statistics.fmean(una):>10.4f}{len(una):>7}",
+        "",
+        f"  difference in medians: {a_med - u_med:+.4f}",
+    ]
+    if u_med >= a_med:
+        out += [
+            "",
+            "  The unanswerable questions score AT LEAST AS HIGH as the answerable",
+            "  ones, which is the opposite of the direction a threshold assumes.",
+            "  This follows from how the taxonomy is built: near-miss and",
+            "  false-premise questions are deliberately about schemes that are IN",
+            "  the corpus, so they retrieve just as well. Only out-of-scope items",
+            "  are about absent topics. The signal is not weak here, it is absent.",
+        ]
+
+    out += [
+        "",
+        f"  Base rate of UNANSWERABLE: {base_rate:.3f}. A precision at or near this",
+        "  value means the threshold is abstaining about as usefully as chance.",
+    ]
+    return out
+
+
+def tau_sweep(features, labels, *, grid: int = 20) -> list[tuple[float, float, float, float, float]]:
+    """(tau, precision, recall, F1, abstention rate) across the threshold range.
+
+    The sweep is the honest artefact. A single fitted tau reports one point on
+    this curve and cannot show whether the curve is flat.
+    """
+    from ..answerability.signals import ThresholdSignal
+
+    scale = max((f.max_score for f in features), default=1.0) or 1.0
+    rows = []
+    for i in range(grid + 1):
+        tau = i / grid
+        signal = ThresholdSignal(tau=tau, scale=scale)
+        preds = [signal.predict_answerable(f) for f in features]
+        tp = sum(1 for p, g in zip(preds, labels, strict=True) if not p and not g)
+        fp = sum(1 for p, g in zip(preds, labels, strict=True) if not p and g)
+        fn = sum(1 for p, g in zip(preds, labels, strict=True) if p and not g)
+        precision = tp / (tp + fp) if tp + fp else 0.0
+        recall = tp / (tp + fn) if tp + fn else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+        rows.append((tau, precision, recall, f1, sum(1 for p in preds if not p) / len(preds)))
+    return rows
+
+
+def format_tau_sweep(rows) -> list[str]:
+    rule = "-" * 78
+    out = [
+        "THRESHOLD SWEEP",
+        rule,
+        "  Every operating point, so the shape of the trade-off is visible rather",
+        "  than one fitted value standing in for it.",
+        "",
+        f"  {'tau':>6}{'precision':>11}{'recall':>9}{'F1':>8}{'abstains':>10}",
+    ]
+    best = max(rows, key=lambda r: r[3]) if rows else None
+    for tau, precision, recall, f1, abstain in rows:
+        mark = "  <-- best F1" if best and f1 == best[3] and f1 > 0 else ""
+        out.append(
+            f"  {tau:>6.3f}{precision:>11.3f}{recall:>9.3f}{f1:>8.3f}{abstain:>10.3f}{mark}"
+        )
+    if best:
+        out += [
+            "",
+            f"  Best F1 {best[3]:.3f} is reached at {best[4]:.1%} abstention. Read those two",
+            "  together: a high recall on the unanswerable class bought by refusing",
+            "  most answerable questions is not detection, it is silence.",
+        ]
+    return out

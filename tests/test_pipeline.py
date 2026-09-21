@@ -88,3 +88,57 @@ def test_citations_resolve_to_real_passages():
     ids = {p.passage_id for p in CORPUS}
     result = answer_query("How much do students receive?", CORPUS, k=3)
     assert all(c["passage_id"] in ids for c in result.citations)
+
+
+# --- the default method must actually be the default method ----------------------
+
+
+class _StubDense:
+    """A dense index that ranks passages in a fixed order."""
+
+    def __init__(self, order):
+        self.order = order
+
+    def search_vector(self, _vec, k):
+        from indicrag.models import Retrieved
+
+        return [
+            Retrieved(passage_id=pid, score=1.0 - 0.01 * i, rank=i + 1)
+            for i, pid in enumerate(self.order[:k])
+        ]
+
+
+class _StubEncoder:
+    def encode_query(self, _q):
+        return [0.0]
+
+
+def _retrievers(with_dense: bool):
+    from indicrag.index.lexical import LexicalIndex
+
+    r = Retrievers(lexical=LexicalIndex.build(CORPUS))
+    if with_dense:
+        r.dense = _StubDense(["c#p0", "b#p0", "a#p0"])
+        r.encoder = _StubEncoder()
+    return r
+
+
+def test_hybrid_without_a_dense_index_degrades_to_lexical_scores():
+    """Documented behaviour: a fresh checkout with no embeddings still answers."""
+    result = answer_query("scholarship", CORPUS, retrievers=_retrievers(False), method="hybrid")
+    assert result.retrieval["top_score"] > 1.0  # BM25 is unbounded
+
+
+def test_hybrid_with_a_dense_index_actually_fuses():
+    """The regression this guards: `ask` built only a lexical index, so the
+    default method silently degraded to BM25 -- the one configuration the
+    cross-lingual result shows collapsing -- and nothing in the output said so.
+    RRF sums reciprocal ranks, so a fused score is well under 1."""
+    result = answer_query("scholarship", CORPUS, retrievers=_retrievers(True), method="hybrid")
+    assert 0.0 < result.retrieval["top_score"] < 1.0
+
+
+def test_fusion_can_return_a_passage_the_lexical_retriever_cannot_see():
+    """A Devanagari passage for a Latin query is unreachable by BM25."""
+    result = answer_query("scholarship", CORPUS, retrievers=_retrievers(True), method="hybrid")
+    assert "c#p0" in [c["passage_id"] for c in result.citations]

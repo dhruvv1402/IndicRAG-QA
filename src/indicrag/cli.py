@@ -571,14 +571,39 @@ def ask(
     ),
 ) -> None:
     """Answer one question and print the full response object."""
-    from .pipeline import answer_query
+    from .pipeline import Retrievers, answer_query
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
     if not passages:
         raise typer.BadParameter("no passages; run `corpus segment` first")
 
-    result = answer_query(query, passages, method=method, k=k)
+    # Load the dense index, not just the lexical one. Without it `hybrid` --
+    # the default, and the method this project's central result is about --
+    # degrades to plain BM25 inside `retrieve()`, silently. That degradation is
+    # the right behaviour for a fresh checkout with no embeddings built, but it
+    # made the demo answer every query with the one configuration the paper
+    # shows collapses cross-lingually: BM25 scores 0.006 there against 0.153
+    # for script-aware fusion. A demo that cannot exercise the contribution is
+    # not a demo of this system.
+    from .index.lexical import LexicalIndex
+
+    retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
+    try:
+        from .index.dense import DenseIndex, Encoder
+        from .index.encoders import get
+
+        spec = get(cfg.encoder_primary)
+        retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+        retrievers.encoder = Encoder(spec)
+    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
+        typer.echo(
+            f"# dense index unavailable ({type(exc).__name__}: {exc});"
+            f" '{method}' will fall back to lexical retrieval",
+            err=True,
+        )
+
+    result = answer_query(query, passages, retrievers=retrievers, method=method, k=k)
     import json
 
     typer.echo(json.dumps(result.as_dict(), ensure_ascii=False, indent=2))

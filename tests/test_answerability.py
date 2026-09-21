@@ -707,3 +707,44 @@ def test_the_nli_section_says_so_when_the_model_is_absent(tmp_path, monkeypatch)
     )
     get_settings.cache_clear()
     assert "NLI signal skipped" in text
+
+
+# --- enriched sampling -----------------------------------------------------------
+
+
+def test_enrichment_keeps_every_unanswerable_item():
+    """Proportional sampling leaves 2-3 items in the small classes at any
+    affordable size, and per-class recall is the Module 5 result."""
+    from indicrag.evaluation.answerability import enriched_sample
+
+    items = _mixed_set()
+    sample = enriched_sample(items, 160)
+    unanswerable = [i for i in items if not i.answerable]
+    assert len([i for i in sample if not i.answerable]) == len(unanswerable)
+
+
+def test_enrichment_fills_the_remainder_with_answerable_items():
+    from indicrag.evaluation.answerability import enriched_sample
+
+    sample = enriched_sample(_mixed_set(), 160)
+    assert len(sample) == 160
+    assert sum(1 for i in sample if i.answerable) == 160 - 80
+
+
+def test_enrichment_is_deterministic():
+    from indicrag.evaluation.answerability import enriched_sample
+
+    items = _mixed_set()
+    assert [i.id for i in enriched_sample(items, 160)] == [
+        i.id for i in enriched_sample(items, 160)
+    ]
+
+
+def test_asking_for_fewer_than_the_unanswerable_count_still_returns_them_all():
+    """n smaller than the unanswerable pool cannot be honoured without dropping
+    exactly the items the sample exists to measure."""
+    from indicrag.evaluation.answerability import enriched_sample
+
+    sample = enriched_sample(_mixed_set(), 10)
+    assert len([i for i in sample if not i.answerable]) == 80
+    assert all(not i.answerable for i in sample)

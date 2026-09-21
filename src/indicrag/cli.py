@@ -605,6 +605,10 @@ def eval_answerability(
     sample: int = typer.Option(
         0, "--sample", help="Evaluate a seeded sample instead of every item."
     ),
+    enrich: bool = typer.Option(
+        False, "--enrich",
+        help="With --sample: keep every unanswerable item, so the per-class table is readable.",
+    ),
 ) -> None:
     """Module 5: can the system tell an answerable question from an unanswerable one?
 
@@ -615,6 +619,7 @@ def eval_answerability(
     """
     from .evaluation.all_reports import provenance
     from .evaluation.answerability import (
+        enriched_sample,
         feature_separation,
         format_answerability,
         format_calibrated,
@@ -641,8 +646,9 @@ def eval_answerability(
         )
 
     if sample:
-        items = stratified_by_class(items, sample)
-        typer.echo(f"sampling {len(items)} items, stratified by answerability class")
+        items = (enriched_sample if enrich else stratified_by_class)(items, sample)
+        how = "every unanswerable item plus answerable fill" if enrich else "stratified by class"
+        typer.echo(f"sampling {len(items)} items, {how}")
 
     result, meta = run_answerability(
         passages, items, method=method, k=k,

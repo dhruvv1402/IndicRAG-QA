@@ -178,6 +178,30 @@ def format_answerability(report: AnswerabilityReport) -> list[str]:
 # be produced by remembering to run a second command.
 
 
+def enriched_sample(items, n: int, *, seed: int = 20260922) -> list:
+    """Every unanswerable item, filled to `n` with answerable ones.
+
+    Proportional sampling is right for a split and wrong for this. The
+    unanswerable classes are 80 of 400 and false-premise is 15 of those, so a
+    proportional sample of any affordable size leaves two or three
+    false-premise items in the reported half -- and per-class recall is the
+    Module 5 result, not the aggregate. At n=120 proportional, the test split
+    holds 3 false-premise and 2 under-specified items, which measures nothing.
+
+    The cost is that the class balance no longer matches the full set, so the
+    base rate changes and precision is not comparable to a proportional run.
+    That is a statement the report has to make, and it is a better trade than a
+    per-class table nobody can read.
+    """
+    import random
+
+    unanswerable = [i for i in items if not i.answerable]
+    answerable = sorted((i for i in items if i.answerable), key=lambda i: i.id)
+    random.Random(seed).shuffle(answerable)
+    take = max(0, n - len(unanswerable))
+    return sorted(unanswerable + answerable[:take], key=lambda i: i.id)
+
+
 def stratified_by_class(items, n: int, *, seed: int = 20260922) -> list:
     """Seeded draw of `n` items taking the same *share* of each class.
 

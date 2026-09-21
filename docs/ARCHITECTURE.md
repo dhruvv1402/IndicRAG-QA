@@ -719,7 +719,8 @@ indicrag eval probes        [--out <p>] [--per-shape 60]   rebuild the probe set
 indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N]
                                            [--gguf <path>] [--no-model] [--nli]
 indicrag eval answerability [--report <p>] [--method hybrid] [--dev-fraction 0.3]
-                                           [--gguf <p>] [--sample N]   signals 2 and 3
+                                           [--gguf <p>]   adds signals 2 and 3
+                                           [--sample N] [--enrich]
 indicrag eval errors        [--report <p>] [--out <p>] [--limit 20]
 indicrag eval all           [--report evals/]     regenerates every table
 

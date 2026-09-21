@@ -327,20 +327,31 @@ whose script differs from the query's.
 
 Generation is performed by a locally hosted quantized model behind a provider
 interface, with an extractive provider available as a non-neural baseline and as
-a model-free fast path for testing. Answerability is decided from retrieval-side
-features — top score, the top-1-to-top-2 margin, mean top-k similarity, score
-spread and scheme agreement across the retrieved set — with a threshold fitted on
-the development split by maximising F1 on the unanswerable class rather than
-accuracy, since the classes are deliberately imbalanced and accuracy is maximised
-by never abstaining.
+a model-free fast path for testing.
 
-The margin feature deserves note. Maximum similarity indicates how good the best
-passage looks; it does not indicate whether anything else looked equally good. A
-near-miss unanswerable question characteristically retrieves several passages at
-similar scores, because it matches a scheme's subject matter without matching any
+Answerability is decided by one of four signals, evaluated independently so the
+paper can say which carries the decision. Two are **retrieval-side**: a
+threshold on the top score, and a calibrated logistic combination over the top
+score, the top-1-to-top-2 margin, mean top-k similarity, score spread and scheme
+agreement. Two read the **passage text**: the generator's own `answerable`
+report with its confidence, and a natural-language-inference check asking
+whether the cited passage entails the produced answer. All four are fitted on
+the development split by maximising F1 on the unanswerable class rather than
+accuracy, since the classes are deliberately imbalanced and accuracy is
+maximised by never abstaining.
+
+The margin feature deserves note, because it is the one we expected to carry the
+retrieval-side signals. Maximum similarity indicates how good the best passage
+looks; it does not indicate whether anything else looked equally good. A
+near-miss unanswerable question should retrieve several passages at similar
+scores, because it matches a scheme's subject matter without matching any
 particular statement, whereas an answerable question usually has one clear
-winner. A high maximum score with a small margin is the signature of the hardest
-unanswerable class.
+winner — so a high maximum score with a small margin should be the signature of
+the hardest unanswerable class.
+
+We state that as the design hypothesis it was, rather than as a property of the
+data. §VI-H measures it: the direction holds, and the magnitude does not. The
+split between the two kinds of signal is what the results turn on.
 
 ---
 

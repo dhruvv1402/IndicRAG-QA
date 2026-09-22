@@ -5,11 +5,20 @@ they fail differently and reporting which one wins is itself a result.
 
 **Weighted score fusion** is the brief's formula, `alpha*lex + (1-alpha)*dense`,
 applied after normalising each component over the candidate pool. Normalisation
-is min-max rather than z-score, and that is a real choice: BM25 score
-distributions are strongly right-skewed, and under z-score the fused ranking ends
-up dominated by lexical outliers. Both are implemented so the choice can be
-ablated instead of asserted, since this is exactly the sort of buried decision
-that silently moves a headline number.
+is min-max rather than z-score. Both are implemented and the ablation has been
+run (`scripts/check-fusion-normalisation.py`): they are indistinguishable,
+-0.003 Recall@5 for z-score at p=1.00, and no point of the alpha sweep separates
+them by more than 0.013.
+
+The skew argument for min-max -- BM25 pools are right-skewed on 97.7% of
+queries, so z-score should let lexical outliers dominate -- is true in its
+premise and too small in its effect to reach the metric. What actually differs
+is the imputation. A passage only one component returned contributes 0 from the
+other, and 0 is the floor of a min-max range but the *mean* of a z-scored one:
+an absent dense component ranks above 63% of the candidates it is compared
+against under z-score and above none of them under min-max. Min-max is kept
+because a retriever's silence should not be scored as an average opinion, which
+is an argument about what the fusion means, not about the number it produces.
 
 **Reciprocal Rank Fusion** uses ranks only, so it needs no normalisation at all
 and is immune to that skew. `k=60` is the standard value and is deliberately left

@@ -42,3 +42,23 @@ def test_the_documented_cli_matches_the_real_one():
     commands written but never documented."""
     result = _run("audit-cli-docs.py")
     assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_every_committed_report_names_its_producer():
+    """PRD NFR-6: every reported table regenerates from a command. Before
+    scripts/regenerate-reports.py, which command made which report was
+    recorded nowhere, and §VI quoted a section no committed report contained.
+    A new report has to be added to that table -- as a producer, or as legacy
+    with the reason -- or this fails."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("regen", ROOT / "scripts" / "regenerate-reports.py")
+    regen = importlib.util.module_from_spec(spec)
+    sys.modules["regen"] = regen  # dataclasses resolve their module through sys.modules
+    spec.loader.exec_module(regen)
+
+    declared = {r.name for r in regen.REPORTS}
+    committed = {p.name for p in (ROOT / "evals").glob("report-*.txt")}
+    assert committed - declared == set(), f"no producer declared for {sorted(committed - declared)}"
+    assert declared - committed == set(), f"declared but not committed: {sorted(declared - committed)}"
+    assert all(r.note for r in regen.REPORTS if r.argv is None), "a legacy report must say why"

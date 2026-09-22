@@ -99,3 +99,12 @@ def test_slice_key_matches_the_labels_used_in_the_results_tables():
     assert slice_key(classify("आय सीमा कितनी है?"), "en") == "HI->EN"
     assert slice_key(classify("Income limit kitni hai?"), "hi") == "Hing->HI"
     assert slice_key(classify("What is the income limit?")) == "EN"
+
+
+def test_the_indic_floor_and_latin_ceiling_match_the_paper():
+    """§IV-C quotes 0.60 as the Devanagari ratio above which a query is Indic.
+    A threshold stated in prose and set in code is two places to disagree."""
+    from indicrag.query.langid import DEVANAGARI_INDIC_FLOOR, DEVANAGARI_LATIN_CEILING
+
+    assert DEVANAGARI_INDIC_FLOOR == 0.60
+    assert DEVANAGARI_LATIN_CEILING == 0.10

@@ -625,6 +625,21 @@ in development. We therefore partition the lexicon into unambiguous markers,
 which can trigger the code-mixed label, and ambiguous markers, which corroborate
 but never trigger it.
 
+On the 400 gold questions the procedure agrees with the annotated language on
+every one: 143 English, 131 Indic, 126 Code-Mixed, no errors in either
+direction. We are careful about what that shows. These questions were generated
+per language-pair cell, so each is a clean instance of its class — a Hindi
+question is fully Devanagari, a Hinglish one is consistently Romanized. Genuine
+user input is messier: transliteration is inconsistent, English and Hindi
+alternate within a clause, and typos cross the function-word lexicon. The result
+establishes that the rules implement the definition without a gap, not that the
+definition covers everything a user will type.
+
+It matters mainly because everything downstream depends on it. The script the
+classifier reports is what decides which passages the lexical retriever is
+treated as eligible for (§IV-E), so a misclassification would disable the
+correction silently rather than raise anything.
+
 ### D. Retrieval
 
 **Lexical.** We implement TF-IDF with cosine scoring and BM25-Okapi

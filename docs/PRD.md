@@ -282,7 +282,7 @@ M1 → FR-3, FR-4 · M2 → FR-6, FR-7, FR-12 · M3 → FR-3, FR-5 · M4 → FR-
 | NFR-3 | Total disk footprint (models, caches, data) under 12 GB | `HF_HOME` redirected off the system drive; CPU-only torch wheel (~200 MB, against ~2.5 GB for the CUDA build) |
 | NFR-4 | Every expensive artefact cached and keyed by content hash | Passage embeddings and model generations are computed once; re-running the analysis never re-runs a model |
 | NFR-5 | Runs are deterministic given a seed | All sampling, splitting and bootstrapping is seeded, and the seed is recorded in each report header |
-| NFR-6 | Every reported table reproducible by one command | `indicrag eval all --report evals/` regenerates everything from cached artefacts |
+| NFR-6 | Every reported table reproducible by one command | `python scripts/regenerate-reports.py --write` regenerates every committed report from cached artefacts; `--check` diffs them. (`eval all` covers four of them.) |
 | NFR-7 | Interactive query latency under roughly 10 s with the 1.5B model | Acceptable for a live demo; the 3B model is a batch-mode arm |
 | NFR-8 | A model-free fast path exists for tests and CI | `--no-model` runs retrieval and evaluation without loading any generator |
 

@@ -73,7 +73,8 @@ indicrag index build --all             # encode passages with every registered e
 indicrag ask "Scholarship ke liye minimum eligibility kya hai?"
 
 indicrag eval retrieval --report evals/report-retrieval.txt
-indicrag eval all --report evals/      # regenerate every table from cache
+indicrag eval all --report evals/      # corpus, retrieval, errors, answerability reports
+python scripts/regenerate-reports.py --check   # every committed report, diffed against evals/
 ```
 
 Every `eval` subcommand takes `--no-model` (skip the generator entirely), `--rng-seed`, and

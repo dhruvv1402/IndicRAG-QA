@@ -97,14 +97,26 @@ def stratified_split(
     test: list[QAItem] = []
     fraction = dev_size / max(1, len(usable))
 
-    for key in sorted(strata, key=lambda k: (str(k[0]), str(k[1]), str(k[2]))):
+    # Largest-remainder allocation: every stratum gets the floor of its share,
+    # and the seats left over go to the strata with the largest remainders, so
+    # dev is exactly `dev_size`. Flooring alone under-fills dev; rounding each
+    # stratum -- the earlier rule -- over-fills it, because with ~40 schemes most
+    # strata hold one to three items and each rounds up: 393 items gave 130.
+    keys = sorted(strata, key=lambda k: (str(k[0]), str(k[1]), str(k[2])))
+    for key in keys:
+        rng.shuffle(strata[key])
+    target = min(dev_size, len(usable))
+    shares = {k: len(strata[k]) * fraction for k in keys}
+    quota = {k: int(shares[k]) for k in keys}
+    spare = target - sum(quota.values())
+    by_remainder = sorted(keys, key=lambda k: (-(shares[k] - quota[k]), rng.random()))
+    for k in by_remainder[:spare]:
+        quota[k] += 1
+
+    for key in keys:
         group = strata[key]
-        rng.shuffle(group)
-        # Round rather than floor: flooring every stratum systematically
-        # under-fills dev, and with ~40 schemes the shortfall compounds.
-        n_dev = int(round(len(group) * fraction))
-        dev.extend(group[:n_dev])
-        test.extend(group[n_dev:])
+        dev.extend(group[: quota[key]])
+        test.extend(group[quota[key] :])
 
     for item in dev:
         item.split = "dev"

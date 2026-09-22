@@ -62,8 +62,28 @@ def test_the_blind_view_hides_every_trace_of_the_first_verdict():
 
 
 def test_the_blind_view_keeps_what_is_needed_to_judge():
-    view = blind(_item("a1"))
-    assert view["question"] and view["gold_passage_ids"] == ["p1"]
+    view = blind(_item("a1"), ["p7", "p9"])
+    assert view["question"] and sorted(view["evidence_ids"]) == ["p1", "p7", "p9"]
+
+
+def test_the_evidence_does_not_give_the_label_away():
+    """Unanswerable items cite nothing, so passing gold IDs through made an
+    empty evidence list mean 'unanswerable'. Both kinds must look alike."""
+    ans = blind(_item("a1"), ["p7", "p9"])
+    una = blind(_item("u1", answerable=False, klass="near-miss"), ["p7", "p9", "p4"])
+    assert "gold_passage_ids" not in ans and "gold_passage_ids" not in una
+    assert set(ans) == set(una)
+    assert len(ans["evidence_ids"]) == len(una["evidence_ids"]) == 3
+
+
+def test_the_evidence_count_is_fixed_whatever_the_label():
+    """Gold passages were added on top of retrieval, so an answerable item whose
+    gold was not retrieved showed one passage more than any unanswerable one."""
+    retrieved = ["r1", "r2", "r3", "r4", "r5"]
+    ans = blind(_item("a1"), retrieved)  # gold p1 not among the retrieved
+    una = blind(_item("u1", answerable=False, klass="near-miss"), retrieved)
+    assert len(ans["evidence_ids"]) == len(una["evidence_ids"]) == 5
+    assert "p1" in ans["evidence_ids"]  # the gold passage is never the one dropped
 
 
 def test_written_sample_is_valid_jsonl_with_null_labels(tmp_path):
@@ -180,3 +200,16 @@ def test_the_report_states_the_gate_verdict(tmp_path):
     text = "\n".join(format_agreement(compare(items, path)))
     assert f"{KAPPA_GATE:.2f}" in text
     assert "PASSES" in text
+
+
+def test_agreement_between_model_passes_is_not_reported_as_passing_the_gate(tmp_path):
+    items = _corpus()
+    sample = draw_sample(items)
+    path = tmp_path / "second.jsonl"
+    with path.open("w", encoding="utf-8", newline="\n") as fh:
+        for i in sample:
+            row = {"id": i.id, "answerable": i.answerable, "labelled_by": "model:x"}
+            fh.write(json.dumps(row) + "\n")
+    text = "\n".join(format_agreement(compare(items, path)))
+    assert "PASSES" not in text
+    assert "not between" in text and "model:x" in text

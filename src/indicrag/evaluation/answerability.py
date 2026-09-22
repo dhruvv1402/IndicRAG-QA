@@ -291,9 +291,16 @@ def run_answerability(
     features = [extract_features(h, scheme_of=scheme_of, k=k) for h in hits]
     labels = [i.answerable for i in items]
 
-    dev_ids = {
-        i.id for i in stratified_by_class(items, max(1, int(len(items) * dev_fraction)))
-    }
+    # Once `dataset split` has sealed the set, tau is fitted on its dev split
+    # and reported on test (PLAN §2.1). Drawing a private fraction instead
+    # would fit on items the sealed split calls test. Before the split exists,
+    # the stratified fraction is all there is.
+    if items and all(i.split in {"dev", "test"} for i in items):
+        dev_ids = {i.id for i in items if i.split == "dev"}
+    else:
+        dev_ids = {
+            i.id for i in stratified_by_class(items, max(1, int(len(items) * dev_fraction)))
+        }
     dev = [n for n, i in enumerate(items) if i.id in dev_ids]
     test = [n for n, i in enumerate(items) if i.id not in dev_ids]
 

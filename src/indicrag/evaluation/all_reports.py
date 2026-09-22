@@ -61,6 +61,10 @@ class RunSummary:
         return out
 
 
+#: `annotator` prefix for a verification done by a model rather than a person.
+MODEL_ANNOTATOR_PREFIX = "model:"
+
+
 def provenance(items: Sequence[QAItem], source: str) -> list[str]:
     """The banner every report carries, stating what the numbers rest on."""
     total = len(items)
@@ -68,12 +72,23 @@ def provenance(items: Sequence[QAItem], source: str) -> list[str]:
     answerable = sum(1 for i in items if i.answerable)
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
+    by_model = sum(1 for i in items if i.verified and i.annotator.startswith(MODEL_ANNOTATOR_PREFIX))
     lines = [
         f"Generated: {stamp}",
         f"Source:    {source}",
         f"Items:     {total} ({answerable} answerable, {total - answerable} unanswerable)",
-        f"Verified:  {verified}/{total}",
+        f"Verified:  {verified}/{total}"
+        + (f"  ({verified - by_model} by a person, {by_model} by a model)" if by_model else ""),
     ]
+    if by_model:
+        # Said on every report, not only in the paper: a number copied out of
+        # a report must not lose the fact that no person checked its items.
+        lines += [
+            "",
+            "MODEL-VERIFIED. Verification of these items was done by a language-model",
+            "pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see",
+            "paper §III-E for the procedure and its agreement figures.",
+        ]
     if verified < total:
         lines += [
             "",

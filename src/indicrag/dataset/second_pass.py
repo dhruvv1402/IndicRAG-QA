@@ -49,6 +49,12 @@ class Agreement:
     first_answerable: int
     second_answerable: int
     disagreements: list[tuple[str, bool, bool]]
+    #: Who produced the second labels, from each row's `labelled_by`.
+    labelled_by: tuple[str, ...] = ()
+
+    @property
+    def by_model(self) -> bool:
+        return any(w.startswith("model:") for w in self.labelled_by)
 
     @property
     def observed(self) -> float:
@@ -92,29 +98,49 @@ def draw_sample(
     return sorted(sample, key=lambda i: i.id)
 
 
-def blind(item: QAItem) -> dict:
+#: Passages shown per blinded item. Fixed, because a count that varied with the
+#: label -- gold passages added on top of retrieval for answerable items only --
+#: would give the label away as surely as the old empty list did.
+EVIDENCE_SIZE = 5
+
+
+def blind(
+    item: QAItem, retrieved: Sequence[str] = (), *, seed: int = 20260922, size: int = EVIDENCE_SIZE
+) -> dict:
     """The item as the second labeller should see it.
 
     Strips the first pass's verdict, the gold answer and the unanswerable class.
     Keeping any of them turns the exercise into confirmation: a re-labeller shown
     `answerable: false` will agree, and the kappa then measures compliance.
+
+    The evidence has to be blinded too. This used to pass `gold_passage_ids`
+    through, and an unanswerable item has none -- so an empty evidence list
+    *was* the label, and every unanswerable item in the sample was agreed on by
+    construction. Every item now carries the same kind of evidence: what the
+    retriever returns for its question (`retrieved`), with the gold passages
+    mixed in for answerable items, shuffled, and nothing marking which is which.
     """
+    ids = list(dict.fromkeys([*item.gold_passage_ids, *retrieved]))[:size]
+    random.Random(f"{seed}:{item.id}").shuffle(ids)
     return {
         "id": item.id,
         "question": item.question,
         "query_lang": item.query_lang,
         "scheme": item.scheme,
-        "gold_passage_ids": list(item.gold_passage_ids),
+        "evidence_ids": ids,
         "answerable": None,
     }
 
 
-def write_blind_sample(sample: Sequence[QAItem], path: Path) -> int:
+def write_blind_sample(
+    sample: Sequence[QAItem], path: Path, retrieved: dict[str, Sequence[str]] | None = None
+) -> int:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as fh:
         for item in sample:
-            fh.write(json.dumps(blind(item), ensure_ascii=False) + "\n")
+            view = blind(item, (retrieved or {}).get(item.id, ()))
+            fh.write(json.dumps(view, ensure_ascii=False) + "\n")
     return len(sample)
 
 
@@ -122,6 +148,7 @@ def compare(first: Sequence[QAItem], second_path: Path) -> Agreement:
     """Compare the original labels against the independent second pass."""
     by_id = {i.id: i for i in first}
     pairs: list[tuple[str, bool, bool]] = []
+    who: set[str] = set()
 
     for raw in read_jsonl(second_path):
         if not isinstance(raw, dict):
@@ -131,6 +158,8 @@ def compare(first: Sequence[QAItem], second_path: Path) -> Agreement:
         if item_id not in by_id or label is None:
             continue
         pairs.append((item_id, by_id[item_id].answerable, bool(label)))
+        if raw.get("labelled_by"):
+            who.add(str(raw["labelled_by"]))
 
     if not pairs:
         return Agreement(0.0, 0, 0, 0, 0, [])
@@ -144,6 +173,7 @@ def compare(first: Sequence[QAItem], second_path: Path) -> Agreement:
         first_answerable=sum(a),
         second_answerable=sum(b),
         disagreements=[p for p in pairs if p[1] != p[2]],
+        labelled_by=tuple(sorted(who)),
     )
 
 
@@ -164,7 +194,21 @@ def format_agreement(agreement: Agreement) -> list[str]:
         out.append("  No labels found. Fill in the `answerable` field of the blind sample first.")
         return out
 
-    if agreement.passes_gate:
+    if agreement.labelled_by:
+        out.append(f"  second labels by: {', '.join(agreement.labelled_by)}")
+        out.append("")
+    if agreement.by_model:
+        # The gate was written for two people. Two instances of one model share
+        # its blind spots, and when the first pass also filtered out the items
+        # its verifier disagreed with, agreement is close to guaranteed. The
+        # number is reported, but it is not the check the gate describes.
+        out += [
+            f"  kappa {agreement.kappa:.3f} is agreement between model passes, not between",
+            "  annotators. It shows the boundary is applied consistently by one",
+            "  model; it cannot show the boundary is the one a person would draw,",
+            "  which is what the gate is for. Not a pass of PRD §6.5 step 5.",
+        ]
+    elif agreement.passes_gate:
         out.append(f"  PASSES the {KAPPA_GATE:.2f} gate. Module 5 results can be trusted.")
     else:
         out += [

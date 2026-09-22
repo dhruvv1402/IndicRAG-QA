@@ -715,7 +715,7 @@ indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>]
                                            the demo path; prints the §9 object.
                                            Extractive without --gguf, generated with it.
 
-indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4]
+indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4] [--split all|dev|test]
                                            [--sweep/--no-sweep]   alpha sweep, H2
 indicrag eval probes        [--out <p>] [--per-shape 60]   rebuild the probe set
 indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N]

@@ -85,3 +85,15 @@ def test_summary_distinguishes_produced_from_skipped():
 
 def test_an_empty_summary_formats_without_dividing_by_zero():
     assert "0/0 stages" in "\n".join(RunSummary().format())
+
+
+def test_a_model_verification_is_disclosed_on_every_report():
+    """PRD §6.5 specifies a person. When a model did it instead, every report
+    that rests on those items has to say so, so a copied number keeps it."""
+    a = _item("a")
+    b = _item("b")
+    b.annotator = "model:claude-opus-5.5"
+    text = "\n".join(provenance([a, b], "evals/gold.jsonl"))
+    assert "1 by a person, 1 by a model" in text
+    assert "MODEL-VERIFIED" in text
+    assert "MODEL-VERIFIED" not in "\n".join(provenance([a], "evals/gold.jsonl"))

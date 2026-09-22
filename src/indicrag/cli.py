@@ -508,7 +508,13 @@ def dataset_second_pass(
 
     PRD §10.2 gates Module 5 on kappa >= 0.70.
     """
-    from .dataset.second_pass import compare, draw_sample, format_agreement, write_blind_sample
+    from .dataset.second_pass import (
+        EVIDENCE_SIZE,
+        compare,
+        draw_sample,
+        format_agreement,
+        write_blind_sample,
+    )
 
     items = list(read_jsonl(path, QAItem))
     if not items:
@@ -524,7 +530,31 @@ def dataset_second_pass(
             "no verified items to sample; run `dataset verify` first -- "
             "agreement on unverified labels would measure nothing"
         )
-    n = write_blind_sample(sample, sample_out)
+    # Evidence for every sampled item comes from retrieval, so an unanswerable
+    # item is not recognisable by having none (see second_pass.blind).
+    from .index.dense import DenseIndex, Encoder
+    from .index.encoders import get
+    from .index.hybrid import rrf_fusion
+    from .index.lexical import LexicalIndex
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    lex = LexicalIndex.load(cfg.lex_dir)
+    spec = get(cfg.encoder_primary)
+    dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+    encoder = Encoder(spec)
+    retrieved = {
+        i.id: [
+            r.passage_id
+            for r in rrf_fusion(
+                lex.search_bm25(i.question, 50),
+                dense.search_vector(encoder.encode_query(i.question), 50),
+                k=EVIDENCE_SIZE,
+            )
+        ]
+        for i in sample
+    }
+    n = write_blind_sample(sample, sample_out, retrieved)
     from collections import Counter
 
     strata = Counter(
@@ -720,6 +750,7 @@ def eval_retrieval(
     sweep: bool = typer.Option(
         True, "--sweep/--no-sweep", help="Also sweep alpha end to end (H2)."
     ),
+    split: str = typer.Option("all", "--split", help="all | dev | test (after `dataset split`)."),
 ) -> None:
     """Module 1-3: lexical, dense and fusion retrieval, with paired tests."""
     from .evaluation.report import format_by_slice, format_paired, format_retrieval
@@ -731,8 +762,15 @@ def eval_retrieval(
     if not passages:
         raise typer.BadParameter("no passages; run `corpus segment` first")
 
-    items = [i for i in read_jsonl(gold, QAItem) if i.answerable and i.gold_passage_ids]
-    source = str(gold)
+    if split not in {"all", "dev", "test"}:
+        raise typer.BadParameter("--split must be all, dev or test")
+    items = [
+        i for i in read_jsonl(gold, QAItem)
+        if i.answerable and i.gold_passage_ids and (split == "all" or i.split == split)
+    ]
+    source = str(gold) + ("" if split == "all" else f" [{split} split]")
+    if not items and split != "all":
+        raise typer.BadParameter(f"no answerable items in the {split} split; run `dataset split`")
     if not items:
         items = list(read_jsonl(Path("evals/probes.jsonl"), QAItem))
         source = "synthetic probes"

@@ -209,6 +209,14 @@ def test_split_never_includes_an_unverified_item():
     assert all(i.verified for i in dev + test)
 
 
+def test_dev_is_exactly_the_requested_size_even_with_many_tiny_strata():
+    """Rounding each stratum over-filled dev: 393 real items in ~130 strata of
+    one to three gave 130 dev items against a PRD target of 120."""
+    items = [_item(f"q{i}", "en", "en", scheme=f"s{i % 130}") for i in range(393)]
+    dev, test = stratified_split(items, dev_size=120)
+    assert len(dev) == 120 and len(test) == 273
+
+
 def test_split_is_disjoint_and_labelled():
     items = [_item(f"q{i}", "en", "en", scheme=f"s{i % 4}") for i in range(40)]
     dev, test = stratified_split(items, dev_size=12)

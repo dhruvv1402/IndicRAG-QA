@@ -151,10 +151,23 @@ def audit(passages: list[Passage], sources: dict[str, str]) -> CorpusAudit:
         if src is None:
             continue
 
+        # Two separate questions, because "no span" and "wrong span" are
+        # different states with different costs. An unset span is honest: the
+        # aligner could not place this passage and said so. A span that names
+        # the wrong text is the failure mode that misleads a reader, and
+        # collapsing the two would let a repair hide its misses among its
+        # refusals.
         a, b = p.char_span
-        j = _jaccard(src[a:b], p.text_raw or p.text)
-        record("span_recovers_text", p, j >= SPAN_JACCARD_FLOOR,
-               f"char_span ({a},{b}) recovers {j:.0%} of the passage's tokens")
+        record("span_present", p, (a, b) != (0, 0), "char_span is unset")
+        if (a, b) != (0, 0):
+            # Compared against `text`, not `text_raw`, and through the
+            # normalizer. Checking the slice against `text_raw` would be
+            # circular the moment anything sets one from the other -- which is
+            # exactly what the repair does -- and would then pass by
+            # construction while proving nothing.
+            j = _jaccard(normalize_text(src[a:b]), p.text)
+            record("span_recovers_text", p, j >= SPAN_JACCARD_FLOOR,
+                   f"char_span ({a},{b}) recovers {j:.0%} of the passage's tokens")
 
         # Overlap sentences are drawn from the previous chunk of the *same*
         # section, so carrying them does not create a false positive here.

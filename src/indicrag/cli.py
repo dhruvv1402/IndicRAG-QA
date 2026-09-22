@@ -114,6 +114,53 @@ def corpus_validate() -> None:
         raise typer.Exit(code=1)
 
 
+@corpus_app.command("repair-spans")
+def corpus_repair_spans(
+    apply: bool = typer.Option(False, "--apply", help="write the repaired passages"),
+) -> None:
+    """Re-derive char_span and text_raw by aligning passages to their sources.
+
+    Safe against a frozen corpus: `passage_id` and `text` are not touched, so no
+    index, cache, gold reference or published result moves. Refuses to write if
+    any of them does. Dry run by default.
+    """
+    from .corpus.align import format_repair, repair_spans
+    from .corpus.integrity import audit, format_audit, load_sources
+
+    cfg = get_settings()
+    docs = list(read_jsonl(cfg.manifest_path, Document))
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter(f"no passages at {cfg.passages_path}; run `corpus segment` first")
+
+    sources = load_sources(cfg.text_dir, docs)
+    frozen = [(p.passage_id, p.text, p.token_count) for p in passages]
+
+    result = repair_spans(passages, sources)
+    for line in format_repair(result):
+        typer.echo(line)
+
+    typer.echo("")
+    for line in format_audit(audit(passages, sources)):
+        typer.echo(line)
+
+    moved = [
+        a for (a, b, c), p in zip(frozen, passages)
+        if (a, b, c) != (p.passage_id, p.text, p.token_count)
+    ]
+    if moved:
+        typer.echo(f"\nREFUSING TO WRITE: {len(moved)} passages changed identity or text")
+        raise typer.Exit(code=1)
+    typer.echo(f"\nidentity check: passage_id, text and token_count unchanged "
+               f"for all {len(passages)} passages")
+
+    if apply:
+        n = write_jsonl(cfg.passages_path, passages)
+        typer.echo(f"{n} passages -> {cfg.passages_path}")
+    else:
+        typer.echo("dry run; pass --apply to write")
+
+
 @corpus_app.command("audit")
 def corpus_audit(report: Path | None = typer.Option(None, help="also write the audit here")) -> None:
     """Check every passage-level invariant the codebase claims.

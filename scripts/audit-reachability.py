@@ -33,6 +33,7 @@ ALLOWED: dict[str, str] = {
     # --- protocols and settings -------------------------------------------
     "Provider": "Protocol, used as a structural type",
     "Settings": "pydantic-settings model, built by get_settings()",
+    "Span": "returned by corpus.align.locate()",
     # --- dataclasses constructed and returned within their own module -----
     "Agreement": "returned by compare()",
     "Check": "returned by the validate helpers",
@@ -47,6 +48,7 @@ ALLOWED: dict[str, str] = {
     "IntegrityReport": "returned by validate()",
     "Module4Result": "returned by run_module4()",
     "PairedResult": "returned by paired_test()",
+    "RepairResult": "returned by corpus.align.repair_spans()",
     "Progress": "returned by the verify loop",
     "Section": "returned by split_sections()",
     # --- called only from within their own module -------------------------

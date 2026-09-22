@@ -65,6 +65,15 @@ class RunSummary:
 MODEL_ANNOTATOR_PREFIX = "model:"
 
 
+def verification_label(items: Sequence[QAItem]) -> str:
+    """One word for a report header: who checked these items, if anyone."""
+    if not items or not all(i.verified for i in items):
+        return "UNVERIFIED" if not any(i.verified for i in items) else "partly verified"
+    if all(i.annotator.startswith(MODEL_ANNOTATOR_PREFIX) for i in items):
+        return "model-verified"
+    return "verified"
+
+
 def provenance(items: Sequence[QAItem], source: str) -> list[str]:
     """The banner every report carries, stating what the numbers rest on."""
     total = len(items)

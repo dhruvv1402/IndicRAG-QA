@@ -96,6 +96,11 @@ REPORTS: tuple[Report, ...] = (
                 "--report", "{out}")),
     Report("report-retrieval-goldset.txt", _cli("eval", "retrieval", "--report", "{out}"),
            needs=ALL_DENSE),
+    # P5: the headline retrieval table on the sealed test split, scored once.
+    # report-retrieval-goldset.txt is the same harness over dev and test together.
+    Report("report-retrieval-test.txt",
+           _cli("eval", "retrieval", "--split", "test", "--report", "{out}"),
+           needs=ALL_DENSE),
     Report("report-answerability.txt", _cli("eval", "answerability", "--report", "{out}"),
            needs=(E5,)),
     Report("report-answerability-bm25.txt",
@@ -117,6 +122,9 @@ REPORTS: tuple[Report, ...] = (
     Report("report-leakage.txt", _script("check-leakage.py"), stdout=True, needs=(E5,)),
     Report("report-fusion-goldset.txt", _script("check-fusion-goldset.py"), stdout=True,
            needs=(E5,)),
+    # P5: the paper's central comparison on the sealed test split, scored once.
+    Report("report-fusion-test.txt", (*_script("check-fusion-goldset.py"), "--split", "test"),
+           stdout=True, needs=(E5,)),
     Report("report-fusion-normalisation.txt", _script("check-fusion-normalisation.py"),
            stdout=True, needs=(E5,)),
     Report("report-fusion-encoders.txt", _script("check-fusion-encoders.py"), stdout=True,

@@ -89,7 +89,9 @@ def main() -> int:
             dense.search_vector(qv, CANDIDATES),
         )
 
-    print(f"{len(items)} answerable gold items (UNVERIFIED)")
+    from indicrag.evaluation.all_reports import verification_label
+    _label = verification_label(items)
+    print(f"{len(items)} answerable gold items ({_label})")
     print(f"weighted fusion, alpha={ALPHA:g}, {CANDIDATES} candidates per component\n")
 
     # --- 1. The premise: is the BM25 candidate distribution right-skewed? ------

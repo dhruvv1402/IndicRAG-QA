@@ -55,7 +55,9 @@ def main() -> int:
 
     scored = [(i, overlap(i)) for i in items]
 
-    print(f"{len(scored)} answerable gold items (UNVERIFIED)\n")
+    from indicrag.evaluation.all_reports import verification_label
+    _label = verification_label(items)
+    print(f"{len(scored)} answerable gold items ({_label})\n")
     print("OVERLAP BY CELL -- content-token Jaccard, question against gold passage")
     print("-" * 78)
     print(f"  {'cell':<16}{'n':>5}{'median':>9}{'mean':>8}{'max':>8}   leakage possible?")

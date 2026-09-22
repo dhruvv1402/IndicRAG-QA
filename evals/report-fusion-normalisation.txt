@@ -1,4 +1,4 @@
-320 answerable gold items (UNVERIFIED)
+313 answerable gold items (model-verified)
 weighted fusion, alpha=0.4, 50 candidates per component
 
 SCORE DISTRIBUTION OF THE CANDIDATE POOL
@@ -8,45 +8,45 @@ SCORE DISTRIBUTION OF THE CANDIDATE POOL
   per-query skew across the gold set.
 
   component     mean skew   median   right-skewed   top1/mean
-  BM25              2.376    2.194         97.7%        2.86
-  dense             1.814    1.649        100.0%        1.06
+  BM25              2.621    2.437         99.4%        3.28
+  dense             2.012    1.908        100.0%        1.07
 
 RECALL@5 BY SLICE
 ------------------------------------------------------------------------------
-  --- monolingual  (n=130)
-      minmax    0.985 [0.962, 1.000]
-      zscore    0.969 [0.938, 0.992]
-      zscore - minmax   delta=-0.015 p=0.5092  (n=130)
+  --- monolingual  (n=128)
+      minmax    0.984 [0.961, 1.000]
+      zscore    0.984 [0.961, 1.000]
+      zscore - minmax   delta=+0.000 p=1.0000  (n=128)
 
-  --- cross-lingual  (n=90)
-      minmax    0.211 [0.133, 0.300]
-      zscore    0.267 [0.178, 0.356]
-      zscore - minmax   delta=+0.056 p=0.1273  (n=90)
+  --- cross-lingual  (n=89)
+      minmax    0.457 [0.365, 0.554]
+      zscore    0.539 [0.438, 0.640]
+      zscore - minmax   delta=+0.082 p=0.0043* (n=89)
 
-  --- code-mixed  (n=100)
-      minmax    0.180 [0.110, 0.250]
-      zscore    0.140 [0.070, 0.210]
-      zscore - minmax   delta=-0.040 p=0.1247  (n=100)
+  --- code-mixed  (n=96)
+      minmax    0.547 [0.453, 0.646]
+      zscore    0.552 [0.453, 0.651]
+      zscore - minmax   delta=+0.005 p=1.0000  (n=96)
 
-  --- all  (n=320)
-      minmax    0.516 [0.463, 0.572]
-      zscore    0.512 [0.459, 0.566]
-      zscore - minmax   delta=-0.003 p=1.0000  (n=320)
+  --- all  (n=313)
+      minmax    0.700 [0.652, 0.747]
+      zscore    0.725 [0.677, 0.772]
+      zscore - minmax   delta=+0.025 p=0.0031* (n=313)
 
 RECALL@5 ACROSS ALPHA  (alpha=1 pure lexical, alpha=0 pure dense)
 ------------------------------------------------------------------------------
     alpha    minmax    zscore     delta
-      0.0     0.522     0.522    +0.000
-      0.1     0.512     0.525    +0.013
-      0.2     0.509     0.512    +0.003
-      0.3     0.512     0.516    +0.003
-      0.4     0.516     0.512    -0.003
-      0.5     0.503     0.509    +0.006
-      0.6     0.500     0.494    -0.006
-      0.7     0.487     0.491    +0.003
-      0.8     0.481     0.487    +0.006
-      0.9     0.487     0.484    -0.003
-      1.0     0.484     0.484    +0.000
+      0.0     0.736     0.736    +0.000
+      0.1     0.728     0.738    +0.010
+      0.2     0.727     0.730    +0.003
+      0.3     0.716     0.725    +0.009
+      0.4     0.700     0.725    +0.025
+      0.5     0.678     0.713    +0.035
+      0.6     0.670     0.678    +0.008
+      0.7     0.638     0.646    +0.008
+      0.8     0.633     0.632    -0.002
+      0.9     0.620     0.619    -0.002
+      1.0     0.608     0.609    +0.002
 
 COMPOSITION OF THE FUSED TOP-5
 ------------------------------------------------------------------------------
@@ -55,8 +55,8 @@ COMPOSITION OF THE FUSED TOP-5
   'dominated by lexical outliers' would look like if it happened.
 
   norm        lexical-only  dense-only    both   lex share of top-1
-  minmax             3.2%       27.5%   69.2%               29.0%
-  zscore             6.5%       32.2%   61.3%               34.4%
+  minmax             0.8%       11.5%   87.7%               36.9%
+  zscore             2.1%       15.0%   82.9%               39.7%
 
 WHAT A MISSING COMPONENT SCORES
 ------------------------------------------------------------------------------
@@ -65,4 +65,4 @@ WHAT A MISSING COMPONENT SCORES
   is the mean. The imputation is not the same penalty.
 
   minmax    an absent dense component ranks above 0.0% of the candidates it is compared against
-  zscore    an absent dense component ranks above 63.0% of the candidates it is compared against
+  zscore    an absent dense component ranks above 63.9% of the candidates it is compared against

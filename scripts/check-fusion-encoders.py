@@ -73,7 +73,9 @@ def main() -> int:
             label, items, lambda i, ix=index, q=qv: (ix.search_vector(q[i.id], 5), 0.0)
         )
 
-    print(f"\n{len(items)} answerable gold items (UNVERIFIED)\n")
+    from indicrag.evaluation.all_reports import verification_label
+    _label = verification_label(items)
+    print(f"\n{len(items)} answerable gold items ({_label})\n")
     for slice_key in ("cross-lingual", "code-mixed", "monolingual", None):
         label = slice_key or "all"
         print(f"--- {label}")

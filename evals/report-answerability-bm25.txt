@@ -1,27 +1,27 @@
-Generated: 2026-09-23 03:05
+Generated: 2026-09-23 04:57
 Source:    evals\gold.jsonl
-Items:     400 (320 answerable, 80 unanswerable)
-Verified:  0/400
+Items:     393 (313 answerable, 80 unanswerable)
+Verified:  393/393  (0 by a person, 393 by a model)
 
-PRELIMINARY. Items that have not been through human verification are
-included in these numbers. PRD §10.2 excludes unverified items from any
-reported result, so nothing here may be quoted as a gold-set figure.
+MODEL-VERIFIED. Verification of these items was done by a language-model
+pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
+paper §III-E for the procedure and its agreement figures.
 
-tau fitted on 120 items (F1=0.393); reported on 280 held out.
+tau fitted on 120 items (F1=0.586); reported on 273 held out.
 
-ANSWERABILITY -- threshold tau=0.475 (bm25)
+ANSWERABILITY -- threshold tau=0.250 (bm25)
 ------------------------------------------------------------------------------
-  n = 280   (UNANSWERABLE is the positive class)
+  n = 273   (UNANSWERABLE is the positive class)
 
-  accuracy   0.307
-  precision  0.212
-  recall     0.911
-  F1         0.345
+  accuracy   0.722
+  precision  0.408
+  recall     0.737
+  F1         0.525
 
                         predicted
                   UNANSWERABLE   ANSWERABLE
-  gold UNANSWERABLE         51            5
-  gold ANSWERABLE          189           35
+  gold UNANSWERABLE         42           15
+  gold ANSWERABLE           61          155
 
   fn = gold UNANSWERABLE answered anyway -- the hallucination risk.
   fp = gold ANSWERABLE refused -- the cost of a conservative threshold.
@@ -29,10 +29,10 @@ ANSWERABILITY -- threshold tau=0.475 (bm25)
 RECALL BY UNANSWERABLE CLASS
 ------------------------------------------------------------------------------
   class                   recall     n
-  false-premise            0.909    11
-  near-miss                0.810    21  <-- the real test
-  out-of-scope             1.000    17
-  under-specified          1.000     7
+  false-premise            0.667     9
+  near-miss                0.522    23  <-- the real test
+  out-of-scope             1.000    18
+  under-specified          0.857     7
 
   Out-of-scope questions are trivially rejected; near-miss is where a
   threshold either works or does not. A good aggregate F1 can hide a
@@ -41,9 +41,9 @@ RECALL BY UNANSWERABLE CLASS
 ABSTENTION BY QUERY TYPE
 ------------------------------------------------------------------------------
   query type         abstained  over-abstained     n
-  Code-Mixed             1.000           1.000    87
-  English                0.780           0.766   100
-  Indic                  0.806           0.773    93
+  Code-Mixed             0.637           0.592    91
+  English                0.223           0.107    94
+  Indic                  0.273           0.157    88
 
   A global threshold that abstains more on one query type is refusing
   users for their language rather than for missing evidence.
@@ -54,19 +54,12 @@ SCORE SEPARATION -- bm25
   threshold over this score can separate the classes at any setting.
 
                       median      mean      n
-  answerable         13.5509   17.4743    320
-  UNanswerable       13.8179   14.5270     80
+  answerable         25.4657   27.1807    313
+  UNanswerable       13.8179   14.9963     80
 
-  difference in medians: -0.2669
+  difference in medians: +11.6478
 
-  The unanswerable questions score AT LEAST AS HIGH as the answerable
-  ones, which is the opposite of the direction a threshold assumes.
-  This follows from how the taxonomy is built: near-miss and
-  false-premise questions are deliberately about schemes that are IN
-  the corpus, so they retrieve just as well. Only out-of-scope items
-  are about absent topics. The signal is not weak here, it is absent.
-
-  Base rate of UNANSWERABLE: 0.200. A precision at or near this
+  Base rate of UNANSWERABLE: 0.204. A precision at or near this
   value means the threshold is abstaining about as usefully as chance.
 
 SCORE SEPARATION ACROSS RETRIEVERS
@@ -75,8 +68,8 @@ SCORE SEPARATION ACROSS RETRIEVERS
   is shown for more than one retriever.
 
   method        answerable  UNanswerable   best F1  precision
-  bm25             13.5509       13.8179     0.366      0.235  <-- UNanswerable higher
-  tfidf             0.1424        0.1485     0.370      0.231  <-- UNanswerable higher
+  bm25             25.4657       13.8179     0.541      0.428
+  tfidf             0.2377        0.1454     0.425      0.278
 
 FEATURE SEPARATION -- bm25
 ------------------------------------------------------------------------------
@@ -86,13 +79,13 @@ FEATURE SEPARATION -- bm25
   information than its features carry.
 
   feature               answerable  UNanswerable     AUC
-  max_score                13.5509       13.8179   0.545
-  margin                    2.1769        1.2750   0.594
-  mean_top_k               10.2447       10.3221   0.510
-  score_spread              5.2127        3.7732   0.599
-  scheme_agreement          0.4000        0.4000   0.504
+  max_score                25.4657       13.8179   0.791  <-- separates
+  margin                    4.4988        1.2750   0.717  <-- separates
+  mean_top_k               18.0133       10.5083   0.766  <-- separates
+  score_spread             10.9480        4.2291   0.790  <-- separates
+  scheme_agreement          0.6000        0.4000   0.650  <-- separates
 
-  Best single feature reaches AUC 0.599. Combining them recovers
+  Best single feature reaches AUC 0.791. Combining them recovers
   somewhat more than any one of them -- see the calibrated section below --
   but a combination is bounded by what its inputs carry, and every column
   here is closer to chance than to a usable signal.
@@ -104,28 +97,28 @@ THRESHOLD SWEEP
 
      tau  precision   recall      F1  abstains
    0.000      0.000    0.000   0.000     0.000
-   0.050      0.333    0.037   0.067     0.022
-   0.100      0.206    0.163   0.182     0.158
-   0.150      0.187    0.325   0.237     0.347
-   0.200      0.193    0.475   0.274     0.492
-   0.250      0.211    0.637   0.317     0.605
-   0.300      0.235    0.825   0.366     0.703  <-- best F1
-   0.350      0.226    0.875   0.359     0.775
-   0.400      0.224    0.925   0.361     0.825
-   0.450      0.217    0.950   0.353     0.875
-   0.500      0.214    0.975   0.351     0.910
-   0.550      0.211    0.988   0.347     0.938
-   0.600      0.208    1.000   0.345     0.960
-   0.650      0.206    1.000   0.341     0.973
-   0.700      0.204    1.000   0.339     0.980
-   0.750      0.203    1.000   0.338     0.985
-   0.800      0.202    1.000   0.335     0.993
-   0.850      0.202    1.000   0.335     0.993
-   0.900      0.201    1.000   0.334     0.998
-   0.950      0.201    1.000   0.334     0.998
-   1.000      0.201    1.000   0.334     0.998
+   0.050      1.000    0.013   0.025     0.003
+   0.100      0.647    0.138   0.227     0.043
+   0.150      0.448    0.325   0.377     0.148
+   0.200      0.444    0.550   0.492     0.252
+   0.250      0.428    0.738   0.541     0.351  <-- best F1
+   0.300      0.354    0.838   0.498     0.481
+   0.350      0.316    0.887   0.466     0.573
+   0.400      0.286    0.925   0.437     0.659
+   0.450      0.258    0.950   0.405     0.751
+   0.500      0.248    0.988   0.396     0.812
+   0.550      0.233    1.000   0.378     0.873
+   0.600      0.225    1.000   0.367     0.906
+   0.650      0.217    1.000   0.357     0.936
+   0.700      0.214    1.000   0.352     0.952
+   0.750      0.209    1.000   0.346     0.975
+   0.800      0.207    1.000   0.343     0.982
+   0.850      0.205    1.000   0.340     0.992
+   0.900      0.204    1.000   0.339     0.997
+   0.950      0.204    1.000   0.339     0.997
+   1.000      0.204    1.000   0.339     0.997
 
-  Best F1 0.366 is reached at 70.2% abstention. Read those two
+  Best F1 0.541 is reached at 35.1% abstention. Read those two
   together: a high recall on the unanswerable class bought by refusing
   most answerable questions is not detection, it is silence.
 
@@ -137,41 +130,41 @@ CALIBRATED COMBINATION (signal 4, retrieval features only)
   The generator and NLI columns are zero here: this is the ceiling for
   score geometry alone, before any model reads a passage.
 
-  dev F1              0.427
-  test F1             0.360
-  AUC of p(answerable)   0.663
-  best single feature    0.599   (combination gains +0.064)
+  dev F1              0.625
+  test F1             0.481
+  AUC of p(answerable)   0.781
+  best single feature    0.791   (combination gains -0.010)
 
 CALIBRATED SIGNAL -- fitted coefficients
 ------------------------------------------------------------------------------
   Positive weight pushes towards ANSWERABLE. Features are standardised,
   so magnitudes are comparable across rows.
 
-  score_spread               0.739  ##############
-  mean_top_k                -0.350  ######
-  margin                     0.138  ##
-  scheme_agreement           0.104  ##
-  max_score                  0.011  
+  score_spread               1.245  ########################
+  max_score                  0.636  ############
+  scheme_agreement           0.362  #######
+  mean_top_k                 0.075  #
+  margin                     0.055  #
   generator_answerable       0.000  
   generator_confidence       0.000  
   entailment                 0.000  
   answer_length              0.000  
 
-  decision threshold: 0.45
+  decision threshold: 0.30
 
-ANSWERABILITY -- calibrated, retrieval features (p>=0.45)
+ANSWERABILITY -- calibrated, retrieval features (p>=0.30)
 ------------------------------------------------------------------------------
-  n = 280   (UNANSWERABLE is the positive class)
+  n = 273   (UNANSWERABLE is the positive class)
 
-  accuracy   0.632
-  precision  0.276
-  recall     0.518
-  F1         0.360
+  accuracy   0.755
+  precision  0.431
+  recall     0.544
+  F1         0.481
 
                         predicted
                   UNANSWERABLE   ANSWERABLE
-  gold UNANSWERABLE         29           27
-  gold ANSWERABLE           76          148
+  gold UNANSWERABLE         31           26
+  gold ANSWERABLE           41          175
 
   fn = gold UNANSWERABLE answered anyway -- the hallucination risk.
   fp = gold ANSWERABLE refused -- the cost of a conservative threshold.
@@ -179,10 +172,10 @@ ANSWERABILITY -- calibrated, retrieval features (p>=0.45)
 RECALL BY UNANSWERABLE CLASS
 ------------------------------------------------------------------------------
   class                   recall     n
-  false-premise            0.636    11
-  near-miss                0.619    21  <-- the real test
-  out-of-scope             0.471    17
-  under-specified          0.143     7
+  false-premise            0.333     9
+  near-miss                0.304    23  <-- the real test
+  out-of-scope             0.889    18
+  under-specified          0.714     7
 
   Out-of-scope questions are trivially rejected; near-miss is where a
   threshold either works or does not. A good aggregate F1 can hide a
@@ -191,9 +184,9 @@ RECALL BY UNANSWERABLE CLASS
 ABSTENTION BY QUERY TYPE
 ------------------------------------------------------------------------------
   query type         abstained  over-abstained     n
-  Code-Mixed             0.379           0.306    87
-  English                0.350           0.325   100
-  Indic                  0.398           0.387    93
+  Code-Mixed             0.440           0.394    91
+  English                0.160           0.067    94
+  Indic                  0.193           0.114    88
 
   A global threshold that abstains more on one query type is refusing
   users for their language rather than for missing evidence.

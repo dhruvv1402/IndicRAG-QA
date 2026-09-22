@@ -1,30 +1,30 @@
-320 answerable gold items (UNVERIFIED)
+313 answerable gold items (model-verified)
 
---- cross-lingual  (n=90)
-    plain RRF     0.111 [0.056, 0.189]
-    script-aware  0.500 [0.389, 0.600]
-    dense alone   0.367 [0.267, 0.467]
-    script-aware - plain RRF   delta=+0.389 p=0.0001* (n=90)
-    script-aware - dense alone delta=+0.133 p=0.0005* (n=90)
+--- cross-lingual  (n=89)
+    plain RRF     0.283 [0.199, 0.365]
+    script-aware  0.669 [0.573, 0.764]
+    dense alone   0.646 [0.551, 0.742]
+    script-aware - plain RRF   delta=+0.386 p=0.0001* (n=89)
+    script-aware - dense alone delta=+0.022 p=0.5302  (n=89)
 
---- code-mixed  (n=100)
-    plain RRF     0.210 [0.130, 0.300]
-    script-aware  0.230 [0.150, 0.310]
-    dense alone   0.090 [0.040, 0.160]
-    script-aware - plain RRF   delta=+0.020 p=0.7171  (n=100)
-    script-aware - dense alone delta=+0.140 p=0.0007* (n=100)
+--- code-mixed  (n=96)
+    plain RRF     0.526 [0.432, 0.620]
+    script-aware  0.568 [0.474, 0.667]
+    dense alone   0.500 [0.401, 0.604]
+    script-aware - plain RRF   delta=+0.042 p=0.1210  (n=96)
+    script-aware - dense alone delta=+0.068 p=0.0019* (n=96)
 
---- monolingual  (n=130)
-    plain RRF     0.969 [0.938, 0.992]
-    script-aware  0.962 [0.931, 0.992]
-    dense alone   0.962 [0.923, 0.992]
-    script-aware - plain RRF   delta=-0.008 p=1.0000  (n=130)
-    script-aware - dense alone delta=+0.000 p=1.0000  (n=130)
+--- monolingual  (n=128)
+    plain RRF     0.977 [0.949, 0.996]
+    script-aware  0.977 [0.949, 0.996]
+    dense alone   0.977 [0.953, 0.996]
+    script-aware - plain RRF   delta=+0.000 p=1.0000  (n=128)
+    script-aware - dense alone delta=+0.000 p=1.0000  (n=128)
 
---- all  (n=320)
-    plain RRF     0.491 [0.438, 0.547]
-    script-aware  0.603 [0.550, 0.656]
-    dense alone   0.522 [0.466, 0.572]
-    script-aware - plain RRF   delta=+0.113 p=0.0001* (n=320)
-    script-aware - dense alone delta=+0.081 p=0.0001* (n=320)
+--- all  (n=313)
+    plain RRF     0.641 [0.591, 0.693]
+    script-aware  0.764 [0.716, 0.808]
+    dense alone   0.736 [0.690, 0.781]
+    script-aware - plain RRF   delta=+0.122 p=0.0001* (n=313)
+    script-aware - dense alone delta=+0.027 p=0.0209* (n=313)
 

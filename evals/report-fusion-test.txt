@@ -1,0 +1,30 @@
+216 answerable gold items (model-verified)
+
+--- cross-lingual  (n=62)
+    plain RRF     0.274 [0.177, 0.371]
+    script-aware  0.685 [0.565, 0.790]
+    dense alone   0.661 [0.532, 0.766]
+    script-aware - plain RRF   delta=+0.411 p=0.0001* (n=62)
+    script-aware - dense alone delta=+0.024 p=0.6238  (n=62)
+
+--- code-mixed  (n=71)
+    plain RRF     0.514 [0.401, 0.627]
+    script-aware  0.556 [0.444, 0.662]
+    dense alone   0.472 [0.352, 0.585]
+    script-aware - plain RRF   delta=+0.042 p=0.2452  (n=71)
+    script-aware - dense alone delta=+0.085 p=0.0037* (n=71)
+
+--- monolingual  (n=83)
+    plain RRF     0.964 [0.922, 0.994]
+    script-aware  0.964 [0.922, 0.994]
+    dense alone   0.976 [0.946, 1.000]
+    script-aware - plain RRF   delta=+0.000 p=1.0000  (n=83)
+    script-aware - dense alone delta=-0.012 p=0.7501  (n=83)
+
+--- all  (n=216)
+    plain RRF     0.618 [0.556, 0.681]
+    script-aware  0.750 [0.692, 0.806]
+    dense alone   0.720 [0.660, 0.775]
+    script-aware - plain RRF   delta=+0.132 p=0.0001* (n=216)
+    script-aware - dense alone delta=+0.030 p=0.0519  (n=216)
+

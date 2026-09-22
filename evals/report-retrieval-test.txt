@@ -1,0 +1,91 @@
+Generated: 2026-09-23 04:52
+Source:    evals\gold.jsonl [test split]
+Items:     216 (216 answerable, 0 unanswerable)
+Verified:  216/216  (0 by a person, 216 by a model)
+
+MODEL-VERIFIED. Verification of these items was done by a language-model
+pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
+paper §III-E for the procedure and its agreement figures.
+
+RETRIEVAL -- overall
+------------------------------------------------------------------------------
+system                                          R@1       R@3       R@5       R@10      MRR       nDCG@10 
+------------------------------------------------------------------------------
+BM25                                            0.421     0.545     0.581     0.625     0.562     0.554   
+TF-IDF                                          0.396     0.532     0.593     0.627     0.540     0.540   
+paraphrase-multilingual-MiniLM-L12-v2           0.237     0.421     0.478     0.596     0.391     0.428   
+multilingual-e5-base                            0.407     0.666     0.720     0.782     0.600     0.633   
+LaBSE                                           0.240     0.406     0.485     0.590     0.385     0.421   
+muril-base-cased/mean                           0.162     0.227     0.265     0.343     0.242     0.251   
+muril-base-cased/cls                            0.059     0.147     0.181     0.220     0.131     0.144   
+Hybrid RRF (BM25 + multilingual-e5-base)        0.431     0.574     0.618     0.653     0.584     0.576   
+Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.447     0.625     0.688     0.764     0.618     0.635   
+Hybrid RRF script-aware (BM25 + multilingual-e  0.422     0.680     0.750     0.831     0.631     0.665   
+
+RETRIEVAL -- Recall@5 with 95% bootstrap CI
+------------------------------------------------------------------------------
+  BM25                                         0.581 [0.519, 0.646]
+  TF-IDF                                       0.593 [0.530, 0.655]
+  paraphrase-multilingual-MiniLM-L12-v2        0.478 [0.414, 0.542]
+  multilingual-e5-base                         0.720 [0.660, 0.775]
+  LaBSE                                        0.485 [0.422, 0.549]
+  muril-base-cased/mean                        0.265 [0.211, 0.323]
+  muril-base-cased/cls                         0.181 [0.134, 0.235]
+  Hybrid RRF (BM25 + multilingual-e5-base)     0.618 [0.556, 0.681]
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) 0.688 [0.627, 0.743]
+  Hybrid RRF script-aware (BM25 + multilingual-e5-base) 0.750 [0.692, 0.806]
+
+n = 216 answerable queries. Intervals are percentile bootstrap over queries (1000 resamples, seed 20260922).
+Differences smaller than the interval width are not distinguishable from noise.
+
+RETRIEVAL -- Recall@5 by language group
+------------------------------------------------------------------------------
+system                                          monolingual     cross-lingual   code-mixed    
+------------------------------------------------------------------------------
+BM25                                            0.970 (n=83)    0.153 (n=62)    0.500 (n=71)  
+TF-IDF                                          0.964 (n=83)    0.185 (n=62)    0.514 (n=71)  
+paraphrase-multilingual-MiniLM-L12-v2           0.624 (n=83)    0.605 (n=62)    0.195 (n=71)  
+multilingual-e5-base                            0.976 (n=83)    0.661 (n=62)    0.472 (n=71)  
+LaBSE                                           0.655 (n=83)    0.540 (n=62)    0.239 (n=71)  
+muril-base-cased/mean                           0.582 (n=83)    0.048 (n=62)    0.082 (n=71)  
+muril-base-cased/cls                            0.293 (n=83)    0.024 (n=62)    0.188 (n=71)  
+Hybrid RRF (BM25 + multilingual-e5-base)        0.964 (n=83)    0.274 (n=62)    0.514 (n=71)  
+Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.976 (n=83)    0.484 (n=62)    0.528 (n=71)  
+Hybrid RRF script-aware (BM25 + multilingual-e  0.964 (n=83)    0.685 (n=62)    0.556 (n=71)  
+
+PAIRED TESTS -- Recall@5 vs BM25
+------------------------------------------------------------------------------
+Two-sided paired randomization test, 10000 trials. * marks p < 0.05.
+
+  TF-IDF                                       delta=+0.012 p=0.3144  (n=216)
+  paraphrase-multilingual-MiniLM-L12-v2        delta=-0.103 p=0.0130* (n=216)
+  multilingual-e5-base                         delta=+0.139 p=0.0001* (n=216)
+  LaBSE                                        delta=-0.096 p=0.0225* (n=216)
+  muril-base-cased/mean                        delta=-0.316 p=0.0001* (n=216)
+  muril-base-cased/cls                         delta=-0.400 p=0.0001* (n=216)
+  Hybrid RRF (BM25 + multilingual-e5-base)     delta=+0.037 p=0.0247* (n=216)
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) delta=+0.106 p=0.0001* (n=216)
+  Hybrid RRF script-aware (BM25 + multilingual-e5-base) delta=+0.169 p=0.0001* (n=216)
+
+NOT EVALUATED
+------------------------------------------------------------------------------
+  indic-bert: Named in the brief, but the repository is gated: downloading it returns 401 without an accepted licence and an HF token
+
+ALPHA SWEEP -- weighted fusion, Recall@5
+------------------------------------------------------------------------------
+
+  BM25 + multilingual-e5-base. alpha=1.0 pure lexical, alpha=0.0 pure dense.
+
+  a=0.0  0.720
+  a=0.1  0.720
+  a=0.2  0.715
+  a=0.3  0.704
+  a=0.4  0.688
+  a=0.5  0.657
+  a=0.6  0.653
+  a=0.7  0.618
+  a=0.8  0.611
+  a=0.9  0.602
+  a=1.0  0.586
+
+  best a=0.1 (0.720) vs best endpoint (0.720), delta +0.000 < 0.02 margin -> H2 NOT SUPPORTED (within noise)

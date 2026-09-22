@@ -31,11 +31,14 @@ def main() -> int:
     from indicrag.models import Passage, QAItem, read_jsonl
     from indicrag.query.langid import classify
 
+    # `--split test` scores the sealed test split only (PLAN §2.1); the default
+    # is every answerable item, dev and test together.
+    split = sys.argv[sys.argv.index("--split") + 1] if "--split" in sys.argv else "all"
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
     items = [
         i for i in read_jsonl(ROOT / "evals" / "gold.jsonl", QAItem)
-        if i.answerable and i.gold_passage_ids
+        if i.answerable and i.gold_passage_ids and (split == "all" or i.split == split)
     ]
     if not passages or not items:
         print("need passages and answerable gold items")
@@ -71,7 +74,9 @@ def main() -> int:
         "dense alone": evaluate("dense", items, lambda i: (dense_only(i), 0.0)),
     }
 
-    print(f"{len(items)} answerable gold items (UNVERIFIED)\n")
+    from indicrag.evaluation.all_reports import verification_label
+    _label = verification_label(items)
+    print(f"{len(items)} answerable gold items ({_label})\n")
     for slice_key in ("cross-lingual", "code-mixed", "monolingual", None):
         label = slice_key or "all"
         sel = {

@@ -70,15 +70,16 @@ every fusion row in the table beside it is built on multilingual-e5-base; 0.416
 is MiniLM's Recall@5, not the dense row's 0.522. Swept over e5, as the rest of
 the table is, no interior weighting beats pure dense: the best interior point is
 α = 0.4 at 0.516 against 0.522 at α = 0 and 0.484 at α = 1, and H2 is not
-supported on the gold set either. The probe-set sweep reported in §VI-E and
-plotted as Figure 4 used the same MiniLM endpoint and has not yet been re-run
-over e5.
+supported on the gold set. The probe-set sweep plotted as Figure 4 had the same
+fault. Re-run over e5 it moves from a best interior margin of +0.001 to +0.024,
+at α = 0.4 (0.521 against 0.497 for pure lexical), which clears the sweep's 0.02
+margin but not a paired test (p = 0.14, n = 180). On neither set does any
+weighting significantly beat the better of its two components.
 
-That divergence is itself evidence for the caution in §VI-A. A probe set built
-by lifting phrasing from target passages flatters lexical retrieval and
-compresses the differences between fusion settings; the gold questions are
-written to be answered rather than to be matched, and they separate the methods
-that the probes could not. The full table is committed as
+The LaBSE reversal is itself evidence for the caution in §VI-A. A probe set
+built by lifting phrasing from target passages flatters lexical retrieval, and
+its code-mixed shape did not reproduce what code-mixed questions written to be
+answered rather than matched look like. The full table is committed as
 `evals/report-retrieval-goldset.txt`.
 
 **Third, and most consequentially, the central result is larger on the gold set
@@ -247,8 +248,8 @@ overall row is indistinguishable from noise, and a paper reporting only that row
 would conceal both the gain and the cost.
 
 This also revises the negative result of the α sweep, plotted as Figure 4, which
-found no interior
-weighting beating both endpoints by more than 0.001 and recorded the hybrid
+found no interior weighting significantly better than the better endpoint (the
+best, α = 0.4, is +0.024 over pure lexical at p = 0.14) and recorded the hybrid
 hypothesis as unsupported. That verdict was correct about weighted fusion and
 wrong about the hypothesis: hybrid retrieval does beat its components here, once
 fusion stops penalising passages for their script.

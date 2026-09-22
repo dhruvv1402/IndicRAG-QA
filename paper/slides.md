@@ -123,7 +123,7 @@ not for its own irrelevance.
 > BM25 saying nothing about a Devanagari passage is not evidence against it.
 > It is no evidence at all.
 
-*Notes:* The α sweep found no interior weighting that beat either endpoint. It
+*Notes:* The α sweep found no interior weighting significantly better than the better endpoint. It
 was right about the method and wrong about the hypothesis — α was never the
 problem.
 

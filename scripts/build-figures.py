@@ -68,12 +68,17 @@ FUSION = {
     "overall": (0.483, 0.500, "0.32"),
 }
 
-#: Weighted fusion alpha sweep, Recall@5. alpha=1.0 is pure lexical.
+#: Weighted fusion alpha sweep over BM25 + e5-base, Recall@5, from
+#: evals/report-retrieval-probes.txt. alpha=1.0 is pure lexical. An earlier
+#: version plotted a sweep whose dense endpoint was MiniLM, not the e5 every
+#: other fusion figure is built on.
 ALPHA = [
-    (0.0, 0.303), (0.1, 0.328), (0.2, 0.339), (0.3, 0.350), (0.4, 0.407),
-    (0.5, 0.487), (0.6, 0.499), (0.7, 0.496), (0.8, 0.494), (0.9, 0.500),
-    (1.0, 0.499),
+    (0.0, 0.448), (0.1, 0.460), (0.2, 0.465), (0.3, 0.506), (0.4, 0.521),
+    (0.5, 0.517), (0.6, 0.510), (0.7, 0.512), (0.8, 0.514), (0.9, 0.505),
+    (1.0, 0.497),
 ]
+#: Paired randomization test, best interior alpha against pure lexical.
+ALPHA_P = 0.139
 
 #: Threshold sweep from evals/report-answerability.txt: (tau, precision, recall,
 #: F1, abstention). The per-class recall figure this replaced plotted a single
@@ -253,7 +258,12 @@ def fig3_script_aware_fusion() -> Path:
 
 
 def fig4_alpha_sweep() -> Path:
-    """The sweep that produced a clean negative result about the wrong question."""
+    """The sweep that produced a clean negative result about the wrong question.
+
+    The best interior point clears the sweep's 0.02 margin but not a paired
+    test, so the annotation carries the p-value rather than letting the gap
+    read as a gain.
+    """
     fig, ax = plt.subplots(figsize=(4.6, 2.9))
     xs = [a for a, _ in ALPHA]
     ys = [r for _, r in ALPHA]
@@ -263,20 +273,20 @@ def fig4_alpha_sweep() -> Path:
     ax.axhline(best_endpoint, color=INK, linestyle=":", linewidth=1)
     ax.annotate(
         f"best endpoint {best_endpoint:.3f}",
-        xy=(0.42, best_endpoint), fontsize=7, va="bottom", color=INK,
+        xy=(0.0, best_endpoint), fontsize=7, va="bottom", color=INK,
     )
     best_i = max(range(len(ys)), key=lambda i: ys[i])
     ax.annotate(
-        f"best interior {ys[best_i]:.3f}\n(+{ys[best_i] - best_endpoint:.3f})",
-        xy=(xs[best_i], ys[best_i]), xytext=(0.55, 0.36),
+        f"best interior {ys[best_i]:.3f}\n(+{ys[best_i] - best_endpoint:.3f}, p = {ALPHA_P:.2f})",
+        xy=(xs[best_i], ys[best_i]), xytext=(0.55, 0.445),
         fontsize=7, color=BAD,
         arrowprops={"arrowstyle": "->", "color": BAD, "linewidth": 0.8},
     )
 
     ax.set_xlabel("α   (0 = pure dense, 1 = pure lexical)")
     ax.set_ylabel("Recall@5")
-    ax.set_ylim(0.28, 0.56)
-    ax.set_title("Weighted fusion: no interior α helps", fontsize=8.5)
+    ax.set_ylim(0.42, 0.56)
+    ax.set_title("Weighted fusion: no significant interior gain", fontsize=8.5)
     return _save(fig, "fig4-alpha-sweep.png")
 
 

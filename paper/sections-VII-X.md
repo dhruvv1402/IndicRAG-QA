@@ -72,8 +72,8 @@ The aggregate tables showed hybrid fusion performing *worse* than dense
 retrieval alone on exactly the queries hybrid retrieval was supposed to help
 with, and gave no indication why. Both components were behaving as documented;
 the fusion was implemented correctly against its own specification; the α sweep
-found no interior setting that beat either endpoint by more than 0.001, which
-reads as a clean negative result. Read as a table, the finding was that hybrid
+found no interior setting significantly better than the better of its two
+endpoints, which reads as a clean negative result. Read as a table, the finding was that hybrid
 retrieval does not help here.
 
 Reading the twenty cases gave the actual explanation. Of the twenty failures,

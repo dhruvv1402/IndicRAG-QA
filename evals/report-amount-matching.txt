@@ -1,0 +1,12 @@
+320 answerable gold items; 46 carry an amount
+
+--- amount-bearing  (n=46)
+    BM25 plain           0.674 [0.543, 0.804]
+    BM25 + amount key    0.696 [0.565, 0.826]
+    paired               delta=+0.022 p=1.0000  (n=46)
+
+--- all answerable  (n=320)
+    BM25 plain           0.484 [0.431, 0.541]
+    BM25 + amount key    0.487 [0.431, 0.544]
+    paired               delta=+0.003 p=1.0000  (n=320)
+

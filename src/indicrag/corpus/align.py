@@ -189,10 +189,17 @@ def locate(index: SourceIndex, passage_text: str, cursor: int = 0) -> Span | Non
     search = cursor
     for run in runs:
         got = _locate_run(index, run, search)
-        if got is None and search > 0:
-            # Overlap re-emits earlier text, so a sentence may legitimately sit
-            # behind the cursor. Retry from the top before giving up on it.
-            got = _locate_run(index, run, 0)
+        # Retry from the top whenever the forward search did poorly, not only
+        # when it found nothing. `_anchor` accepts a half-matching window, so a
+        # sentence that sits *behind* the cursor -- which overlap makes routine
+        # -- can be answered by a weak anchor ahead of it instead, and a
+        # non-null-but-wrong result would otherwise be committed to silently.
+        # This distinction alone accounted for 20 of the 23 passages the first
+        # version declined, every sentence of which aligns perfectly from zero.
+        if search > 0 and (got is None or got[2] < len(run) * MIN_COVERAGE):
+            alt = _locate_run(index, run, 0)
+            if alt is not None and (got is None or alt[2] > got[2]):
+                got = alt
         if got is None:
             continue
         start_tok, end_tok, hits = got

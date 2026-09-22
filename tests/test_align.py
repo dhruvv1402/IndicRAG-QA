@@ -108,6 +108,23 @@ def test_a_cursor_does_not_prevent_finding_earlier_text():
     assert early.start < late.start
 
 
+def test_a_weak_anchor_ahead_does_not_beat_the_real_match_behind():
+    # The failure this guards: `_anchor` accepts a half-matching window, so a
+    # forward search from the cursor can return a non-null but wrong result --
+    # and a retry that only fires on None never runs. 20 of 23 passages were
+    # declined this way, every sentence of which aligns perfectly from zero.
+    doc = SourceIndex(
+        "Alpha beta gamma delta epsilon zeta. "
+        "Filler sentence in between here. "
+        "Alpha beta gamma different words entirely."
+    )
+    wanted = "Alpha beta gamma delta epsilon zeta."
+    past_it = token_after(doc, doc.text.index("Filler"))
+    span = locate(doc, wanted, cursor=past_it)
+    assert span is not None
+    assert doc.text[span.start : span.end].startswith("Alpha beta gamma delta")
+
+
 def test_a_cursor_disambiguates_a_repeated_sentence():
     doc = SourceIndex("Alpha beta gamma delta. Filler text here. Alpha beta gamma delta.")
     first = locate(doc, "Alpha beta gamma delta.")

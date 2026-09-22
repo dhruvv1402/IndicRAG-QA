@@ -597,7 +597,7 @@ def eval_retrieval(
 ) -> None:
     """Module 1-3: lexical, dense and fusion retrieval, with paired tests."""
     from .evaluation.report import format_by_slice, format_paired, format_retrieval
-    from .evaluation.run import alpha_sweep, alpha_verdict, run_retrieval
+    from .evaluation.run import alpha_sweep, run_retrieval
     from .evaluation.all_reports import provenance
 
     cfg = get_settings()
@@ -635,7 +635,7 @@ def eval_retrieval(
                 "",
             ]
             lines += [f"  a={a:.1f}  {r:.3f}" for a, r in swept.points]
-            lines += ["", f"  {alpha_verdict(swept.points)}"]
+            lines += ["", f"  {swept.verdict()}"]
         else:
             lines += ["", "ALPHA SWEEP -- skipped: no dense index available."]
 

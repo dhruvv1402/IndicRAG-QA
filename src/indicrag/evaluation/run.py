@@ -11,17 +11,18 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..config import get_settings
 from ..index.dense import CacheMismatch, DenseIndex, Encoder
 from ..index.encoders import DEFAULT_ORDER, REGISTRY, get
 from ..index.hybrid import rrf_fusion, script_aware_rrf, weighted_fusion
-from ..query.langid import classify
 from ..index.lexical import LexicalIndex
 from ..models import Document, Passage, QAItem, read_jsonl
+from ..query.langid import classify
 from .probes import build_probes
-from .retrieval import RetrievalReport, evaluate
+from .retrieval import Outcome, RetrievalReport, evaluate
+from .stats import PairedResult, paired_randomization_test
 
 CANDIDATES = 50
 TOP_K = 10
@@ -51,7 +52,17 @@ def run_retrieval(
     alpha: float = 0.4,
     progress: Callable[[str], None] | None = None,
 ) -> tuple[list[RetrievalReport], list[str]]:
-    """Evaluate lexical, every available dense encoder, and the two fusions."""
+    """Evaluate lexical, every available dense encoder, and the fusions.
+
+    The fusion arms are built on the **primary** encoder, declared in config
+    before any number was seen. They used to be built on whichever dense index
+    scored the best Recall@5 on `items` -- the very items being reported, so the
+    fusion base was selected on the test data (PLAN §2.1 reserves every such
+    choice for dev), and nothing tied it to the encoder `alpha_sweep` sweeps. The
+    two agreed only because e5 happened to win on both item sets. If the primary
+    index is missing the fusion arms are skipped with that reason, rather than
+    quietly rebuilt on a different model.
+    """
     cfg = get_settings()
     say = progress or (lambda _m: None)
     skipped: list[str] = []
@@ -63,7 +74,7 @@ def run_retrieval(
     ]
     say(f"  BM25 / TF-IDF over {len(items)} probes")
 
-    best_dense: tuple[str, DenseIndex, dict] | None = None
+    fusion_base: tuple[str, DenseIndex, dict] | None = None
 
     for name in DEFAULT_ORDER:
         spec = get(name)
@@ -91,12 +102,11 @@ def run_retrieval(
             reports.append(report)
             say(f"  {label}: R@5={report.recall_at(5):.3f}")
 
-            if best_dense is None or report.recall_at(5) > best_dense[2]["r5"]:
-                best_dense = (label, index, {"r5": report.recall_at(5), "qvecs": qvecs})
+            if name == cfg.encoder_primary and fusion_base is None:
+                fusion_base = (label, index, qvecs)
 
-    if best_dense is not None:
-        label, index, extra = best_dense
-        qvecs = extra["qvecs"]
+    if fusion_base is not None:
+        label, index, qvecs = fusion_base
         reports.append(
             evaluate(
                 f"Hybrid RRF (BM25 + {label})",
@@ -149,7 +159,7 @@ def run_retrieval(
         )
         say(f"  hybrid arms built on {label}")
     else:
-        skipped.append("hybrid: no dense index available")
+        skipped.append(f"hybrid: no index for the primary encoder {cfg.encoder_primary}")
 
     for name, spec in REGISTRY.items():
         if not spec.available:
@@ -158,7 +168,12 @@ def run_retrieval(
     return reports, skipped
 
 
-def alpha_verdict(sweep: Sequence[tuple[float, float]], *, margin: float = 0.02) -> str:
+def alpha_verdict(
+    sweep: Sequence[tuple[float, float]],
+    *,
+    margin: float = 0.02,
+    paired: PairedResult | None = None,
+) -> str:
     """Judge H2 from an alpha sweep, requiring the win to clear a noise margin.
 
     The naive test -- "does the best interior alpha beat the best endpoint" --
@@ -167,6 +182,12 @@ def alpha_verdict(sweep: Sequence[tuple[float, float]], *, margin: float = 0.02)
     bootstrap interval width are not distinguishable from noise, so declaring a
     win on 0.001 would contradict the page it is printed on. `margin` is the
     minimum improvement worth calling a result.
+
+    A margin is still not a test. On the e5 probe sweep the best interior alpha
+    cleared it by +0.024 at a paired p of 0.139, and the report printed "H2
+    SUPPORTED" over a gain that is not there. So a margin win is only called
+    supported when `paired` -- best interior against best endpoint, per query --
+    is significant too; without one the verdict says the test was not run.
     """
     if not sweep:
         return "no sweep data"
@@ -176,12 +197,17 @@ def alpha_verdict(sweep: Sequence[tuple[float, float]], *, margin: float = 0.02)
     best_a, best_r = max(interior, key=lambda x: x[1])
     endpoint = max(sweep[0][1], sweep[-1][1])
     delta = best_r - endpoint
+    head = f"best a={best_a:.1f} ({best_r:.3f}) vs best endpoint ({endpoint:.3f}), delta {delta:+.3f}"
     if delta > margin:
-        return f"best a={best_a:.1f} ({best_r:.3f}) beats best endpoint ({endpoint:.3f}) by {delta:+.3f} -> H2 SUPPORTED"
-    return (
-        f"best a={best_a:.1f} ({best_r:.3f}) vs best endpoint ({endpoint:.3f}), "
-        f"delta {delta:+.3f} < {margin:.2f} margin -> H2 NOT SUPPORTED (within noise)"
-    )
+        if paired is None:
+            return f"{head} > {margin:.2f} margin -> H2 SUPPORTED on margin only (no paired test)"
+        if paired.significant():
+            return f"{head}, paired p={paired.p_value:.4f} -> H2 SUPPORTED"
+        return (
+            f"{head} clears the {margin:.2f} margin but paired p={paired.p_value:.4f} "
+            "-> H2 NOT SUPPORTED (not significant)"
+        )
+    return f"{head} < {margin:.2f} margin -> H2 NOT SUPPORTED (within noise)"
 
 
 @dataclass
@@ -195,9 +221,27 @@ class AlphaSweep:
 
     dense: str
     points: list[tuple[float, float]]
+    #: Per-query outcomes at each alpha, so the verdict can be a paired test
+    #: rather than a comparison of two means.
+    outcomes: dict[float, list[Outcome]] = field(default_factory=dict)
 
     def __bool__(self) -> bool:
         return bool(self.points)
+
+    def paired(self) -> PairedResult | None:
+        """Best interior alpha against the better endpoint, Recall@5 per query."""
+        interior = [(a, r) for a, r in self.points if 0.0 < a < 1.0]
+        if not interior or not self.outcomes:
+            return None
+        best_a = max(interior, key=lambda x: x[1])[0]
+        lo, hi = self.points[0], self.points[-1]
+        end_a = lo[0] if lo[1] >= hi[1] else hi[0]
+        return paired_randomization_test(
+            self.outcomes[best_a], self.outcomes[end_a], lambda o: o.recall_at(5)
+        )
+
+    def verdict(self) -> str:
+        return alpha_verdict(self.points, paired=self.paired())
 
 
 def alpha_sweep(
@@ -241,6 +285,7 @@ def alpha_sweep(
     label = name.split("/")[-1]
     qvecs = {i.id: encoder.encode_query(i.question) for i in items}
     out: list[tuple[float, float]] = []
+    per_query: dict[float, list[Outcome]] = {}
     for a in points:
         rep = evaluate(
             f"a={a}",
@@ -255,7 +300,8 @@ def alpha_sweep(
             ),
         )
         out.append((a, rep.recall_at(5)))
-    return AlphaSweep(dense=label, points=out)
+        per_query[a] = list(rep.outcomes)
+    return AlphaSweep(dense=label, points=out, outcomes=per_query)
 
 
 def load_probes(passages: Sequence[Passage], per_shape: int = 60) -> list[QAItem]:

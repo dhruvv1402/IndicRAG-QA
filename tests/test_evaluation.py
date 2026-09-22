@@ -119,6 +119,50 @@ def test_alpha_verdict_accepts_a_clear_win():
     assert "NOT SUPPORTED" not in alpha_verdict(sweep)
 
 
+def test_a_margin_win_without_a_paired_test_says_so():
+    assert "margin only" in alpha_verdict([(0.0, 0.30), (0.5, 0.62), (1.0, 0.50)])
+
+
+def test_a_margin_win_that_fails_the_paired_test_is_not_supported():
+    """The e5 probe sweep: +0.024 clears the margin, p=0.139 does not."""
+    from indicrag.evaluation.stats import PairedResult
+
+    sweep = [(0.0, 0.448), (0.4, 0.521), (1.0, 0.497)]
+    verdict = alpha_verdict(sweep, paired=PairedResult(delta=0.024, p_value=0.139, n=180))
+    assert "NOT SUPPORTED" in verdict and "0.1390" in verdict
+
+
+def test_a_margin_win_that_passes_the_paired_test_is_supported():
+    from indicrag.evaluation.stats import PairedResult
+
+    sweep = [(0.0, 0.30), (0.5, 0.62), (1.0, 0.50)]
+    verdict = alpha_verdict(sweep, paired=PairedResult(delta=0.12, p_value=0.001, n=320))
+    assert "H2 SUPPORTED" in verdict and "NOT" not in verdict
+
+
+def test_the_sweep_pairs_its_best_interior_point_against_the_better_endpoint():
+    from indicrag.evaluation.run import AlphaSweep
+
+    def hit(q):
+        return _o(q, ["a"], ["a"])
+
+    def miss(q):
+        return _o(q, ["a"], ["x"])
+
+    swept = AlphaSweep(
+        dense="e5",
+        points=[(0.0, 0.0), (0.5, 1.0), (1.0, 0.5)],
+        outcomes={
+            0.0: [miss("q1"), miss("q2")],
+            0.5: [hit("q1"), hit("q2")],
+            1.0: [hit("q1"), miss("q2")],
+        },
+    )
+    res = swept.paired()
+    assert res is not None and res.n == 2
+    assert abs(res.delta - 0.5) < 1e-9  # against a=1.0 (0.5), not a=0.0 (0.0)
+
+
 def test_the_sweep_sweeps_over_the_primary_encoder_not_the_cheapest():
     """The defect this guards produced a report that disagreed with itself.
 
@@ -149,6 +193,63 @@ def test_the_sweep_sweeps_over_the_primary_encoder_not_the_cheapest():
 
     assert asked == [get_settings().encoder_primary]
     assert not swept  # nothing loaded, so nothing is claimed
+
+
+def test_fusion_arms_are_built_on_the_primary_encoder_even_when_another_scores_higher(
+    monkeypatch,
+):
+    """The fusion base used to be whichever encoder won Recall@5 on the items
+    being reported -- a choice made on the test data, and one that agreed with
+    the alpha sweep's encoder only by luck. Here the speed baseline is made to
+    win outright; the hybrids must still say, and be, e5."""
+    from types import SimpleNamespace
+
+    from indicrag.config import get_settings
+    from indicrag.evaluation import run as run_mod
+    from indicrag.models import QAItem, Retrieved
+
+    primary = get_settings().encoder_primary
+    searched: list[str] = []
+
+    class _Index:
+        def __init__(self, name):
+            self.name = name
+
+        def search_vector(self, _qv, k):
+            searched.append(self.name)
+            # every non-primary encoder finds the gold passage; the primary never does
+            pid = "x" if self.name == primary else "p1"
+            return [Retrieved(passage_id=pid, score=1.0, rank=1)]
+
+    class _Lex:
+        def search_bm25(self, _q, _k):
+            return [Retrieved(passage_id="y", score=1.0, rank=1)]
+
+        search_tfidf = search_bm25
+
+    def _load(spec, *_a, pooling="mean", **_kw):
+        if spec.is_mlm:
+            raise FileNotFoundError(spec.name)
+        return _Index(spec.name)
+
+    monkeypatch.setattr(run_mod.LexicalIndex, "load", staticmethod(lambda _d: _Lex()))
+    monkeypatch.setattr(run_mod.DenseIndex, "load", staticmethod(_load))
+    monkeypatch.setattr(
+        run_mod, "Encoder", lambda spec, pooling="mean": SimpleNamespace(encode_query=lambda q: q)
+    )
+
+    items = [
+        QAItem(id="q1", question="q", query_lang="en", passage_lang="en",
+               answerable=True, gold_passage_ids=["p1"])
+    ]
+    passages = [SimpleNamespace(passage_id=p, lang="en") for p in ("p1", "x", "y")]
+    reports, _ = run_mod.run_retrieval(passages, items)
+
+    hybrids = [r.system for r in reports if r.system.startswith("Hybrid")]
+    short = primary.split("/")[-1]
+    assert hybrids and all(short in h for h in hybrids), hybrids
+    by_name = {r.system: r.recall_at(5) for r in reports}
+    assert max(v for k, v in by_name.items() if not k.startswith(("Hybrid", "BM25", "TF"))) == 1.0
 
 
 def test_a_sweep_label_that_names_no_encoder_is_an_error():

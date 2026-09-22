@@ -168,7 +168,13 @@ evidence, and we are now discarding some of it.
 On this corpus the trade is clearly favourable, because monolingual retrieval
 was already strong and cross-lingual retrieval was near zero, and a method that
 moves a slice from 0.022 to 0.153 at the cost of 0.044 elsewhere is buying a
-great deal for very little. On a deployment whose queries are overwhelmingly
+great deal for very little.
+
+**The cost may not exist at all.** The 0.044 is a probe-set figure. Measured on
+the 320 gold questions (§VI-A.1) the monolingual regression is −0.008 at
+p = 1.00, while the cross-lingual gain rises to +0.389. Neither set is verified,
+so we report the probe figure as the conservative one and note that the only
+measurement taken on real questions found no price worth naming. On a deployment whose queries are overwhelmingly
 monolingual the same trade would be a poor one. We report the regression rather
 than the aggregate because the aggregate hides it: overall Recall@5 moves from
 0.483 to 0.500, a difference indistinguishable from noise (p = 0.32), and a

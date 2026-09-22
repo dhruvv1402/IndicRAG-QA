@@ -1,4 +1,4 @@
-Generated: 2026-09-22 04:43
+Generated: 2026-09-22 11:02
 Source:    evals\gold.jsonl
 Items:     320 (320 answerable, 0 unanswerable)
 Verified:  0/320
@@ -20,6 +20,7 @@ muril-base-cased/mean                           0.128     0.194     0.234     0.
 muril-base-cased/cls                            0.059     0.103     0.144     0.181     0.091     0.112   
 Hybrid RRF (BM25 + multilingual-e5-base)        0.384     0.469     0.491     0.519     0.433     0.454   
 Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.391     0.487     0.516     0.569     0.446     0.475   
+Hybrid RRF script-aware (BM25 + multilingual-e  0.384     0.547     0.603     0.662     0.476     0.521   
 
 RETRIEVAL -- Recall@5 with 95% bootstrap CI
 ------------------------------------------------------------------------------
@@ -32,6 +33,7 @@ RETRIEVAL -- Recall@5 with 95% bootstrap CI
   muril-base-cased/cls                         0.144 [0.106, 0.184]
   Hybrid RRF (BM25 + multilingual-e5-base)     0.491 [0.438, 0.547]
   Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) 0.516 [0.463, 0.572]
+  Hybrid RRF script-aware (BM25 + multilingual-e5-base) 0.603 [0.550, 0.656]
 
 n = 320 answerable queries. Intervals are percentile bootstrap over queries (1000 resamples, seed 20260922).
 Differences smaller than the interval width are not distinguishable from noise.
@@ -49,6 +51,7 @@ muril-base-cased/mean                           0.562 (n=130)   0.000 (n=90)    
 muril-base-cased/cls                            0.331 (n=130)   0.000 (n=90)    0.030 (n=100) 
 Hybrid RRF (BM25 + multilingual-e5-base)        0.969 (n=130)   0.111 (n=90)    0.210 (n=100) 
 Hybrid weighted a=0.4 (BM25 + multilingual-e5-  0.985 (n=130)   0.211 (n=90)    0.180 (n=100) 
+Hybrid RRF script-aware (BM25 + multilingual-e  0.962 (n=130)   0.500 (n=90)    0.230 (n=100) 
 
 PAIRED TESTS -- Recall@5 vs BM25
 ------------------------------------------------------------------------------
@@ -62,6 +65,7 @@ Two-sided paired randomization test, 10000 trials. * marks p < 0.05.
   muril-base-cased/cls                         delta=-0.341 p=0.0001* (n=320)
   Hybrid RRF (BM25 + multilingual-e5-base)     delta=+0.006 p=0.8005  (n=320)
   Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) delta=+0.031 p=0.0604  (n=320)
+  Hybrid RRF script-aware (BM25 + multilingual-e5-base) delta=+0.119 p=0.0001* (n=320)
 
 NOT EVALUATED
 ------------------------------------------------------------------------------

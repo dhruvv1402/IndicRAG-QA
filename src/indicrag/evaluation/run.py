@@ -15,7 +15,8 @@ from collections.abc import Callable, Sequence
 from ..config import get_settings
 from ..index.dense import CacheMismatch, DenseIndex, Encoder
 from ..index.encoders import DEFAULT_ORDER, REGISTRY, get
-from ..index.hybrid import rrf_fusion, weighted_fusion
+from ..index.hybrid import rrf_fusion, script_aware_rrf, weighted_fusion
+from ..query.langid import classify
 from ..index.lexical import LexicalIndex
 from ..models import Document, Passage, QAItem, read_jsonl
 from .probes import build_probes
@@ -117,6 +118,29 @@ def run_retrieval(
                         lex.search_bm25(i.question, CANDIDATES),
                         index.search_vector(qvecs[i.id], CANDIDATES),
                         alpha=alpha,
+                        k=TOP_K,
+                    )
+                ),
+            )
+        )
+        # Script-aware fusion is the paper's central contribution and was not
+        # among the arms this harness evaluated: its numbers came from a
+        # one-off script, on probes only. So `eval retrieval` never measured
+        # the method the system actually ships as its default, and there was no
+        # gold-set figure for it at all.
+        script_of = {
+            p.passage_id: ("deva" if p.lang == "hi" else "latin") for p in passages
+        }
+        reports.append(
+            evaluate(
+                f"Hybrid RRF script-aware (BM25 + {label})",
+                items,
+                _timed(
+                    lambda i: script_aware_rrf(
+                        lex.search_bm25(i.question, CANDIDATES),
+                        index.search_vector(qvecs[i.id], CANDIDATES),
+                        script_of=script_of,
+                        query_script=classify(i.question).script,
                         k=TOP_K,
                     )
                 ),

@@ -76,6 +76,38 @@ written to be answered rather than to be matched, and they separate the methods
 that the probes could not. The full table is committed as
 `evals/report-retrieval-goldset.txt`.
 
+**Third, and most consequentially, the central result is larger on the gold set
+and its cost disappears.** Script-aware fusion had never been measured on these
+items at all — it was absent from the retrieval harness and its figures came
+from a one-off script over the probes.
+
+| Slice | plain RRF | script-aware | dense alone | SA − plain | SA − dense |
+|---|---|---|---|---|---|
+| cross-lingual (n=90) | 0.111 | **0.500** | 0.367 | **+0.389** * | **+0.133** * |
+| code-mixed (n=100) | 0.210 | 0.230 | 0.090 | +0.020 | **+0.140** * |
+| monolingual (n=130) | 0.969 | 0.962 | 0.962 | −0.008 | +0.000 |
+| **all (n=320)** | 0.491 | **0.603** | 0.522 | **+0.113** * | **+0.081** * |
+
+Three of the probe-based qualifications in §VI-E do not survive. The
+cross-lingual gain roughly triples, from +0.131 to +0.389 (p = 0.0001). The
+monolingual regression, which §VIII-C treats as the honest price of the method,
+falls from −0.044 (p = 0.032) to −0.008 (p = 1.00) — on these questions there is
+no measurable cost. And the overall gain, which the probes could not
+distinguish from noise at p = 0.32, becomes +0.113 at p = 0.0001, making
+script-aware fusion the best of the nine systems evaluated at 0.603 Recall@5.
+
+The code-mixed gain moves the other way, from +0.145 to +0.020 (p = 0.72), for
+the same reason LaBSE's advantage evaporated: these questions carry English
+scheme names that the lexical retriever can already match, so plain RRF was not
+being penalised much to begin with. Against dense retrieval alone the gain
+remains significant on every cross-script slice.
+
+We do not restate the headline numbers on this basis, because these items are
+unverified and the probe figures at least rest on ground truth that is correct
+by construction. But the direction is worth being plain about: on real
+questions the correction helps more and costs less than the probe set
+suggested.
+
 ### B. Lexical against dense retrieval (Module 1)
 
 **Recall@5, overall, with 95% bootstrap confidence intervals** `[PROBE]`

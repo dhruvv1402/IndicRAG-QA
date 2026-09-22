@@ -184,7 +184,7 @@ def alpha_verdict(
     minimum improvement worth calling a result.
 
     A margin is still not a test. On the e5 probe sweep the best interior alpha
-    cleared it by +0.024 at a paired p of 0.139, and the report printed "H2
+    cleared it by +0.025 at a paired p of 0.126, and the report printed "H2
     SUPPORTED" over a gain that is not there. So a margin win is only called
     supported when `paired` -- best interior against best endpoint, per query --
     is significant too; without one the verdict says the test was not run.

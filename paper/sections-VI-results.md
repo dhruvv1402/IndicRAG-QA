@@ -71,9 +71,9 @@ is MiniLM's Recall@5, not the dense row's 0.522. Swept over e5, as the rest of
 the table is, no interior weighting beats pure dense: the best interior point is
 α = 0.4 at 0.516 against 0.522 at α = 0 and 0.484 at α = 1, and H2 is not
 supported on the gold set. The probe-set sweep plotted as Figure 4 had the same
-fault. Re-run over e5 it moves from a best interior margin of +0.001 to +0.024,
-at α = 0.4 (0.521 against 0.497 for pure lexical), which clears the sweep's 0.02
-margin but not a paired test (p = 0.14, n = 180). On neither set does any
+fault. Re-run over e5 it moves from a best interior margin of +0.001 to +0.025,
+at α = 0.4 (0.524 against 0.499 for pure lexical), which clears the sweep's 0.02
+margin but not a paired test (p = 0.13, n = 180). On neither set does any
 weighting significantly beat the better of its two components.
 
 The LaBSE reversal is itself evidence for the caution in §VI-A. A probe set
@@ -249,7 +249,7 @@ would conceal both the gain and the cost.
 
 This also revises the negative result of the α sweep, plotted as Figure 4, which
 found no interior weighting significantly better than the better endpoint (the
-best, α = 0.4, is +0.024 over pure lexical at p = 0.14) and recorded the hybrid
+best, α = 0.4, is +0.025 over pure lexical at p = 0.13) and recorded the hybrid
 hypothesis as unsupported. That verdict was correct about weighted fusion and
 wrong about the hypothesis: hybrid retrieval does beat its components here, once
 fusion stops penalising passages for their script.

@@ -76,25 +76,24 @@ ALPHA SWEEP -- weighted fusion, Recall@5
 ------------------------------------------------------------------------------
   BM25 + multilingual-e5-base. alpha=1.0 pure lexical, alpha=0.0 pure dense.
 
-  a=0.0  0.448
+  a=0.0  0.449
   a=0.1  0.460
   a=0.2  0.465
   a=0.3  0.506
-  a=0.4  0.521
+  a=0.4  0.524
   a=0.5  0.517
   a=0.6  0.510
   a=0.7  0.512
   a=0.8  0.514
   a=0.9  0.505
-  a=1.0  0.497
+  a=1.0  0.499
 
-  best a=0.4 (0.521) beats best endpoint (0.497) by +0.024 -> H2 SUPPORTED
-  paired, a=0.4 - BM25: delta=+0.024 p=0.1390 (n=180) -- the margin is not significant
+  best a=0.4 (0.524) vs best endpoint (0.499), delta +0.025 clears the 0.02 margin but paired p=0.1260 -> H2 NOT SUPPORTED (not significant)
 
   Re-run 2026-09-23 over e5. The sweep first published here ran over MiniLM
   (a=0.0 read 0.303, MiniLM's row above), while every fusion row is built on
-  e5. The frozen 694-passage corpus was regenerated for the re-run; it
-  reproduces the old MiniLM sweep to within one item at any alpha.
+  e5. Indexes rebuilt on `corpus segment --version 1`, which reproduces the
+  old MiniLM sweep and every dense row above to the last digit.
 
 FINDINGS
 ------------------------------------------------------------------------------

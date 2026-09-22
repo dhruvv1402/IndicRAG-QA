@@ -73,12 +73,12 @@ FUSION = {
 #: version plotted a sweep whose dense endpoint was MiniLM, not the e5 every
 #: other fusion figure is built on.
 ALPHA = [
-    (0.0, 0.448), (0.1, 0.460), (0.2, 0.465), (0.3, 0.506), (0.4, 0.521),
+    (0.0, 0.449), (0.1, 0.460), (0.2, 0.465), (0.3, 0.506), (0.4, 0.524),
     (0.5, 0.517), (0.6, 0.510), (0.7, 0.512), (0.8, 0.514), (0.9, 0.505),
-    (1.0, 0.497),
+    (1.0, 0.499),
 ]
 #: Paired randomization test, best interior alpha against pure lexical.
-ALPHA_P = 0.139
+ALPHA_P = 0.126
 
 #: Threshold sweep from evals/report-answerability.txt: (tau, precision, recall,
 #: F1, abstention). The per-class recall figure this replaced plotted a single

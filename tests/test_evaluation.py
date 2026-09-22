@@ -124,12 +124,12 @@ def test_a_margin_win_without_a_paired_test_says_so():
 
 
 def test_a_margin_win_that_fails_the_paired_test_is_not_supported():
-    """The e5 probe sweep: +0.024 clears the margin, p=0.139 does not."""
+    """The e5 probe sweep: +0.025 clears the margin, p=0.126 does not."""
     from indicrag.evaluation.stats import PairedResult
 
-    sweep = [(0.0, 0.448), (0.4, 0.521), (1.0, 0.497)]
-    verdict = alpha_verdict(sweep, paired=PairedResult(delta=0.024, p_value=0.139, n=180))
-    assert "NOT SUPPORTED" in verdict and "0.1390" in verdict
+    sweep = [(0.0, 0.449), (0.4, 0.524), (1.0, 0.499)]
+    verdict = alpha_verdict(sweep, paired=PairedResult(delta=0.025, p_value=0.126, n=180))
+    assert "NOT SUPPORTED" in verdict and "0.1260" in verdict
 
 
 def test_a_margin_win_that_passes_the_paired_test_is_supported():

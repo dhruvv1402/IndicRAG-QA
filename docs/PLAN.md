@@ -554,4 +554,4 @@ are not mistaken for oversights:
 - **Languages beyond Hindi** — PRD §14.
 - **Multi-hop question answering** — excluded at annotation time.
 - **A Hindi morphological analyser** — the light suffix stripper is a known approximation, and its cost to BM25 recall on Hindi should be noted when that number is read.
-- **Script-aware fusion over LaBSE** — §VI-F of the paper reports LaBSE alone beating the fused system on code-mixed (0.332 against 0.173). The correction is orthogonal to encoder choice and this combination is untested; it is the most obvious next experiment, not an oversight.
+- ~~**Script-aware fusion over LaBSE**~~ — **done**, see §VI-A.2. Fusing over LaBSE is worse than over e5-base by 0.138 overall (p=0.0001). The correction improves all three encoders tested, which is the orthogonality claim, but e5-base remains the right primary.

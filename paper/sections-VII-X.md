@@ -281,15 +281,13 @@ change the absolute answer quality figures. It would not change the retrieval
 results, which are model-independent, and the retrieval results are where our
 contribution lies.
 
-**The fusion correction is demonstrated over one encoder pair.** Script-aware
-fusion is evaluated over BM25 and multilingual-e5-base. As §VI-F reports, LaBSE
-used alone outperforms that fused system on the code-mixed slice by a wide
-margin (0.332 against 0.173), which means that on code-mixed queries a better
-encoder choice beats correcting the fusion over a weaker one. The correction is
-orthogonal to encoder choice and could be applied over LaBSE; we have not tested
-that combination, and until we do, our results establish that script-aware
-fusion repairs a specific defect in rank fusion, not that the resulting system
-is the strongest available configuration.
+**The fusion correction is demonstrated over three encoders, not all of them.**
+§VI-A.2 applies it over multilingual-e5-base, MiniLM-L12 and LaBSE on the gold
+set, and it improves each by a similar margin (+0.081, +0.103, +0.072), which is
+what a claim about the arithmetic rather than the representation predicts. That
+is evidence for the generalisation in §VIII-E but not proof of it: three
+sentence encoders on one corpus is a narrow base, and we have not tested the
+mechanism on the non-language asymmetries §VIII-E claims it reaches.
 
 **Most of our own pre-registered targets were missed.** We fixed eight success
 criteria before collecting any number — retrieval recall by language group,

@@ -110,6 +110,30 @@ by construction. But the direction is worth being plain about: on real
 questions the correction helps more and costs less than the probe set
 suggested.
 
+### A.2 The correction is orthogonal to encoder choice
+
+§VIII-E argues that the mechanism is about asymmetric coverage rather than about
+any particular encoder. That is testable by applying the same correction over
+different dense retrievers, and on the gold set it holds for all three we have
+embeddings for.
+
+| Encoder | dense alone | with script-aware fusion | gain |
+|---|---|---|---|
+| multilingual-e5-base | 0.522 | **0.603** | +0.081 |
+| MiniLM-L12 | 0.416 | 0.519 | +0.103 |
+| LaBSE | 0.394 | 0.466 | +0.072 |
+
+Fusion improves every one, by a similar margin, which is what a claim about the
+*arithmetic* rather than the representation predicts.
+
+It also settles a question §IX previously listed as open. Fusing over LaBSE does
+not beat fusing over e5-base: it is worse by 0.138 overall (p = 0.0001), and by
+0.246 on the monolingual slice. MiniLM leads the cross-lingual slice at 0.578
+against 0.500, but the gap is not significant (p = 0.23) and it loses heavily
+everywhere else. multilingual-e5-base remains the right primary encoder for this
+corpus, and the §VI-F caveat about LaBSE is a statement about one slice of one
+probe set rather than a better configuration we declined to use.
+
 ### B. Lexical against dense retrieval (Module 1)
 
 **Recall@5, overall, with 95% bootstrap confidence intervals** `[PROBE]`

@@ -119,6 +119,22 @@ scheme now would invalidate the same gold set for the same reason. The corpus is
 frozen until verification completes, and the measurements in this paper are
 taken on the corpus as committed.
 
+**How much this costs the results.** 86 passages of 694 draw sentences from more
+than one source section; 5 of those pair a section with its own subsection and
+are harmless, leaving 81 that join unrelated material, and 46 of the 320
+answerable gold items cite one. A merged passage is larger than it should be,
+so it presents more surface for a query to match and might be expected to
+inflate recall. It does, slightly and not significantly: those 46 items reach
+Recall@5 0.674 [0.543, 0.804] under script-aware fusion against 0.591
+[0.526, 0.650] for the other 274. The intervals overlap heavily, and at 14% of
+the set an effect of that size moves the overall figure by about a point.
+
+We report the defect rather than the reassurance, because the reassurance is
+narrow. The retrieval numbers survive it. What does not survive is the claim
+that a passage's `section_path` is reliable context for a generator: for those
+81 passages it names one of the sections present and not the others, which is
+the input §IV-A feeds the model as provenance.
+
 The gold set, the embedding caches and the error analysis all key off these
 identifiers, which is what makes their apparent stability worth stating
 precisely rather than assuming.

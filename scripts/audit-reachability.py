@@ -81,6 +81,7 @@ ALLOWED: dict[str, str] = {
     "split_sections": "used by segmentation",
     "to_roman": "used by the transliteration bridge",
     "token_overlap": "used by probe construction",
+    "verification_label": "used by the scripts/check-*.py report headers",
     # --- known dead, deliberately ------------------------------------------
     "format_misses": "no caller and no artefact depends on it; left rather than wired for its own sake",
 }

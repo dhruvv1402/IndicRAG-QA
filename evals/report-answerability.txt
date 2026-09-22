@@ -1,4 +1,4 @@
-Generated: 2026-09-21 22:59
+Generated: 2026-09-23 03:04
 Source:    evals\gold.jsonl
 Items:     400 (320 answerable, 80 unanswerable)
 Verified:  0/400
@@ -71,6 +71,25 @@ SCORE SEPARATION ACROSS RETRIEVERS
   bm25             13.5509       13.8179     0.366      0.235  <-- UNanswerable higher
   tfidf             0.1424        0.1485     0.370      0.231  <-- UNanswerable higher
 
+FEATURE SEPARATION -- hybrid
+------------------------------------------------------------------------------
+  AUC is P(a random answerable question scores above a random
+  unanswerable one). 0.500 is chance. This is what the calibrated
+  signal has to work with: a logistic regression cannot extract more
+  information than its features carry.
+
+  feature               answerable  UNanswerable     AUC
+  max_score                 0.0327        0.0325   0.528
+  margin                    0.0010        0.0009   0.541
+  mean_top_k                0.0309        0.0307   0.505
+  score_spread              0.0038        0.0033   0.585
+  scheme_agreement          0.6000        0.4000   0.541
+
+  Best single feature reaches AUC 0.585. Combining them recovers
+  somewhat more than any one of them -- see the calibrated section below --
+  but a combination is bounded by what its inputs carry, and every column
+  here is closer to chance than to a usable signal.
+
 THRESHOLD SWEEP
 ------------------------------------------------------------------------------
   Every operating point, so the shape of the trade-off is visible rather
@@ -102,3 +121,72 @@ THRESHOLD SWEEP
   Best F1 0.351 is reached at 86.8% abstention. Read those two
   together: a high recall on the unanswerable class bought by refusing
   most answerable questions is not detection, it is silence.
+
+==============================================================================
+
+CALIBRATED COMBINATION (signal 4, retrieval features only)
+------------------------------------------------------------------------------
+  Fit on the same split as the threshold, so the two are comparable.
+  The generator and NLI columns are zero here: this is the ceiling for
+  score geometry alone, before any model reads a passage.
+
+  dev F1              0.384
+  test F1             0.344
+  AUC of p(answerable)   0.607
+  best single feature    0.585   (combination gains +0.022)
+
+CALIBRATED SIGNAL -- fitted coefficients
+------------------------------------------------------------------------------
+  Positive weight pushes towards ANSWERABLE. Features are standardised,
+  so magnitudes are comparable across rows.
+
+  score_spread               0.515  ##########
+  margin                    -0.404  ########
+  scheme_agreement           0.339  ######
+  mean_top_k                -0.229  ####
+  max_score                  0.144  ##
+  generator_answerable       0.000  
+  generator_confidence       0.000  
+  entailment                 0.000  
+  answer_length              0.000  
+
+  decision threshold: 0.47
+
+ANSWERABILITY -- calibrated, retrieval features (p>=0.47)
+------------------------------------------------------------------------------
+  n = 280   (UNANSWERABLE is the positive class)
+
+  accuracy   0.550
+  precision  0.243
+  recall     0.589
+  F1         0.344
+
+                        predicted
+                  UNANSWERABLE   ANSWERABLE
+  gold UNANSWERABLE         33           23
+  gold ANSWERABLE          103          121
+
+  fn = gold UNANSWERABLE answered anyway -- the hallucination risk.
+  fp = gold ANSWERABLE refused -- the cost of a conservative threshold.
+
+RECALL BY UNANSWERABLE CLASS
+------------------------------------------------------------------------------
+  class                   recall     n
+  false-premise            0.455    11
+  near-miss                0.429    21  <-- the real test
+  out-of-scope             0.706    17
+  under-specified          1.000     7
+
+  Out-of-scope questions are trivially rejected; near-miss is where a
+  threshold either works or does not. A good aggregate F1 can hide a
+  complete failure on this row.
+
+ABSTENTION BY QUERY TYPE
+------------------------------------------------------------------------------
+  query type         abstained  over-abstained     n
+  Code-Mixed             0.529           0.528    87
+  English                0.360           0.286   100
+  Indic                  0.581           0.573    93
+
+  A global threshold that abstains more on one query type is refusing
+  users for their language rather than for missing evidence.

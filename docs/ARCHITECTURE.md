@@ -729,7 +729,9 @@ indicrag eval all           [--report evals/]     regenerates every table
 indicrag dataset generate   [--gguf <p>] [--merge-into <p>]   candidate bootstrapping
 indicrag dataset merge                             fold candidates into the gold set
 indicrag dataset scaffold-unanswerable             the 80 unanswerable items
-indicrag dataset verify                            annotation review loop, resumable
+indicrag dataset verify [--assist <p>]             annotation review loop, resumable; shows pre-review notes
+indicrag dataset review [--notes <p> --reviewed-by <who>] [--out <p>] [--report <p>]
+                                                   rule checks + reading-pass notes; advice, never verifies
 indicrag dataset second-pass [--draw|--compare]    blind 15% sample, Cohen's kappa
 indicrag dataset split      [--seed 20260922]      stratified dev/test, verified only
 indicrag dataset stats                             matrix coverage vs PRD §6.2

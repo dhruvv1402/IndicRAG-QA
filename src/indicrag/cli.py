@@ -457,14 +457,26 @@ def dataset_verify(
     path: Path = typer.Option(GOLD_PATH, "--path"),
     annotator: str = typer.Option("a1", "--annotator"),
     limit: int = typer.Option(0, "--limit", help="Review at most N items this sitting."),
+    assist: Path = typer.Option(
+        Path("evals/review-assist.jsonl"), "--assist",
+        help="Pre-review notes from `dataset review`, shown under each item if present.",
+    ),
 ) -> None:
     """Interactive review. Saves after every decision; resumable."""
+    import json as _json
+
     from .dataset.verify import verify_loop
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
     if not path.exists():
         raise typer.BadParameter(f"no candidates at {path}; run `dataset generate` first")
+
+    notes: dict[str, dict] = {}
+    if assist.exists():
+        with assist.open(encoding="utf-8") as fh:
+            notes = {r["id"]: r for r in map(_json.loads, fh) if r.get("id")}
+        typer.echo(f"pre-review notes for {len(notes)} items from {assist} (advice only)")
 
     progress = verify_loop(
         path,
@@ -473,6 +485,7 @@ def dataset_verify(
         ask=typer.prompt,
         say=typer.echo,
         limit=limit or None,
+        assist=notes,
     )
     typer.echo("")
     typer.echo(str(progress))
@@ -522,6 +535,54 @@ def dataset_second_pass(
     typer.echo("")
     typer.echo("Label each item's `answerable` field WITHOUT consulting the first pass,")
     typer.echo(f"then: indicrag dataset second-pass --compare {sample_out}")
+
+
+@dataset_app.command("review")
+def dataset_review(
+    gold: Path = typer.Option(GOLD_PATH, "--gold"),
+    notes: Path = typer.Option(
+        None, "--notes", help="JSONL from a reading pass: id, verdict, issues, suggestions."
+    ),
+    reviewed_by: str = typer.Option("", "--reviewed-by", help="Who wrote --notes. Required with it."),
+    out: Path = typer.Option(Path("evals/review-assist.jsonl"), "--out"),
+    report: Path = typer.Option(None, "--report"),
+) -> None:
+    """Pre-review the gold set for `dataset verify`. Advice only; never sets `verified`.
+
+    Runs the mechanical checks in dataset/review.py over every item and, with
+    --notes, merges a reading pass's per-item notes. `dataset verify` shows the
+    result under each item's evidence.
+    """
+    import json as _json
+
+    from .dataset.review import format_review, merge, review
+
+    if notes is not None and not reviewed_by:
+        raise typer.BadParameter("--notes needs --reviewed-by: advice must say whose it is")
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter("no passages; run `corpus segment` first")
+    items = list(read_jsonl(gold, QAItem))
+
+    by_id: dict[str, dict] = {}
+    if notes is not None:
+        with notes.open(encoding="utf-8") as fh:
+            for line in fh:
+                if line.strip():
+                    rec = _json.loads(line)
+                    by_id[rec["id"]] = rec
+        unknown = sorted(set(by_id) - {i.id for i in items})
+        if unknown:
+            raise typer.BadParameter(f"notes for items not in {gold}: {', '.join(unknown[:5])}")
+
+    records = merge(review(items, passages), by_id, reviewed_by=reviewed_by)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with out.open("w", encoding="utf-8", newline="\n") as fh:
+        for rec in records:
+            fh.write(_json.dumps(rec, ensure_ascii=False) + "\n")
+    _emit(format_review(records, items) + ["", f"{len(records)} records -> {out}"], report)
 
 
 @dataset_app.command("reanchor")

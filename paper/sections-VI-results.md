@@ -532,7 +532,11 @@ Per-class recall has to be read against that. Signal 4 scores 1.000 on every
 unanswerable class and the number means nothing, because it abstains on
 everything and every class is "caught" by construction. The generator's figures
 are earned: false-premise 1.000, under-specified 1.000, near-miss 0.952,
-out-of-scope 0.824.
+out-of-scope 0.824. Two of those rest on fewer questions than their counts
+suggest. The unanswerable scaffold cycles a fixed set of stems, so the 25
+out-of-scope items hold 9 distinct questions and the 10 under-specified items
+hold 3, and each repeat is scored as independent evidence: under-specified's
+1.000 is three questions refused correctly, counted up to four times each.
 
 ### H.2 Entailment adds nothing once the generator has abstained
 

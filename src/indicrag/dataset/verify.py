@@ -39,6 +39,7 @@ ACTIONS = """
   [a] accept           [e] edit answer      [q] edit question
   [u] mark UNANSWERABLE                     [r] reject (drop)
   [s] skip for now     [p] show full passage
+  [t] take the pre-review's suggested question/answer (then decide again)
   [w] save and quit
 """
 
@@ -89,8 +90,62 @@ def _highlight(passage_text: str, answer: str, width: int = 100) -> list[str]:
     return lines
 
 
+def render_assist(record: dict | None) -> list[str]:
+    """The pre-review's notes for one item, from `dataset review`.
+
+    Shown under the evidence, never above it: the annotator should read the
+    passage first and the advice second, or the advice becomes the judgement.
+    """
+    if not record:
+        return []
+    out: list[str] = []
+    for f in record.get("rules", []):
+        out.append(f"  rule   {f['code']}: {f['detail']}")
+    note = record.get("review")
+    if note:
+        who = record.get("reviewed_by", "reviewer")
+        issues = ", ".join(note.get("issues", []))
+        out.append(f"  review [{who}] {note['verdict'].upper()}" + (f"  ({issues})" if issues else ""))
+        for key, label in (
+            ("comment", "why"),
+            ("suggested_question", "Q?"),
+            ("suggested_answer", "A?"),
+            ("suggested_answer_hi", "A(hi)?"),
+            ("suggested_class", "class?"),
+            ("evidence_quote", "quote"),
+        ):
+            if note.get(key):
+                out.append(f"         {label:<7}{note[key]}")
+    return ["", "  -- pre-review (advice only) --", *out] if out else []
+
+
+def take_suggestion(item: QAItem, record: dict | None) -> list[str]:
+    """Apply a pre-review's suggested question and answers to `item` in place.
+
+    Returns the fields changed. `verified` is never touched here.
+    """
+    note = (record or {}).get("review") or {}
+    changed = []
+    for key, field_name in (
+        ("suggested_question", "question"),
+        ("suggested_answer", "answer_gold"),
+        ("suggested_answer_hi", "answer_gold_hi"),
+    ):
+        value = (note.get(key) or "").strip()
+        if value and value != getattr(item, field_name):
+            setattr(item, field_name, value)
+            changed.append(field_name)
+    return changed
+
+
 def render_item(
-    item: QAItem, passages: dict[str, Passage], *, index: int, total: int, hide_label: bool = False
+    item: QAItem,
+    passages: dict[str, Passage],
+    *,
+    index: int,
+    total: int,
+    hide_label: bool = False,
+    assist: dict | None = None,
 ) -> list[str]:
     out = [
         "",
@@ -111,6 +166,10 @@ def render_item(
             continue
         out.append(f"  evidence [{pid}]  {p.scheme} / {p.lang} / {p.section_path or 'lead'}")
         out += _highlight(p.text, item.answer_gold if not hide_label else "")
+    if not hide_label:
+        # Hidden in the second pass for the same reason the label is: kappa
+        # must measure the annotators' agreement, not the pre-review's.
+        out += render_assist(assist)
     return out
 
 
@@ -122,6 +181,7 @@ def verify_loop(
     ask: Callable[[str], str],
     say: Callable[[str], None],
     limit: int | None = None,
+    assist: dict[str, dict] | None = None,
 ) -> Progress:
     """Interactive review. Writes after every decision so nothing is ever lost."""
     items = list(read_jsonl(path, QAItem))
@@ -135,7 +195,9 @@ def verify_loop(
 
     for n, item in enumerate(pending, start=1):
         while True:
-            for line in render_item(item, by_id, index=n, total=len(pending)):
+            for line in render_item(
+                item, by_id, index=n, total=len(pending), assist=(assist or {}).get(item.id)
+            ):
                 say(line)
             choice = (ask("  action> ") or "").strip().lower()
 
@@ -144,6 +206,13 @@ def verify_loop(
                 item.annotator = annotator
                 item.notes = f"verified {date.today().isoformat()}"
                 break
+            if choice == "t":
+                # Copies the suggestion in and shows the item again. It never
+                # accepts: the annotator still reads the edited item against
+                # the evidence and presses [a] or not.
+                taken = take_suggestion(item, (assist or {}).get(item.id))
+                say(f"  took: {', '.join(taken)}" if taken else "  no suggestion to take")
+                continue
             if choice == "e":
                 item.answer_gold = ask("  corrected answer> ").strip()
                 continue

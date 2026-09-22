@@ -496,6 +496,29 @@ indicrag dataset split                     # seals the test split
 indicrag eval all --report evals/          # regenerates every table as [GOLD]
 ```
 
+**Pre-review, 2026-09-23.** `dataset review` ran rule checks and an automated
+reading pass (a model comparing every item with its evidence) over all 400
+items; `evals/report-review.txt` has the counts and `evals/review-assist.jsonl`
+the per-item notes, which `dataset verify` now shows under each item's evidence
+and whose suggestions `[t]` copies in. It is advice: no item's `verified` field
+was touched, and the human pass above is still the gate. What it found makes
+that pass more urgent, not less:
+
+- 27 of 320 answerable items were judged acceptable as they stand. 63 carry a
+  gold answer the passage contradicts or does not state, and 112 questions are
+  garbled machine translation, concentrated in the cross-lingual and Hinglish
+  cells -- which are the cells the paper's central result is measured on.
+- The unanswerable scaffold repeats itself: 25 out-of-scope items are 9
+  distinct questions and 10 under-specified items are 3. Replacements need
+  writing by hand (PRD §6.5 step 4).
+- Two hi->en items have the placeholder "अंग्रेज़ी प्रश्न" as their question.
+- Several passages filed under `mudra` are general Modi-government biography,
+  not the scheme; items citing them ask about something other than their label.
+
+Retrieval numbers depend on the questions and `gold_passage_ids`, not on the
+answers, so the wrong answers mostly move Module 4; the garbled questions move
+everything.
+
 ### 10.1a The corpus is frozen until verification completes
 
 A segmentation bug is fixed in `corpus/segment.py` but **not applied**. The

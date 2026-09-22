@@ -1,0 +1,52 @@
+PRE-VERIFICATION REVIEW
+------------------------------------------------------------------------------
+  Advice for the human pass in `dataset verify`, not a verification: no
+  item's `verified` field is touched, and every number in evals/ is still
+  computed on unverified items.
+
+  reading pass: 400/400 items, by claude-opus-5.5, automated pre-review 2026-09-23
+
+  verdict                  all    answerable  unanswerable
+  accept                   80            27            53
+  fix                     297           286            11
+  relabel-unanswerable      0             0             0
+  relabel-answerable        0             0             0
+  reject                   23             7            16
+  unsure                    0             0             0
+
+  issues raised by the reading pass
+    poor-translation              112
+    ambiguous                      93
+    not-standalone                 85
+    answer-verbose                 70
+    answer-wrong                   63
+    other                          58
+    answer-not-exact-wording       44
+    answer-incomplete              23
+    not-answerable-from-passage    17
+    answer-truncated               14
+    answer-not-in-passage           7
+    unnatural-code-mix              7
+    wrong-script                    5
+    wrong-unanswerable-class        1
+
+  accepted as-is, by cell
+    en->en               6 / 70  
+    en->hi               3 / 45  
+    en->unans           18 / 28  
+    hi->en               1 / 45  
+    hi->hi               8 / 60  
+    hi->unans           16 / 26  
+    hinglish->en         4 / 55  
+    hinglish->hi         5 / 45  
+    hinglish->unans     19 / 26  
+
+  rule findings: 69 items flagged
+    duplicate                      37
+    answer-verbose                 24
+    answer-unsupported              5
+    answer-truncated                4
+    placeholder                     2
+    not-standalone                  1
+
+400 records -> evals\review-assist.jsonl

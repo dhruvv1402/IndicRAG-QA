@@ -88,6 +88,8 @@ from a one-off script over the probes.
 | monolingual (n=130) | 0.969 | 0.962 | 0.962 | −0.008 | +0.000 |
 | **all (n=320)** | 0.491 | **0.603** | 0.522 | **+0.113** * | **+0.081** * |
 
+Figure 6 plots this beside Figure 3's probe version.
+
 Three of the probe-based qualifications in §VI-E do not survive. The
 cross-lingual gain roughly triples, from +0.131 to +0.389 (p = 0.0001). The
 monolingual regression, which §VIII-C treats as the honest price of the method,

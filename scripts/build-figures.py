@@ -91,6 +91,17 @@ SWEEP = [
 ]
 BASE_RATE = 0.20
 
+#: Script-aware fusion on the 320 answerable gold items, from
+#: evals/report-fusion-goldset.txt. The probe figures in FUSION above are what
+#: the paper reports; these are the same experiment on real questions, where the
+#: gain is larger and the monolingual cost is not measurable.
+FUSION_GOLD = {
+    "cross-lingual": (0.111, 0.500, 0.367, "0.0001"),
+    "code-mixed": (0.210, 0.230, 0.090, "0.72"),
+    "monolingual": (0.969, 0.962, 0.962, "1.00"),
+    "overall": (0.491, 0.603, 0.522, "0.0001"),
+}
+
 
 def fig2_by_language_group() -> Path:
     """Recall@5 by query type and system. The gap is the point."""
@@ -230,6 +241,44 @@ def fig5_answerability_sweep() -> Path:
     return _save(fig, "fig5-answerability-sweep.png")
 
 
+def fig6_fusion_goldset() -> Path:
+    """The same comparison as Figure 3, on real questions rather than probes."""
+    fig, ax = plt.subplots(figsize=(6.6, 3.1))
+    slices = list(FUSION_GOLD)
+    x = range(len(slices))
+    width = 0.26
+
+    plain = [FUSION_GOLD[s][0] for s in slices]
+    aware = [FUSION_GOLD[s][1] for s in slices]
+    dense = [FUSION_GOLD[s][2] for s in slices]
+
+    ax.bar([i - width for i in x], plain, width, label="plain RRF", color=LEXICAL)
+    ax.bar(list(x), dense, width, label="dense alone", color="#c6dbef")
+    ax.bar([i + width for i in x], aware, width, label="script-aware RRF", color=GOOD)
+
+    for i, key in enumerate(slices):
+        lo, hi, _d, p = FUSION_GOLD[key]
+        delta = hi - lo
+        ax.text(
+            i + width, hi + 0.03, f"{delta:+.3f}\np={p}",
+            ha="center", va="bottom", fontsize=6.5,
+            # Coloured by significance, not by size: +0.020 at p=0.72 is not a
+            # win and must not be drawn as one.
+            color=GOOD if float(p) < 0.05 else MUTED,
+        )
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(slices)
+    ax.set_ylabel("Recall@5")
+    ax.set_ylim(0, 1.12)
+    ax.legend(frameon=False, fontsize=7.5, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.16))
+    ax.set_title(
+        "On gold questions the gain is larger and the monolingual cost is gone",
+        fontsize=8.5, pad=20,
+    )
+    return _save(fig, "fig6-fusion-goldset.png")
+
+
 def _save(fig, name: str) -> Path:
     OUT.mkdir(parents=True, exist_ok=True)
     path = OUT / name
@@ -245,10 +294,12 @@ def main() -> int:
         fig3_script_aware_fusion,
         fig4_alpha_sweep,
         fig5_answerability_sweep,
+        fig6_fusion_goldset,
     ):
         path = build()
         print(f"  {path.relative_to(ROOT)}  ({path.stat().st_size // 1024} KB)")
-    print("\nFigures are [PROBE]: built from synthetic-probe results.")
+    print("\nFigures 2-5 are [PROBE], from 180 synthetic probes. Figure 6 is from")
+    print("the 320 answerable gold items, which are not human-verified either.")
     return 0
 
 

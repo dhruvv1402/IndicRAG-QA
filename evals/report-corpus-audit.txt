@@ -1,0 +1,31 @@
+694 passages from 80 documents
+
+  check                       pass   failing
+  --------------------------------------------
+  nonempty_text            100.0%         0
+  raw_preserves_source       0.0%         1  *
+  single_section            88.0%        83  *
+  source_present           100.0%         0
+  span_recovers_text        22.8%       536  *
+  token_count_accurate     100.0%         0
+  unique_ids               100.0%         0
+  within_max_tokens         95.8%        29  *
+
+  examples
+    span_recovers_text    midday-meal-en#p0001        char_span (1110,2035) recovers 92% of the passage's tokens
+    span_recovers_text    midday-meal-en#p0002        char_span (2035,2811) recovers 79% of the passage's tokens
+    span_recovers_text    midday-meal-en#p0003        char_span (2811,3978) recovers 82% of the passage's tokens
+    span_recovers_text    midday-meal-en#p0004        char_span (3978,4787) recovers 49% of the passage's tokens
+    span_recovers_text    midday-meal-en#p0005        char_span (4787,5875) recovers 63% of the passage's tokens
+    single_section        midday-meal-en#p0006        best-matching section covers 91% of its words
+    single_section        midday-meal-en#p0013        best-matching section covers 81% of its words
+    single_section        rte-act-en#p0014            best-matching section covers 86% of its words
+    single_section        rte-act-en#p0020            best-matching section covers 69% of its words
+    within_max_tokens     nps-en#p0008                244 tokens against a stated bound of 240
+    within_max_tokens     nps-en#p0009                321 tokens against a stated bound of 240
+    single_section        nps-en#p0013                best-matching section covers 79% of its words
+    within_max_tokens     icds-en#p0002               241 tokens against a stated bound of 240
+    within_max_tokens     sarva-shiksha-en#p0007      249 tokens against a stated bound of 240
+    within_max_tokens     mgnrega-en#p0023            253 tokens against a stated bound of 240
+
+  failing: raw_preserves_source, single_section, span_recovers_text, within_max_tokens

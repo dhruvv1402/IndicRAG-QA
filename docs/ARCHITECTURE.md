@@ -703,6 +703,7 @@ kept against the code.
 indicrag corpus fetch                      download sources, write manifest
 indicrag corpus validate                   Devanagari integrity checks
 indicrag corpus segment                    passages.jsonl
+indicrag corpus audit [--report <path>]    passage-level invariants (§4 metadata, token bounds)
 indicrag corpus stats                      counts by scheme, language, length histogram
 
 indicrag index lexical                     fit TF-IDF and BM25

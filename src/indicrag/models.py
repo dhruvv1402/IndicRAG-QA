@@ -80,10 +80,23 @@ class Document:
 class Passage:
     """A retrievable chunk of a document.
 
-    `text` is normalized (for matching); `text_raw` is what the document actually
-    said (for display and citation). They travel together everywhere -- showing a
-    user a digit-normalized amount when the circular wrote it differently would
-    be a small lie in a system whose whole point is evidence fidelity.
+    `text` is normalized (for matching); `text_raw` is meant to be what the
+    document actually said (for display and citation). They travel together
+    everywhere -- showing a user a digit-normalized amount when the circular
+    wrote it differently would be a small lie in a system whose whole point is
+    evidence fidelity.
+
+    That is the design. In the committed corpus it is not yet the behaviour:
+    `segment.py` splits sentences *after* normalizing the section, so both fields
+    are cut from the normalized stream and 691 of 694 passages have a `text_raw`
+    that normalization leaves unchanged -- not one Hindi passage keeps the
+    Devanagari digits its source uses. `char_span` has the same root cause and is
+    worse: the cursor advances by the normalized length through raw source text,
+    so the offsets drift monotonically and only 22.8% of them name a slice that
+    recovers their own passage. Nothing reads either field, which is why neither
+    failed loudly. `corpus audit` now reads both; fixing them means giving
+    segmentation a source-offset mapping, which re-cuts every passage and so is
+    held until the gold set is re-anchored.
 
     `passage_id` must be stable across re-segmentation runs: the gold set, the
     embedding caches and the error analysis all reference it by name.

@@ -114,6 +114,33 @@ def corpus_validate() -> None:
         raise typer.Exit(code=1)
 
 
+@corpus_app.command("audit")
+def corpus_audit(report: Path | None = typer.Option(None, help="also write the audit here")) -> None:
+    """Check every passage-level invariant the codebase claims.
+
+    Separate from `corpus validate`, which reads the extracted *text*. This reads
+    the *passages*, and it is the only thing that looks at `char_span` at all.
+    """
+    from .corpus.integrity import audit, format_audit, load_sources
+
+    cfg = get_settings()
+    docs = list(read_jsonl(cfg.manifest_path, Document))
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter(f"no passages at {cfg.passages_path}; run `corpus segment` first")
+
+    result = audit(passages, load_sources(cfg.text_dir, docs))
+    lines = format_audit(result)
+    for line in lines:
+        typer.echo(line)
+    if report is not None:
+        report.parent.mkdir(parents=True, exist_ok=True)
+        report.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        typer.echo(f"\nreport -> {report}")
+    if result.blocking_failures:
+        raise typer.Exit(code=1)
+
+
 @corpus_app.command("segment")
 def corpus_segment() -> None:
     """Segment every document into passages with stable IDs."""

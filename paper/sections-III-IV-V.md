@@ -135,6 +135,32 @@ that a passage's `section_path` is reliable context for a generator: for those
 81 passages it names one of the sections present and not the others, which is
 the input §IV-A feeds the model as provenance.
 
+**Three further metadata defects, and why they went unseen.** Auditing the
+remaining per-passage invariants found that `section_path` is not the only
+provenance field that does not mean what it says. 29 passages exceed the stated
+240-token bound, one reaching 321. `text_raw`, documented as the source spelling
+kept alongside the normalized `text` so that a cited amount is displayed as the
+circular wrote it, is itself normalized: 691 of 694 passages have a `text_raw`
+that normalization leaves unchanged, and no Hindi passage retains the Devanagari
+digits its source uses. `char_span` is worse still -- the segmenter advances its
+cursor by the normalized chunk length while searching raw source text, so the
+offsets drift monotonically within a document, and only 22.8% name a slice that
+recovers their own passage while 56 have drifted past the end and name nothing.
+
+All three share the root cause the section-spanning defect has: segmentation
+splits sentences after normalizing a section and never keeps a mapping back to
+the source. They share something more instructive too. Every one of these fields
+is written, serialized, and documented, and *read by nothing* -- so none of them
+could fail loudly, and a downstream citation view built on `char_span` would
+have pointed a reader at the wrong text roughly four times in five. This is the
+same failure mode as §VI-D's uninstantiated NLI scorer and the unread
+`cited_found` flag: not incorrect code that broke, but correct-looking code that
+no execution path ever reached. We therefore added `corpus audit`, which reads
+every one of these invariants and reports a per-check rate, and we report its
+output on the committed corpus rather than only the repaired one. Repair means
+giving segmentation a source-offset mapping, which re-cuts every passage and so
+waits on the same re-anchoring as the merge fix.
+
 The gold set, the embedding caches and the error analysis all key off these
 identifiers, which is what makes their apparent stability worth stating
 precisely rather than assuming.

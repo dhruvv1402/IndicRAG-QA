@@ -1169,6 +1169,7 @@ def eval_qa(
         False, "--nli",
         help="Verify citations by entailment as well as word overlap (~0.3s/answer).",
     ),
+    split: str = typer.Option("all", "--split", help="all | dev | test (after `dataset split`)."),
 ) -> None:
     """Module 4: direct LLM vs retrieval-augmented question answering."""
     from .evaluation.qa_run import format_module4, run_module4
@@ -1181,7 +1182,12 @@ def eval_qa(
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
-    items = [i for i in read_jsonl(gold, QAItem) if i.answerable]
+    if split not in {"all", "dev", "test"}:
+        raise typer.BadParameter("--split must be all, dev or test")
+    items = [
+        i for i in read_jsonl(gold, QAItem)
+        if i.answerable and (split == "all" or i.split == split)
+    ]
     if not items:
         raise typer.BadParameter(f"no answerable items in {gold}")
 

@@ -718,7 +718,7 @@ indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>]
 indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4] [--split all|dev|test]
                                            [--sweep/--no-sweep]   alpha sweep, H2
 indicrag eval probes        [--out <p>] [--per-shape 60]   rebuild the probe set
-indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N]
+indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N] [--split all|dev|test]
                                            [--gguf <path>] [--no-model] [--nli]
 indicrag eval answerability [--report <p>] [--method hybrid] [--dev-fraction 0.3]
                                            [--gguf <p>]   adds signals 2 and 3

@@ -35,6 +35,27 @@ class Module4Result:
         return [a for a in ARM_ORDER if a in self.qa]
 
 
+def resolve_citation(raw: str, context_ids: Sequence[str]) -> str:
+    """The passage id a generation's citation refers to, in the forms it uses.
+
+    The prompt labels each passage `[1] id=<passage_id> (...)`, and the model
+    cites back in that notation: `id=make-in-india-en#p0004`, `[id=...]`, or
+    just the index `[1]`. Compared raw against the corpus ids, every one of
+    those scored as a *fabricated* citation -- a real passage, named correctly,
+    counted as invented evidence. An index resolves to the context passage at
+    that position; anything else is returned stripped, and is fabricated only
+    if it still names no passage.
+    """
+    cited = raw.strip().strip("[]()").strip()
+    for prefix in ("id=", "id:", "id "):
+        if cited.lower().startswith(prefix):
+            cited = cited[len(prefix):].strip()
+    cited = cited.strip("[]()").strip()
+    if cited.isdigit() and 1 <= int(cited) <= len(context_ids):
+        return context_ids[int(cited) - 1]
+    return cited
+
+
 def _golds(item: QAItem) -> list[str]:
     return [g for g in (item.answer_gold, item.answer_gold_hi) if g]
 
@@ -90,7 +111,7 @@ def score_arm(
         # is no context, so the gold passage is used -- the question there is
         # whether an unevidenced answer happens to match the truth, which is
         # exactly the hallucination baseline H3 needs.
-        cited = gen.citation.strip()
+        cited = resolve_citation(gen.citation, gen.context_ids or [])
         evidence_ids = [cited] if cited in by_pid else (gen.context_ids or item.gold_passage_ids)
         evidence = " ".join(by_pid[pid].text for pid in evidence_ids if pid in by_pid)
 

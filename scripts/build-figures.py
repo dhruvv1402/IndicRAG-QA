@@ -103,6 +103,79 @@ FUSION_GOLD = {
 }
 
 
+def fig1_pipeline() -> Path:
+    """The system diagram §IV-A cites, which did not exist until now.
+
+    Drawn here rather than by hand so it stays consistent with the prose it
+    illustrates. Two rows, because the offline and query-time halves have very
+    different costs and a reader needs to see which work happens once.
+    """
+    from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
+
+    fig, ax = plt.subplots(figsize=(7.2, 3.4))
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 46)
+    ax.axis("off")
+
+    def box(x, y, w, h, text, *, fc="#eef2f6", bold=False):
+        ax.add_patch(
+            FancyBboxPatch(
+                (x, y), w, h, boxstyle="round,pad=0.5,rounding_size=1.2",
+                facecolor=fc, edgecolor=INK, linewidth=0.9,
+            )
+        )
+        ax.text(
+            x + w / 2, y + h / 2, text, ha="center", va="center",
+            fontsize=7.2, color=INK, fontweight="bold" if bold else "normal",
+        )
+
+    def arrow(x1, y1, x2, y2, colour=INK):
+        ax.add_patch(
+            FancyArrowPatch(
+                (x1, y1), (x2, y2), arrowstyle="-|>", mutation_scale=8,
+                linewidth=0.9, color=colour, shrinkA=1, shrinkB=1,
+            )
+        )
+
+    ax.text(1, 42.5, "offline, once", fontsize=7, style="italic", color=MUTED)
+    box(1, 31, 17, 9, "EN / HI documents\n40 schemes", fc="#e4ecf4")
+    box(23, 31, 18, 9, "validate\nDevanagari integrity")
+    box(46, 31, 15, 9, "segment\n694 passages")
+    box(66, 35.5, 17, 5.5, "BM25 / TF-IDF", fc="#f0f0f0")
+    box(66, 29, 17, 5.5, "dense encoder", fc="#dce9f5")
+    arrow(18, 35.5, 23, 35.5)
+    arrow(41, 35.5, 46, 35.5)
+    arrow(61, 35.5, 66, 38.2)
+    arrow(61, 35.5, 66, 31.7)
+
+    ax.text(1, 22.5, "per query", fontsize=7, style="italic", color=MUTED)
+    box(1, 10, 15, 9, "query\nEN / HI / Hinglish", fc="#e4ecf4")
+    box(21, 10, 15, 9, "language +\nscript ID")
+    box(41, 10, 17, 9, "script-aware\nfusion", fc="#dbeee2", bold=True)
+    box(63, 10, 16, 9, "generator,\nconstrained to\nthe evidence")
+    box(84, 10, 15, 9, "answerability", fc="#f5e9e9")
+    arrow(16, 14.5, 21, 14.5)
+    arrow(36, 14.5, 41, 14.5)
+    arrow(58, 14.5, 63, 14.5)
+    arrow(79, 14.5, 84, 14.5)
+
+    # Both indices feed fusion, and fusion needs each passage's script to know
+    # which retriever was eligible to return it.
+    arrow(66, 34.8, 54, 19.3, MUTED)
+    arrow(66, 30.5, 54, 19.3, MUTED)
+    ax.text(56, 25.5, "+ passage script", fontsize=6.4, color=MUTED, style="italic")
+
+    box(84, 1.5, 15, 5.5, "answer + citation\nor refusal", fc="#e4ecf4")
+    arrow(91.5, 10, 91.5, 7.2)
+
+    ax.text(
+        42, 3.2,
+        "One path serves all three query types: the pipeline does not branch on detected language.",
+        ha="center", fontsize=6.6, style="italic", color=MUTED,
+    )
+    return _save(fig, "fig1-pipeline.png")
+
+
 def fig2_by_language_group() -> Path:
     """Recall@5 by query type and system. The gap is the point."""
     fig, ax = plt.subplots(figsize=(6.6, 3.0))
@@ -290,6 +363,7 @@ def _save(fig, name: str) -> Path:
 
 def main() -> int:
     for build in (
+        fig1_pipeline,
         fig2_by_language_group,
         fig3_script_aware_fusion,
         fig4_alpha_sweep,

@@ -509,8 +509,13 @@ identifier still resolves, **312 resolve to different text** — and 123 of the
 320 answerable gold items cite one of those. Nothing would break loudly; a third
 of the gold set would simply start pointing at the wrong passage.
 
-So: do not run `corpus segment` until the gold set is verified and either
-re-anchored or regenerated. Content-derived identifiers are the right long-term
+So: do not adopt the corrected segmentation until the gold set is verified and
+either re-anchored or regenerated. `corpus segment` now defaults to `--version 1`,
+which regenerates the frozen corpus byte for byte (it did not before 2026-09-23:
+the command ran the corrected segmenter, and no committed code produced the
+corpus every report is measured on). `--version 2` applies both fixes -- the
+section-boundary merge above and the `Rs.` sentence split from e7e8ab4, which
+landed after the freeze too -- and warns that its IDs do not match the gold set. Content-derived identifiers are the right long-term
 fix, since they fail loudly, and adopting them has exactly the same cost today.
 
 ### 10.2 Resolved since the last update

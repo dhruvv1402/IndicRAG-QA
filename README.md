@@ -64,7 +64,7 @@ uv sync --group dev --extra llm
 ```bash
 indicrag corpus fetch                  # download sources, write the provenance manifest
 indicrag corpus extract                # text extraction + Devanagari integrity validation
-indicrag corpus segment                # -> data/passages.jsonl
+indicrag corpus segment                # -> data/passages.jsonl (frozen v1, 694 passages)
 indicrag corpus stats                  # counts by scheme and language, length histogram
 
 indicrag index lexical                 # fit TF-IDF and BM25

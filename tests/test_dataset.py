@@ -543,3 +543,42 @@ def test_a_passage_reports_the_section_it_actually_came_from():
     for p in passages:
         if "UPI processes" in p.text:
             assert "Introduction" not in (p.section_path or "")
+
+
+# --- segmentation versions ----------------------------------------------------------
+#
+# The frozen corpus (v1) is what every committed number and the gold set's passage
+# IDs refer to, and until the version parameter existed no committed code produced
+# it. These pin that v1 keeps both behaviours the later fixes removed, so a future
+# cleanup of the segmenter cannot quietly make the frozen corpus unreproducible
+# again.
+
+
+def test_frozen_segmentation_keeps_the_cross_section_merge():
+    from indicrag.corpus.segment import FROZEN_VERSION, segment_document
+
+    long_a = " ".join(f"Alpha sentence {n} about eligibility criteria." for n in range(40))
+    short_b = " ".join(f"Budget clause {n} names an allocation." for n in range(6))
+    text = f"== Introduction ==\n{long_a}\n\n== Budget ==\n{short_b}\n"
+    passages = segment_document(_doc(), text, version=FROZEN_VERSION)
+
+    assert not any(p.section_path == "Budget" for p in passages)
+    assert "Budget clause" in passages[-1].text  # folded into the intro's last passage
+
+
+def test_frozen_segmentation_splits_after_rs():
+    """v1 predates the abbreviation guard, so "Rs." ends a sentence there."""
+    from indicrag.corpus.normalize import split_sentences
+
+    text = "The scheme provides Rs. 12,000 per annum. It began in 2015."
+    assert split_sentences(text) == ["The scheme provides Rs. 12,000 per annum.", "It began in 2015."]
+    assert split_sentences(text, protect_abbreviations=False)[0] == "The scheme provides Rs."
+
+
+def test_an_unknown_segmentation_version_is_refused():
+    import pytest
+
+    from indicrag.corpus.segment import segment_document
+
+    with pytest.raises(ValueError):
+        segment_document(_doc(), "== A ==\nText.\n", version=3)

@@ -44,6 +44,20 @@ MIN_TOKENS = 60
 MAX_TOKENS = 240
 OVERLAP_RATIO = 0.25
 
+#: Segmentation versions. Passage IDs are positional, so a change to how text is
+#: split is a change to what every ID means, and the version is what names it.
+#:
+#: 1 -- the frozen corpus: 694 passages, the one every committed report, the
+#:      embedding caches and the gold set's `gold_passage_ids` refer to. Built
+#:      before two later fixes: sentence splitting broke after "Rs." (e7e8ab4),
+#:      and the undersized-chunk guard merged across section boundaries and past
+#:      MAX_TOKENS (9dc9d2d).
+#: 2 -- both fixes applied: 803 passages. Of the IDs that survive, 312 resolve to
+#:      different text, and 123 of the 320 answerable gold items cite one, so it
+#:      must not be adopted until the gold set is re-anchored (PLAN §10.1a).
+FROZEN_VERSION = 1
+CURRENT_VERSION = 2
+
 
 def count_tokens(text: str) -> int:
     """Whitespace token count.
@@ -117,14 +131,25 @@ def _pack(sentences: list[str], *, target: int, hard_max: int) -> Iterator[list[
         yield buf
 
 
-def segment_document(doc: Document, text: str) -> list[Passage]:
-    """Split one document into passages with stable IDs and section metadata."""
+def segment_document(
+    doc: Document, text: str, *, version: int = CURRENT_VERSION
+) -> list[Passage]:
+    """Split one document into passages with stable IDs and section metadata.
+
+    `version` selects the segmentation the IDs belong to; see FROZEN_VERSION.
+    Until 2026-09-23 no committed code produced version 1 at all -- the corpus
+    every number is measured on could not be regenerated, which is the NFR-6
+    failure this parameter closes.
+    """
+    if version not in (FROZEN_VERSION, CURRENT_VERSION):
+        raise ValueError(f"unknown segmentation version {version}")
+    legacy = version == FROZEN_VERSION
     passages: list[Passage] = []
     index = 0
     cursor = 0
 
     for section in split_sections(text):
-        sentences = split_sentences(normalize_text(section.text))
+        sentences = split_sentences(normalize_text(section.text), protect_abbreviations=not legacy)
         if not sentences:
             continue
 
@@ -164,8 +189,13 @@ def segment_document(doc: Document, text: str) -> list[Passage]:
                 can_merge = (
                     previous is not None
                     and previous.doc_id == doc.doc_id
-                    and previous.section_path == section.path
-                    and count_tokens(previous.text + " " + body) <= MAX_TOKENS
+                    and (
+                        legacy
+                        or (
+                            previous.section_path == section.path
+                            and count_tokens(previous.text + " " + body) <= MAX_TOKENS
+                        )
+                    )
                 )
                 if can_merge:
                     merged = previous.text + " " + body

@@ -189,9 +189,29 @@ def corpus_audit(report: Path | None = typer.Option(None, help="also write the a
 
 
 @corpus_app.command("segment")
-def corpus_segment() -> None:
-    """Segment every document into passages with stable IDs."""
-    from .corpus.segment import segment_document
+def corpus_segment(
+    version: int = typer.Option(
+        1, "--version",
+        help="Segmentation version. 1 is the frozen corpus every report and the gold "
+        "set refer to; 2 applies the later fixes and re-points 312 passage IDs.",
+    ),
+) -> None:
+    """Segment every document into passages with stable IDs.
+
+    Defaults to the frozen version, because that is the corpus the gold set's
+    passage IDs name. Running the corrected segmenter by default -- which is
+    what this command did -- silently re-points a third of the gold set at
+    different text, with no broken reference to show it (PLAN §10.1a).
+    """
+    from .corpus.segment import CURRENT_VERSION, FROZEN_VERSION, segment_document
+
+    if version not in (FROZEN_VERSION, CURRENT_VERSION):
+        raise typer.BadParameter(f"--version must be {FROZEN_VERSION} or {CURRENT_VERSION}")
+    if version != FROZEN_VERSION:
+        typer.echo(
+            f"WARNING: segmentation v{version} is not the frozen corpus. Passage IDs it "
+            "writes do not match evals/gold.jsonl; re-anchor the gold set before use."
+        )
 
     cfg = get_settings()
     docs = list(read_jsonl(cfg.manifest_path, Document))
@@ -203,13 +223,13 @@ def corpus_segment() -> None:
         path = cfg.text_dir / f"{doc.doc_id}.txt"
         if not path.exists():
             continue
-        got = segment_document(doc, path.read_text(encoding="utf-8"))
+        got = segment_document(doc, path.read_text(encoding="utf-8"), version=version)
         passages.extend(got)
         typer.echo(f"  {doc.doc_id:28s} {len(got):4d} passages")
 
     n = write_jsonl(cfg.passages_path, passages)
     typer.echo("")
-    typer.echo(f"{n} passages -> {cfg.passages_path}")
+    typer.echo(f"{n} passages (segmentation v{version}) -> {cfg.passages_path}")
 
 
 @corpus_app.command("stats")
@@ -502,6 +522,51 @@ def dataset_second_pass(
     typer.echo("")
     typer.echo("Label each item's `answerable` field WITHOUT consulting the first pass,")
     typer.echo(f"then: indicrag dataset second-pass --compare {sample_out}")
+
+
+@dataset_app.command("reanchor")
+def dataset_reanchor(
+    out: Path = typer.Option(..., "--out", help="Proposed gold file. Never evals/gold.jsonl."),
+    gold: Path = typer.Option(GOLD_PATH, "--gold"),
+    to_version: int = typer.Option(2, "--to-version"),
+    report: Path = typer.Option(None, "--report"),
+) -> None:
+    """Map gold citations from the frozen segmentation to a newer one.
+
+    Both versions are segmented here from the fetched text, so the answer does
+    not depend on which passages.jsonl happens to be on disk. Writes a proposed
+    gold file and never the gold set itself: adopting it is a verification
+    decision, not a build step.
+    """
+    from .corpus.segment import FROZEN_VERSION, segment_document
+    from .dataset.reanchor import apply, format_reanchor, reanchor
+
+    if out.resolve() == gold.resolve():
+        raise typer.BadParameter("--out must not be the gold set itself")
+    if to_version == FROZEN_VERSION:
+        raise typer.BadParameter(f"--to-version must differ from the frozen v{FROZEN_VERSION}")
+
+    cfg = get_settings()
+    docs = list(read_jsonl(cfg.manifest_path, Document))
+    old: list[Passage] = []
+    new: list[Passage] = []
+    for doc in docs:
+        path = cfg.text_dir / f"{doc.doc_id}.txt"
+        if not path.exists():
+            continue
+        text = path.read_text(encoding="utf-8")
+        old.extend(segment_document(doc, text, version=FROZEN_VERSION))
+        new.extend(segment_document(doc, text, version=to_version))
+    if not old:
+        raise typer.BadParameter(f"no fetched text under {cfg.text_dir}; run `corpus fetch` first")
+
+    items = list(read_jsonl(gold, QAItem))
+    result = reanchor(items, old, new)
+    n = write_jsonl(out, apply(items, result, version=to_version))
+    lines = [f"v{FROZEN_VERSION}: {len(old)} passages   v{to_version}: {len(new)} passages", ""]
+    lines += format_reanchor(result, old_version=FROZEN_VERSION, new_version=to_version)
+    lines += ["", f"{n} items -> {out}  (proposed; {gold} is unchanged)"]
+    _emit(lines, report)
 
 
 @dataset_app.command("stats")

@@ -184,7 +184,7 @@ _SENT_SPLIT_RE = re.compile(rf"(?<=[.!?{DANDA}{DOUBLE_DANDA}])\s+")
 _ABBREV_GUARD = "\x00"
 
 
-def split_sentences(text: str) -> list[str]:
+def split_sentences(text: str, *, protect_abbreviations: bool = True) -> list[str]:
     """Split on both Latin and Devanagari sentence terminators.
 
     Danda (।) and double danda (॥) are Hindi's full stops; a Latin-only splitter
@@ -194,9 +194,16 @@ def split_sentences(text: str) -> list[str]:
     Abbreviation stops are protected first -- see `_ABBREVIATIONS`. The guard is a
     NUL placeholder rather than a lookbehind because Python's `re` requires
     fixed-width lookbehind and the abbreviations differ in length.
+
+    `protect_abbreviations=False` is the splitter the frozen corpus was
+    segmented with, before that protection existed. It exists so the corpus
+    every reported number is measured on can be regenerated; nothing else
+    should pass it.
     """
     if not text:
         return []
+    if not protect_abbreviations:
+        return [p.strip() for p in _SENT_SPLIT_RE.split(text) if p.strip()]
     guarded = _ABBREV_RE.sub(lambda m: m.group(1) + _ABBREV_GUARD, text)
     parts = _SENT_SPLIT_RE.split(guarded)
     return [p.replace(_ABBREV_GUARD, ". ").strip() for p in parts if p.strip()]

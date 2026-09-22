@@ -702,7 +702,7 @@ kept against the code.
 ```
 indicrag corpus fetch                      download sources, write manifest
 indicrag corpus validate                   Devanagari integrity checks
-indicrag corpus segment                    passages.jsonl
+indicrag corpus segment [--version 1]      passages.jsonl; v1 is the frozen corpus, v2 the corrected one
 indicrag corpus audit [--report <path>]    passage-level invariants (§4 metadata, token bounds)
 indicrag corpus repair-spans [--apply]     re-derive char_span/text_raw by alignment; never moves IDs
 indicrag corpus stats                      counts by scheme, language, length histogram
@@ -733,6 +733,8 @@ indicrag dataset verify                            annotation review loop, resum
 indicrag dataset second-pass [--draw|--compare]    blind 15% sample, Cohen's kappa
 indicrag dataset split      [--seed 20260922]      stratified dev/test, verified only
 indicrag dataset stats                             matrix coverage vs PRD §6.2
+indicrag dataset reanchor --out <p> [--to-version 2] [--report <p>]
+                                                   map gold citations v1 -> v2; proposes, never overwrites
 ```
 
 `--report <path>` is available on every `eval` subcommand; a formatter returning

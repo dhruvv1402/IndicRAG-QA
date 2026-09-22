@@ -119,6 +119,48 @@ def test_alpha_verdict_accepts_a_clear_win():
     assert "NOT SUPPORTED" not in alpha_verdict(sweep)
 
 
+def test_the_sweep_sweeps_over_the_primary_encoder_not_the_cheapest():
+    """The defect this guards produced a report that disagreed with itself.
+
+    `DEFAULT_ORDER` is cheapest-first, and the sweep took the first index that
+    loaded, so its alpha=0 endpoint was the speed baseline while every fusion
+    arm in the table above it was built on the primary encoder. On the gold set
+    that printed 0.416 for "pure dense" beside a dense row reading 0.522, and
+    flipped the H2 verdict from negative to positive.
+    """
+    from indicrag.config import get_settings
+    from indicrag.evaluation import run as run_mod
+    from indicrag.index.encoders import DEFAULT_ORDER
+
+    assert DEFAULT_ORDER[0] != get_settings().encoder_primary  # the trap is still there
+
+    asked: list[str] = []
+
+    def _load(spec, *a, **kw):
+        asked.append(spec.name)
+        raise FileNotFoundError(spec.name)
+
+    original = run_mod.DenseIndex.load
+    run_mod.DenseIndex.load = staticmethod(_load)  # type: ignore[method-assign]
+    try:
+        swept = run_mod.alpha_sweep([], [])
+    finally:
+        run_mod.DenseIndex.load = original  # type: ignore[method-assign]
+
+    assert asked == [get_settings().encoder_primary]
+    assert not swept  # nothing loaded, so nothing is claimed
+
+
+def test_a_sweep_label_that_names_no_encoder_is_an_error():
+    """Silently falling back to a different model is how the first defect hid."""
+    import pytest
+
+    from indicrag.evaluation.run import alpha_sweep
+
+    with pytest.raises(KeyError):
+        alpha_sweep([], [], "not-a-model")
+
+
 # --- calibration of the statistical machinery ------------------------------------
 #
 # The tests above check that the functions behave sensibly on hand-built cases.

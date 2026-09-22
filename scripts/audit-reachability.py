@@ -36,6 +36,7 @@ ALLOWED: dict[str, str] = {
     "Span": "returned by corpus.align.locate()",
     # --- dataclasses constructed and returned within their own module -----
     "Agreement": "returned by compare()",
+    "AlphaSweep": "returned by alpha_sweep()",
     "Check": "returned by the validate helpers",
     "ConfusionMatrix": "returned by AnswerabilityReport.confusion()",
     "CorpusAudit": "returned by corpus.integrity.audit()",

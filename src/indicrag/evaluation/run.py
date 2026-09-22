@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from ..config import get_settings
 from ..index.dense import CacheMismatch, DenseIndex, Encoder
@@ -183,33 +184,61 @@ def alpha_verdict(sweep: Sequence[tuple[float, float]], *, margin: float = 0.02)
     )
 
 
+@dataclass
+class AlphaSweep:
+    """A sweep and the dense system whose endpoint it is.
+
+    The label is not decoration. Without it the sweep printed a pure-dense
+    endpoint that disagreed with the dense row of the table above it, in the
+    same report, and nothing said why.
+    """
+
+    dense: str
+    points: list[tuple[float, float]]
+
+    def __bool__(self) -> bool:
+        return bool(self.points)
+
+
 def alpha_sweep(
     passages: Sequence[Passage],
     items: Sequence[QAItem],
     dense_label: str | None = None,
     *,
     points: Sequence[float] = tuple(i / 10 for i in range(11)),
-) -> list[tuple[float, float]]:
+) -> AlphaSweep:
     """Recall@5 across alpha. The endpoints recover pure dense and pure lexical,
     so this curve is the evidence for or against H2: if no interior alpha beats
-    both ends, hybrid fusion is not adding signal and the paper must say so."""
-    cfg = get_settings()
-    lex = LexicalIndex.load(cfg.lex_dir)
+    both ends, hybrid fusion is not adding signal and the paper must say so.
 
-    index = None
-    encoder = None
-    for name in DEFAULT_ORDER:
+    The dense endpoint defaults to the **primary** encoder, because that is the
+    system every other fusion arm is built on and the one the endpoint is read
+    as. It used to be whichever index loaded first, and `DEFAULT_ORDER` is
+    cheapest-first, so the sweep silently ran on the speed baseline while the
+    table beside it fused over e5-base -- which made the gold-set sweep read
+    0.416 at alpha=0 where the dense row said 0.522, and turned a negative H2
+    verdict positive. A label that does not resolve is an error rather than a
+    quiet fallback, for the same reason.
+    """
+    cfg = get_settings()
+    wanted = dense_label or cfg.encoder_primary
+    order = [n for n in DEFAULT_ORDER if n == wanted or n.endswith(wanted)]
+    if not order:
+        raise KeyError(f"no registered encoder matches {wanted!r}; known: {', '.join(DEFAULT_ORDER)}")
+
+    for name in order:
         spec = get(name)
         try:
             index = DenseIndex.load(spec, cfg.emb_dir, passages)
         except (FileNotFoundError, CacheMismatch):
             continue
         encoder = Encoder(spec)
-        if dense_label is None or name.endswith(dense_label):
-            break
-    if index is None or encoder is None:
-        return []
+        break
+    else:
+        return AlphaSweep(dense=wanted, points=[])
 
+    lex = LexicalIndex.load(cfg.lex_dir)
+    label = name.split("/")[-1]
     qvecs = {i.id: encoder.encode_query(i.question) for i in items}
     out: list[tuple[float, float]] = []
     for a in points:
@@ -226,7 +255,7 @@ def alpha_sweep(
             ),
         )
         out.append((a, rep.recall_at(5)))
-    return out
+    return AlphaSweep(dense=label, points=out)
 
 
 def load_probes(passages: Sequence[Passage], per_shape: int = 60) -> list[QAItem]:

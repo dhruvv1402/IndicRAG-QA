@@ -627,12 +627,15 @@ def eval_retrieval(
         # repository. NFR-6 says every reported table regenerates from one
         # command; this is one of the tables.
         typer.echo("  alpha sweep")
-        points = alpha_sweep(passages, items)
-        if points:
+        swept = alpha_sweep(passages, items)
+        if swept:
             lines += ["", "ALPHA SWEEP -- weighted fusion, Recall@5", "-" * 78, ""]
-            lines += ["  alpha=1.0 pure lexical, alpha=0.0 pure dense.", ""]
-            lines += [f"  a={a:.1f}  {r:.3f}" for a, r in points]
-            lines += ["", f"  {alpha_verdict(points)}"]
+            lines += [
+                f"  BM25 + {swept.dense}. alpha=1.0 pure lexical, alpha=0.0 pure dense.",
+                "",
+            ]
+            lines += [f"  a={a:.1f}  {r:.3f}" for a, r in swept.points]
+            lines += ["", f"  {alpha_verdict(swept.points)}"]
         else:
             lines += ["", "ALPHA SWEEP -- skipped: no dense index available."]
 

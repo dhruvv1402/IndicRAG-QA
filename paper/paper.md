@@ -987,12 +987,17 @@ English scheme names, which BM25 can match directly against the English
 passages, and the probe set's code-mixed shape evidently did not reproduce that.
 §VI-F should be read as a claim about the probe set until verification decides.
 
-Second, the α sweep reverses, and with it the H2 verdict. On the probes no
-interior weighting beat the endpoints by more than 0.001. On the gold set
-α = 0.4 reaches 0.547 against 0.484 for pure lexical and 0.416 for pure dense —
-a margin of 0.062, comfortably outside the noise band. Weighted hybrid fusion
-does help on these questions, which is the opposite of what §VI-E reports from
-the probes.
+Second, the α sweep does not reverse, although an earlier version of this
+section said it did. That version read α = 0.4 at 0.547 against 0.416 for pure
+dense, a margin of 0.062 and a positive H2 verdict. The sweep was then built on
+the first dense index that loaded, which was the MiniLM speed baseline, while
+every fusion row in the table beside it is built on multilingual-e5-base; 0.416
+is MiniLM's Recall@5, not the dense row's 0.522. Swept over e5, as the rest of
+the table is, no interior weighting beats pure dense: the best interior point is
+α = 0.4 at 0.516 against 0.522 at α = 0 and 0.484 at α = 1, and H2 is not
+supported on the gold set either. The probe-set sweep reported in §VI-E and
+plotted as Figure 4 used the same MiniLM endpoint and has not yet been re-run
+over e5.
 
 That divergence is itself evidence for the caution in §VI-A. A probe set built
 by lifting phrasing from target passages flatters lexical retrieval and

@@ -1,0 +1,38 @@
+320 answerable gold items (UNVERIFIED)
+
+OVERLAP BY CELL -- content-token Jaccard, question against gold passage
+------------------------------------------------------------------------------
+  cell                n   median    mean     max   leakage possible?
+  en->en             70    0.088   0.095   0.217   yes
+  en->hi             45    0.000   0.003   0.091   no -- cross-script
+  hi->en             45    0.000   0.004   0.024   no -- cross-script
+  hi->hi             60    0.084   0.095   0.340   yes
+  hinglish->en       55    0.009   0.011   0.044   yes
+  hinglish->hi       45    0.000   0.001   0.023   no -- cross-script
+
+  same-script cells: n=185 median 0.066 mean 0.070 max 0.340
+
+  Cross-script cells sit at zero because the two scripts share no
+  tokens. That is the script boundary, not evidence of annotation
+  hygiene, so the same-script figure is the one that bears on leakage.
+
+RETRIEVAL BY OVERLAP, WITHIN EACH SAME-SCRIPT CELL
+------------------------------------------------------------------------------
+  If BM25's edge is annotation leakage, it is larger on the high-overlap
+  half of a cell than on the low-overlap half of the same cell.
+
+  en->en  (n=70)
+    low  overlap 0.040-0.088    n=35   BM25 0.943  dense 0.971  delta=-0.029 p=1.0000  (n=35)
+    high overlap 0.088-0.217    n=35   BM25 1.000  dense 0.971  delta=+0.029 p=1.0000  (n=35)
+    BM25 edge, high minus low: +0.057  -> consistent with leakage
+
+  hi->hi  (n=60)
+    low  overlap 0.031-0.081    n=30   BM25 0.967  dense 0.933  delta=+0.033 p=1.0000  (n=30)
+    high overlap 0.086-0.340    n=30   BM25 1.000  dense 0.967  delta=+0.033 p=1.0000  (n=30)
+    BM25 edge, high minus low: +0.000  -> no leakage signal
+
+  hinglish->en  (n=55)
+    low  overlap 0.000-0.008    n=27   BM25 0.148  dense 0.037  delta=+0.111 p=0.3665  (n=27)
+    high overlap 0.009-0.044    n=28   BM25 0.679  dense 0.250  delta=+0.429 p=0.0006* (n=28)
+    BM25 edge, high minus low: +0.317  -> consistent with leakage
+

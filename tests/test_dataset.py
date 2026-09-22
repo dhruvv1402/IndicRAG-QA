@@ -489,3 +489,57 @@ def test_exclusion_happens_before_selection_not_after():
     assert len(items) == 4, "the four remaining passages should all be reachable"
     assert not ({pid for i in items for pid in i.gold_passage_ids} & spent)
 
+
+
+# --- segmentation merge guard ----------------------------------------------------
+
+
+def _doc(doc_id="d-en"):
+    from indicrag.models import Document
+
+    return Document(doc_id=doc_id, scheme="s", lang="en", title="t")
+
+
+def test_a_short_chunk_does_not_merge_across_a_section_boundary():
+    """§III-C forbids overlap across section boundaries because bleeding across
+    one puts a clause from one scheme inside another's passage. The merge guard
+    did exactly that: it checked doc_id only, so a short chunk from any later
+    section merged into whatever passage was last -- and the result kept the
+    *earlier* section's path as its metadata."""
+    from indicrag.corpus.segment import segment_document
+
+    long_a = " ".join(f"Alpha sentence {n} about eligibility criteria." for n in range(40))
+    # Long enough to clear the 15-token boilerplate floor, short enough to sit
+    # under MIN_TOKENS -- exactly the chunk the old guard swallowed.
+    short_b = " ".join(f"Budget clause {n} names an allocation." for n in range(6))
+    text = f"== Introduction ==\n{long_a}\n\n== Budget ==\n{short_b}\n"
+    passages = segment_document(_doc(), text)
+
+    budget = [p for p in passages if "Budget clause" in p.text]
+    assert budget, "a short but non-trivial section must stand as its own passage"
+    assert all("Alpha sentence" not in p.text for p in budget)
+    assert all(p.section_path == "Budget" for p in budget)
+    intro = [p for p in passages if "Alpha sentence" in p.text]
+    assert all("Budget clause" not in p.text for p in intro)
+
+
+def test_merging_never_pushes_a_passage_past_the_hard_maximum():
+    from indicrag.corpus.segment import MAX_TOKENS, segment_document
+
+    body = " ".join(f"Sentence number {n} carrying scheme detail." for n in range(120))
+    passages = segment_document(_doc(), f"== Introduction ==\n{body}\n")
+    assert passages
+    assert max(p.token_count for p in passages) <= MAX_TOKENS
+
+
+def test_a_passage_reports_the_section_it_actually_came_from():
+    from indicrag.corpus.segment import segment_document
+
+    text = (
+        "== Introduction ==\nThe scheme was launched in 2015 to widen access.\n\n"
+        "== Unified payment interface ==\nUPI processes billions of transactions.\n"
+    )
+    passages = segment_document(_doc(), text)
+    for p in passages:
+        if "UPI processes" in p.text:
+            assert "Introduction" not in (p.section_path or "")

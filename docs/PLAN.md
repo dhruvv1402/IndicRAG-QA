@@ -496,6 +496,23 @@ indicrag dataset split                     # seals the test split
 indicrag eval all --report evals/          # regenerates every table as [GOLD]
 ```
 
+### 10.1a The corpus is frozen until verification completes
+
+A segmentation bug is fixed in `corpus/segment.py` but **not applied**. The
+undersized-chunk guard merged across section boundaries and past the 240-token
+bound, leaving 29 oversized passages and at least one whose `section_path` names
+a section three ahead of where its text ends.
+
+Re-segmenting is what makes it a blocker rather than a fix. Passage identifiers
+are positional, so the corrected run produces 803 passages and, while every old
+identifier still resolves, **312 resolve to different text** — and 123 of the
+320 answerable gold items cite one of those. Nothing would break loudly; a third
+of the gold set would simply start pointing at the wrong passage.
+
+So: do not run `corpus segment` until the gold set is verified and either
+re-anchored or regenerated. Content-derived identifiers are the right long-term
+fix, since they fail loudly, and adopting them has exactly the same cost today.
+
 ### 10.2 Resolved since the last update
 
 Recorded because the previous version of this section named them as blockers:

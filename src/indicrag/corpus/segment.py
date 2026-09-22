@@ -151,11 +151,27 @@ def segment_document(doc: Document, text: str) -> list[Passage]:
             # that was itself tiny -- a stub heading, a one-line note -- sailed
             # through; the corpus came out with a 3-token minimum because of it.
             if count_tokens(body) < MIN_TOKENS:
-                if passages and passages[-1].doc_id == doc.doc_id:
-                    merged = passages[-1].text + " " + body
-                    passages[-1].text = merged
-                    passages[-1].text_raw = passages[-1].text_raw + " " + " ".join(chunk)
-                    passages[-1].token_count = count_tokens(merged)
+                # Merge only within the same section, and only when the result
+                # still fits. The earlier version checked doc_id alone, so a
+                # short chunk from any later section merged into whatever
+                # passage happened to be last -- which is the bleeding across
+                # section boundaries that overlap is deliberately forbidden from
+                # doing, and it left the merged passage carrying the *earlier*
+                # section's path as its metadata. One passage reached 415 tokens
+                # against a stated bound of 240, labelled "Introduction" while
+                # ending in text about UPI.
+                previous = passages[-1] if passages else None
+                can_merge = (
+                    previous is not None
+                    and previous.doc_id == doc.doc_id
+                    and previous.section_path == section.path
+                    and count_tokens(previous.text + " " + body) <= MAX_TOKENS
+                )
+                if can_merge:
+                    merged = previous.text + " " + body
+                    previous.text = merged
+                    previous.text_raw = previous.text_raw + " " + " ".join(chunk)
+                    previous.token_count = count_tokens(merged)
                     continue
                 # Nothing to merge into (first passage of the document): keep it
                 # only if it is not pure boilerplate.

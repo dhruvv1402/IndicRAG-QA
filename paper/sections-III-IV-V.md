@@ -94,9 +94,34 @@ none. Within a section, sentences are packed to a target of 170 tokens, bounded
 at 240, with 25% overlap between adjacent chunks where a split was length-driven
 rather than structural. Overlap is not applied across section boundaries, since
 those are real semantic breaks and bleeding across one would place a clause from
-one scheme inside another scheme's passage. Passage identifiers are stable across
-re-segmentation runs, which the gold set, the embedding caches and the error
-analysis all depend on.
+one scheme inside another scheme's passage. **Two corrections belong here, because both were found by measuring rather
+than by reading.** The committed corpus contains 29 passages above the 240
+bound, the largest 415 tokens. The packer respects the bound; a guard that
+folds an undersized chunk into the previous passage did not. It tested only
+that the previous passage came from the same *document*, so a short chunk from
+any later section merged into whatever passage happened to be last — which is
+precisely the bleeding across section boundaries that overlap is forbidden from
+doing, and it left the merged passage carrying the earlier section's path. One
+passage is labelled `Introduction` and ends in text about the Unified Payment
+Interface, three sections later. The guard now requires the same section and a
+result within the bound.
+
+The corpus has **not** been re-segmented, and that is the second correction.
+Passage identifiers are positional — `scheme-lang#p0007` is the eighth passage
+of that document — so they are stable only while segmentation is. Applying the
+fix produces 803 passages instead of 694, and although every existing
+identifier still resolves, **312 of them resolve to different text**, and 123 of
+the 320 answerable gold items cite one. A re-segmentation would therefore
+repoint more than a third of the gold set at passages that may no longer contain
+the answer, without a single broken reference to signal it. Content-derived
+identifiers would fail loudly instead, and are the right fix; changing the
+scheme now would invalidate the same gold set for the same reason. The corpus is
+frozen until verification completes, and the measurements in this paper are
+taken on the corpus as committed.
+
+The gold set, the embedding caches and the error analysis all key off these
+identifiers, which is what makes their apparent stability worth stating
+precisely rather than assuming.
 
 This yields **694 passages** (491 English, 203 Hindi) across 40 schemes. Passage
 length has median 170 tokens (mean 157, interquartile range 111–193, range

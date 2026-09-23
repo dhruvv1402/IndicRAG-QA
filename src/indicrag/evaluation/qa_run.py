@@ -39,9 +39,10 @@ def resolve_citation(raw: str, context_ids: Sequence[str]) -> str:
     """The passage id a generation's citation refers to, in the forms it uses.
 
     The prompt labels each passage `[1] id=<passage_id> (...)`, and the model
-    cites back in that notation: `id=make-in-india-en#p0004`, `[id=...]`, or
-    just the index `[1]`. Compared raw against the corpus ids, every one of
-    those scored as a *fabricated* citation -- a real passage, named correctly,
+    cites back in that notation: `id=make-in-india-en#p0004`, `[id=...]`, the
+    whole label with its `(scheme, section)` annotation, or just the index
+    `[1]`. Compared raw against the corpus ids, every one of those scored as a
+    *fabricated* citation -- a real passage, named correctly,
     counted as invented evidence. An index resolves to the context passage at
     that position; anything else is returned stripped, and is fabricated only
     if it still names no passage.
@@ -51,6 +52,10 @@ def resolve_citation(raw: str, context_ids: Sequence[str]) -> str:
         if cited.lower().startswith(prefix):
             cited = cited[len(prefix):].strip()
     cited = cited.strip("[]()").strip()
+    # The whole label copied back -- `jan-dhan-en#p0005 (jan-dhan, Reception)`:
+    # the id is the first token, and the rest is the prompt's annotation of it.
+    if cited and not cited.isdigit():
+        cited = cited.split()[0].rstrip(",;.")
     if cited.isdigit() and 1 <= int(cited) <= len(context_ids):
         return context_ids[int(cited) - 1]
     return cited

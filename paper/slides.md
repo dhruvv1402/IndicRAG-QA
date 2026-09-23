@@ -62,8 +62,9 @@ time, but it is what makes the answerability work more than a checkbox.
 - Parallel Hindi/English corpus, Indian government welfare schemes
 - Bilingual **by construction**: each scheme has two independently authored
   documents, not a translation
-- **400-item QA set**, query-language × evidence-language matrix, 6 cells
-- 80 unanswerable items across 4 classes
+- **393-item QA set** (313 answerable, 80 unanswerable in 4 classes),
+  query-language × evidence-language matrix, 6 cells; sealed dev 120 / test 273
+- **Verified by a language model, not a person** — disclosed on every report
 
 **Deviation, stated up front:** intended to use official scheme PDFs. Soft 404s
 and image-only scans — one 18-page document yielded 17 characters of extractable
@@ -92,12 +93,12 @@ next slide is the turn.
 
 ## 6. It does not merely fail to help
 
-**Recall@5, cross-lingual queries** `[PROBE]`
+**Recall@5, cross-lingual queries** (test split, n = 62)
 
 | System | Recall@5 |
 |---|---|
-| Dense alone (e5-base) | **0.125** |
-| Hybrid RRF (plain) | **0.022** |
+| Dense alone (e5-base) | **0.661** |
+| Hybrid RRF (plain) | **0.274** |
 
 Hybrid scores **below the dense retriever it contains**.
 
@@ -138,30 +139,38 @@ that did.
 - One lookup per candidate
 - Query-time cost unchanged
 
-| Slice | Plain RRF | Script-aware | p |
-|---|---|---|---|
-| cross-lingual | 0.022 | **0.153** | 0.0001 |
-| code-mixed | 0.028 | **0.173** | 0.0002 |
-| monolingual | 0.712 | 0.668 | 0.032 |
-| overall | 0.483 | 0.500 | 0.32 |
+Test split, Recall@5:
 
-*Notes:* Read the monolingual row out loud. It is a real cost — removing the
-double vote loses precision where agreement genuinely was evidence.
+| Slice | Plain RRF | Script-aware | Dense alone |
+|---|---|---|---|
+| cross-lingual | 0.274 | **0.685** | 0.661 |
+| code-mixed | 0.514 | **0.556** | 0.472 |
+| monolingual | 0.964 | 0.964 | 0.976 |
+| overall | 0.618 | **0.750** | 0.720 |
+
+vs plain RRF: **+0.411** cross-lingual, +0.132 overall (p = 0.0001).
+vs dense alone: +0.030 overall (p = 0.052); significant only code-mixed (+0.085, p = 0.004).
+
+*Notes:* Two comparisons, two answers. The repair to plain fusion is large and
+costs nothing monolingually. The gain over a good dense retriever is small —
+say so before someone asks.
 
 ---
 
-## 9. Report the trade, not the aggregate
+## 9. What verification changed
 
-Overall Recall@5: 0.483 → 0.500, **p = 0.32** — indistinguishable from noise.
+On 180 synthetic probes the method looked like a trade: +0.131 cross-lingual,
+−0.044 monolingual, and **+0.133 over dense alone** cross-lingually.
 
-Reporting only the aggregate would hide **both** the 7× cross-lingual gain
-**and** the 0.044 monolingual cost.
+On the verified test split: the repair is **larger** (+0.411), the monolingual
+cost is **gone**, and the gain over dense alone is **mostly gone** (+0.024
+cross-lingual, p = 0.62).
 
-Good trade *on this corpus*: monolingual was already strong, cross-lingual was
-near zero. On a mostly-monolingual deployment it would be a bad one.
+Claim what survives: standard fusion does harm across scripts; the fix removes
+it. Not: fusion beats a strong dense retriever.
 
-*Notes:* This is the slide that earns trust. Aggregates that conceal both the
-win and the cost are the default failure of results sections.
+*Notes:* This is the slide that earns trust. The probe numbers were not wrong
+about the mechanism, only about the magnitudes.
 
 ---
 
@@ -244,22 +253,23 @@ depending on whether each *could* have retrieved what the other did.
 
 ---
 
-## 14. A second negative result: answerability
+## 14. Answerability: which score you threshold matters
 
-Retrieval-score thresholds carry **no information** about answerability here.
+Median top retrieval score, verified set:
 
 | | answerable | unanswerable |
 |---|---|---|
-| BM25 | 13.55 | **13.82** |
-| TF-IDF | 0.1424 | **0.1485** |
-| RRF | 0.0327 | 0.0325 |
+| BM25 | **25.47** | 13.82 |
+| TF-IDF | **0.238** | 0.145 |
+| RRF (fused) | 0.0328 | 0.0325 |
 
-Unanswerable questions score *higher*. Precision stays at the 0.20 base rate at
-every threshold.
+BM25 threshold on test: F1 **0.525**, all out-of-scope caught — but only
+**0.522** of near-miss questions. The fused RRF score carries almost nothing:
+rank fusion discards the magnitudes.
 
-**Why:** 55 of 80 unanswerable items are about schemes that ARE in the corpus.
-A retrieval threshold detects corpus absence — and answerability is not corpus
-absence.
+Before verification the BM25 medians were reversed (13.55 vs 13.82): questions
+that did not name their scheme retrieved weakly whether or not they were
+answerable.
 
 Four signals, same items. Of 28 answerable questions, how many get answered?
 
@@ -281,8 +291,9 @@ changes nothing: it had 2 false positives left to catch.
 
 - Encyclopedic corpus, **not** regulatory text
 - **One** Indic language; two scripts only
-- 400 items, single primary annotator, blind 15% second pass, κ gated at 0.70
-- Retrieval numbers are `[PROBE]` pending gold-set verification
+- 393 items, **verified by a model, not a person**; blind second pass κ = 1.000
+  is one model agreeing with itself, not the 0.70 inter-annotator gate
+- Probe-set numbers kept only where the mechanism was found; results are test split
 - Qwen2.5-3B Q4_K_M on CPU; nothing fine-tuned
 
 *Notes:* Say these before the Q&A rather than during it.
@@ -294,8 +305,8 @@ changes nothing: it had 2 false positives left to catch.
 Hybrid retrieval inverts cross-lingually because **fusion treats a retriever's
 silence as evidence**.
 
-Fix the arithmetic, not the model: **7× cross-lingual**, **6× code-mixed**, no
-training.
+Fix the arithmetic, not the model: cross-lingual **0.274 → 0.685**, no
+monolingual cost, no training — and no large gain over dense alone.
 
 Found by reading 20 cases, not by reading a table.
 

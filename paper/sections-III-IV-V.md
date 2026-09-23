@@ -212,35 +212,51 @@ article dominating a matrix cell.
 
 ### D. Question-answer set
 
-*(Construction complete. **Human verification has not begun: 0 of 400 items are verified**, so every figure drawn from this set is preliminary and κ is not yet measurable.)*
+*(Verified 2026-09-23 — **by a language model, not by a person**; see the procedure below. 393 items survive, 7 were rejected.)*
 
-The set comprises 400 instances: 320 answerable and 80 unanswerable. The
+The set was built as 400 instances, 320 answerable and 80 unanswerable; after
+verification it holds 393, 313 answerable and 80 unanswerable. The
 answerable items follow an explicit **query-language × evidence-language matrix**
 (Table I), which is what permits the monolingual / cross-lingual / code-mixed
 comparison in §VI-B to be made on balanced strata rather than on whatever
 distribution happened to arise.
 
-**TABLE I — Answerable items by query and evidence language**
+**TABLE I — Answerable items by query and evidence language (verified; design target in parentheses)**
 
 | Query ↓ / Evidence → | English | Hindi | Total |
 |---|---|---|---|
-| English | 70 | 45 | 115 |
-| Hindi (Devanagari) | 45 | 60 | 105 |
-| Hinglish (Romanized) | 55 | 45 | 100 |
-| **Total** | 170 | 150 | **320** |
+| English | 69 (70) | 45 (45) | 114 |
+| Hindi (Devanagari) | 44 (45) | 59 (60) | 103 |
+| Hinglish (Romanized) | 51 (55) | 45 (45) | 96 |
+| **Total** | 164 | 149 | **313** |
 
-Three groupings follow directly: **monolingual** (130), where query and evidence
-share a language and script; **cross-lingual** (90), different languages each in
-native script; and **code-mixed** (100), Romanized Hindi-English queries whose
+Three groupings follow directly: **monolingual** (128), where query and evidence
+share a language and script; **cross-lingual** (89), different languages each in
+native script; and **code-mixed** (96), Romanized Hindi-English queries whose
 evidence is never in the query's script. The Hinglish row is never monolingual by
 construction, since Romanized Hindi is not the script of any corpus document —
 which is precisely why code-mixed queries are expected to be hardest.
 
 Candidates are bootstrapped with a locally hosted quantized model
-(Qwen2.5-3B-Instruct, Q4_K_M) and then verified by a human annotator. An item
-remains marked unverified until a person confirms the question is answerable from
-the cited passage and corrects the gold answer to the document's exact wording;
-unverified items are excluded from every reported metric.
+(Qwen2.5-3B-Instruct, Q4_K_M). The protocol specified that a person then verify
+each one. **That is not what happened, and we say so plainly: the set was
+verified by a language model (Claude Opus 5.5), in two independent passes, and
+no item has been checked by a person.** The first pass read every item against
+its cited passage and proposed a correction or a rejection; it judged only 27 of
+the 320 bootstrapped answerable items correct as generated, found 63 gold
+answers the passage contradicts or does not state, and found 112 questions that
+were unreadable machine translation, almost all in the cross-lingual and
+Hinglish cells. The duplicated unanswerable stems (§III-E) and 7 rejected
+answerable items were replaced by newly written ones. A second pass, run by
+fresh model instances with no access to the first, then checked every item in
+its final form against its evidence and the passages a retriever returns for it,
+confirming 353 and making small corrections to 42. It rejected 5 — three
+because another passage in the corpus gives a conflicting figure, so the
+question has no single answer — and 2 more were dropped as duplicate questions. It also added, for 73 items, passages that state the same fact,
+most of them the other language's article (see below). Every verified item
+records `annotator: model:…`, and every report built on the set carries that
+disclosure in its banner. The figures in §VI are therefore model-verified, which
+is weaker than the human verification the protocol was designed around. The blind second pass (§VIII) was likewise run by a model instance, and its κ = 1.000 over 59 items measures one model's consistency, not agreement between annotators.
 
 Two construction details materially affect the measurements. First,
 **cross-lingual items translate the question only** and leave the gold passage
@@ -300,50 +316,41 @@ dense-versus-lexical comparison an artefact of annotation rather than a property
 of retrieval. The generation prompt instructs paraphrase rather than extraction,
 and we measure what that achieved.
 
-**Content-token Jaccard overlap, question against gold passage** (n = 320):
+**Content-token Jaccard overlap, question against gold passage** (verified set, n = 313):
 
 | Cell | n | median | max | leakage possible? |
 |---|---|---|---|---|
-| en→en | 70 | 0.088 | 0.217 | yes |
-| hi→hi | 60 | 0.084 | 0.340 | yes |
-| hinglish→en | 55 | 0.009 | 0.044 | yes |
-| en→hi | 45 | 0.000 | 0.091 | no — cross-script |
-| hi→en | 45 | 0.000 | 0.024 | no — cross-script |
-| hinglish→hi | 45 | 0.000 | 0.023 | no — cross-script |
+| en→en | 69 | 0.088 | 0.239 | yes |
+| hi→hi | 59 | 0.094 | 0.245 | yes |
+| hinglish→en | 51 | 0.036 | 0.129 | yes |
+| en→hi | 45 | 0.000 | 0.107 | no — cross-script |
+| hi→en | 44 | 0.015 | 0.088 | no — cross-script |
+| hinglish→hi | 45 | 0.000 | 0.038 | no — cross-script |
 
-The cross-script cells sit at zero because the two scripts share no tokens.
-That is the script boundary rather than evidence of annotation hygiene, and
-pooling them would report a median of 0.013 that says nothing about leakage. The
-figure that bears on the question is the same-script one: **median 0.066, max
-0.340** over 185 items.
+The cross-script cells sit near zero because the two scripts share almost no
+tokens. That is the script boundary rather than evidence of annotation hygiene,
+so the figure that bears on leakage is the same-script one: **median 0.077, max
+0.245** over 179 items, against 0.066 and 0.340 before verification. The model
+rewrites of §III-D did not make questions copy their passages; the one cell
+whose overlap rose, hinglish→en (median 0.009 to 0.036), rose because rewritten
+questions name their scheme in English, which is how such questions are
+actually typed.
 
 **Testing it requires holding the cell fixed.** Our pre-registered plan was to
-repeat the retrieval comparison on the low-overlap tertile of the whole set.
-That design does not work here: the low tertile comes out 54 of 61
-`hinglish→en`, because Romanized Hindi function words match nothing in an
-English passage, so the split is a proxy for the language pair and comparing
-across it measures Hinglish against monolingual. Within each same-script cell,
-splitting at the median overlap:
+repeat the retrieval comparison on the low-overlap tertile of the whole set, but
+the low tertile is then mostly one language pair, so the split measures the pair
+rather than the overlap. Within each same-script cell, splitting at the median
+overlap instead:
 
 | Cell | BM25 − dense, low half | high half | difference |
 |---|---|---|---|
-| en→en | −0.029 | +0.029 | +0.057 |
-| hi→hi | +0.033 | +0.033 | 0.000 |
-| hinglish→en | +0.111 | **+0.429** * | +0.317 |
+| en→en | +0.015 | +0.000 | −0.015 |
+| hi→hi | −0.017 | +0.017 | +0.034 |
+| hinglish→en | +0.060 | +0.096 | +0.036 |
 
-`hi→hi` shows no effect. `en→en` shows a small one, and both halves sit at
-0.94–1.00, where there is little room to separate anything. `hinglish→en` shows
-a large one — but its entire overlap range is 0.000 to 0.044, so the
-"high-overlap" half means a handful of shared tokens, typically the English name
-of the scheme. We read that as lexical retrieval needing *some* surface anchor
-rather than as questions copying their passage: BM25 reaches 0.679 when a
-Romanized query carries the English scheme name and 0.148 when it does not,
-which is the paper's own thesis about surface matching rather than a defect in
-the annotation.
-
-The honest summary is that leakage is not detectable in the two monolingual
-cells, and that the code-mixed cell's lexical performance is driven by incidental
-English tokens in a way no paraphrase instruction can remove. Full output is in
+No cell shows a lexical advantage that grows with overlap by more than a few
+points, and none of the within-half differences is significant (all p ≥ 0.25).
+Leakage is not detectable in the verified set. Full output is in
 `evals/report-leakage.txt`.
 
 ---
@@ -388,10 +395,10 @@ retrieval path; amount canonicalisation does not. It is called by answer scoring
 and error analysis, not by the index tokenizer, so at retrieval time `₹3.5 lakh`
 and `3,50,000` share only the token `3`. We state this because the paragraph
 above would otherwise imply a matching benefit that the system does not deliver,
-and because 46 of the 320 answerable gold items carry an amount in the question.
-Supplying the canonical key to the tokenizer as well moves Recall@5 on those 46
-items from 0.674 [0.543, 0.804] to 0.696 [0.565, 0.826], a paired difference of
-+0.022 at *p* = 1.00, and +0.003 over all 320. The reason the gap costs so
+and because 87 of the 313 answerable verified items carry an amount in the
+question. Supplying the canonical key to the tokenizer as well moves BM25
+Recall@5 on those 87 items from 0.640 [0.534, 0.736] to 0.674 [0.567, 0.766], a
+paired difference of +0.034 at *p* = 0.25, and +0.011 over all 313 (p = 0.13). The reason the gap costs so
 little is worth recording: the tokenizer splits on commas, so `3,50,000` already
 fragments into `3`, `50` and `000`, and the Devanagari form yields the same
 three subtokens once digits are mapped. Fragmentation supplies most of the
@@ -609,17 +616,15 @@ alternative is not recoverable after the fact: once a test figure has been seen,
 it cannot be unseen, and a protocol that permits iteration against it produces
 numbers that are optimistic by an unmeasurable margin.
 
-**That protocol is not yet in force, and no number in this paper was produced
-under it.** The split is drawn over *verified* items only, and human
-verification of the 400-item set is not complete, so the tool that seals it
-refuses to run. The figures reported here therefore come from splits drawn
-per-experiment: answerability fits on a seeded 30% stratified draw and reports
-on the remainder, and the retrieval results use synthetic probes with no
-tuning against them at all. Nothing has been tuned against a held-out set that
-is later reported, which is the specific hazard the protocol guards, but the
-guarantee is currently procedural rather than enforced. Every figure is marked
-`[PROBE]` or as drawn from the unverified set, and they are preliminary in that
-precise sense.
+The split was sealed on 2026-09-23 over the 393 verified items: **dev 120,
+test 273**, stratified by query language, answerability and scheme with
+largest-remainder allocation. The answerability threshold is fitted on dev and
+reported on test. The retrieval configuration — α = 0.4, RRF k = 60, 50
+candidates per component, the primary encoder — was fixed before the gold set
+existed and was not tuned on it, so retrieval is reported on test (Table in
+§VI-A) and, where the analysis needs the power, on dev and test together; the
+section says which. Figures from the earlier unverified set and from synthetic
+probes are marked as such where they are kept for comparison.
 
 ### D. Metrics
 

@@ -477,24 +477,22 @@ verification, P6 is substantially drafted.
 | **P5** Experiments | **Run, but blocked on verification for reporting.** Modules 1–6 all measured; answerability signals 1 and 4 on all 400 items, signals 2 and 3 on an enriched sample. Every number is `[PROBE]` or from the unverified set and may not be quoted as a gold-set result |
 | **P6** Write-up | Paper complete (§I–§X, ~13.4k words, `paper/paper.md`), 16-slide deck, 4 figures, IEEE `.docx` and `.pptx`. All five modules written from measured numbers; every figure is `[PROBE]` or drawn from the unverified set |
 
-### 10.1 The one real blocker
+### 10.1 Verification: done by a model, not a person
 
-**Human verification: 0 of 400 items.** PRD §10.2 excludes unverified items from
-any reported result, and `dataset split` enforces this by refusing to run — it
-splits verified items only, so there is currently no dev/test split and no
-tuning discipline to violate. Every retrieval, answerability and QA number in
-the repository is therefore `[PROBE]`, and every report says so in its own
-banner.
+**Status 2026-09-23: 393 of 400 items verified by a model (Claude Opus 5.5), 0
+by a person; 7 rejected.** The owner asked for verification to be completed
+without them. It was done in two independent model passes (pre-review, then a
+confirmation pass by fresh instances), and is disclosed on every item
+(`annotator: model:...`), in every report banner (MODEL-VERIFIED) and in the
+paper (§III-D, §IX). The blind second pass was also a model instance: κ = 1.000
+over 59 items, which the report states is self-consistency and not the PRD
+§6.5 gate. The split is sealed: dev 120 / test 273 (`evals/splits.json`).
 
-This is annotation work, not engineering. The commands are:
-
-```bash
-indicrag dataset verify --annotator a1     # resumable, 400 items
-indicrag dataset second-pass --draw        # blind 15% stratified sample
-indicrag dataset second-pass --compare     # Cohen's kappa, gated at 0.70
-indicrag dataset split                     # seals the test split
-indicrag eval all --report evals/          # regenerates every table as [GOLD]
-```
+What remains open is the thing the PRD actually specifies: a person confirming
+items, at least on the test split, and a second person re-labelling the blind
+sample. `dataset verify` shows each item's pre-review notes and still records
+the annotator it is given, so a human pass would overwrite `annotator` item by
+item and the banners would report the mix.
 
 **Pre-review, 2026-09-23.** `dataset review` ran rule checks and an automated
 reading pass (a model comparing every item with its evidence) over all 400

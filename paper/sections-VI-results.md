@@ -2,143 +2,121 @@
 
 All five modules are written from measured numbers.
 
-**Three different bases, and they must not be conflated.** The retrieval figures
-(§VI-B to §VI-F) are `[PROBE]`: 180 synthetic probes over the real corpus. The
-question-answering figures (§VI-G) are measured on a 72-item sample of the gold
-set, stratified across the six language-pair cells. The answerability figures
-(§VI-H) use all 400 gold items. **None of the gold items is human-verified
-yet**, so nothing here may be quoted as a verified gold-set result; §VI-A states
-what the probes can and cannot support.
+**What the numbers rest on.** The headline results (§VI-A) are measured on the
+gold set after verification — 393 items, 313 answerable — and, for every claim
+the paper makes, on its sealed **test split of 273 items (216 answerable)**,
+scored once. That verification was carried out by a language model rather than
+a person (§III-D), and every figure here should be read as model-verified. The
+earlier analyses in §VI-B to §VI-F were measured on 180 synthetic probes before
+the gold set existed; they are kept, marked `[PROBE]`, because they are where
+the mechanism was found, and §VI-A says where the verified set confirms them and
+where it does not. The question-answering figures (§VI-G) are on a 72-item
+sample of the test split, and answerability (§VI-H) fits its threshold on the
+dev split and reports on test.
 
 ---
 
 ## VI. Results
 
-### A. What the probe set can support
-
-All results in this section are measured on 180 synthetic probes constructed
-from real passages and real article titles, with ground truth by construction.
-The human-verified 400-item set exists but has not completed verification, and
-no number here is reported as a gold-set result.
-
-The probe set's composition bounds what it can show. 120 of the 180 probes are
-monolingual, and a substantial share are *fragment*-shaped, lifting phrasing
-directly from the target passage. This flatters lexical retrieval considerably.
-The cross-lingual probes have near-zero lexical overlap by construction and are
-the only shape that speaks honestly to cross-lingual retrieval.
-
-We therefore draw no conclusion from these probes about the *ranking* of
-retrievers overall. What the probe set does support is the finding this paper
-turns on, because that finding is structural rather than statistical: a lexical
-retriever's recall across a script boundary is zero by construction, and a
-probe set cannot manufacture that. The magnitudes below may move on the gold
-set. The mechanism will not.
+### A. Headline results on the verified gold set
 
 The corpus is 694 passages over 40 schemes in English and Hindi, with all 80
 documents passing Devanagari integrity validation.
 
-### A.1 A first look at the same experiments on the gold set
+**TABLE II — Recall@5 on the test split (216 answerable questions), with 95% bootstrap intervals**
 
-The retrieval sections below are probe-based. We have since run the identical
-evaluation over the 320 answerable gold items, and report the comparison here
-because two of the probe-based conclusions do not survive it. These items are
-**not verified either**, so this is a second preliminary source rather than a
-correction; the headline sections keep their probe numbers until verification
-settles which to report.
+| System | all | monolingual (83) | cross-lingual (62) | code-mixed (71) |
+|---|---|---|---|---|
+| BM25 | 0.581 [0.519, 0.646] | 0.970 | 0.153 | 0.500 |
+| TF-IDF | 0.593 | 0.964 | 0.185 | 0.514 |
+| multilingual-e5-base | 0.720 [0.660, 0.775] | 0.976 | 0.661 | 0.472 |
+| LaBSE | 0.485 | 0.655 | 0.540 | 0.239 |
+| MiniLM-L12 | 0.478 | 0.624 | 0.605 | 0.195 |
+| MuRIL (mean pooling) | 0.265 | 0.582 | 0.048 | 0.082 |
+| Hybrid, weighted α = 0.4 | 0.688 | 0.976 | 0.484 | 0.528 |
+| Hybrid, plain RRF | 0.618 [0.556, 0.681] | 0.964 | 0.274 | 0.514 |
+| **Hybrid, script-aware RRF** | **0.750** [0.692, 0.806] | 0.964 | **0.685** | **0.556** |
 
-**What the gold set confirms, more strongly than the probes did.** Lexical
-retrieval still collapses across the language boundary: BM25 reaches 0.977
-monolingual and 0.056 cross-lingual, a ratio worse than on the probes. MuRIL
-still scores exactly 0.000 cross-lingually. And the fusion penalty is still
-there and still visible in the same shape — plain RRF reaches 0.111 on the
-cross-lingual slice while the dense retriever it contains reaches 0.367.
+Three findings carry the paper, and the verified set confirms the first two
+more cleanly than any earlier measurement and qualifies the third.
 
-**What it contradicts.** Two things.
+**Lexical retrieval does not cross the language boundary.** BM25 reaches 0.970
+on monolingual questions and 0.153 on cross-lingual ones. MuRIL, pretrained on
+Indic text but not trained for retrieval, reaches 0.048.
 
-First, §VI-F's LaBSE result reverses. On the probes LaBSE led the code-mixed
-slice at 0.332; on the gold set it scores 0.050 there, and lexical retrieval
-leads at 0.230. The gold code-mixed questions are Romanized Hindi carrying
-English scheme names, which BM25 can match directly against the English
-passages, and the probe set's code-mixed shape evidently did not reproduce that.
-§VI-F should be read as a claim about the probe set until verification decides.
+**Plain fusion destroys the dense retriever's cross-lingual recall, and the
+script-aware correction restores it.** Plain RRF over BM25 and e5-base reaches
+0.274 on cross-lingual questions, against 0.661 for the dense retriever it
+contains: adding a lexical retriever that cannot see across the script boundary
+costs the hybrid system more than half of what its dense half finds. Script-aware
+fusion, which stops docking a passage for the lexical retriever's blindness to
+its script (§IV-E), recovers 0.685. Paired against plain RRF it gains +0.411 on
+the cross-lingual slice and +0.132 overall (both p = 0.0001, n = 62 and 216),
+and costs nothing monolingually (0.964 against 0.964). This is the result the
+method was designed around, and it is larger on the verified test split than on
+the probes (+0.131) or on the unverified set (+0.389 on the pooled items).
 
-Second, the α sweep does not reverse, although an earlier version of this
-section said it did. That version read α = 0.4 at 0.547 against 0.416 for pure
-dense, a margin of 0.062 and a positive H2 verdict. The sweep was then built on
-the first dense index that loaded, which was the MiniLM speed baseline, while
-every fusion row in the table beside it is built on multilingual-e5-base; 0.416
-is MiniLM's Recall@5, not the dense row's 0.522. Swept over e5, as the rest of
-the table is, no interior weighting beats pure dense: the best interior point is
-α = 0.4 at 0.516 against 0.522 at α = 0 and 0.484 at α = 1, and H2 is not
-supported on the gold set. The probe-set sweep plotted as Figure 4 had the same
-fault. Re-run over e5 it moves from a best interior margin of +0.001 to +0.025,
-at α = 0.4 (0.524 against 0.499 for pure lexical), which clears the sweep's 0.02
-margin but not a paired test (p = 0.13, n = 180). On neither set does any
-weighting significantly beat the better of its two components.
+**Against dense retrieval alone, the gain is small, and significant only on
+code-mixed questions.** This is where the verified set changes the story. Before
+verification, script-aware fusion beat e5-base alone by +0.133 on cross-lingual
+questions and +0.081 overall. On the test split it is +0.024 cross-lingually
+(p = 0.62) and +0.030 overall (p = 0.052); the only significant gain is on
+code-mixed questions, +0.085 (p = 0.0037), where Romanized questions carrying
+English scheme names give the lexical retriever something real to contribute.
+Pooling dev and test for power, the overall gain is +0.027 (p = 0.021). The
+margin shrank when verification rewrote 112 garbled questions, most of them in
+the cross-lingual and code-mixed cells; our reading is that fusion was partly
+compensating for questions a dense retriever could not match because they did
+not say what they asked, though the rewrite and the relabelling changed too much
+at once to isolate that cause. On well-formed questions, a
+strong multilingual dense retriever alone does nearly as well as the corrected
+hybrid.
 
-The LaBSE reversal is itself evidence for the caution in §VI-A. A probe set
-built by lifting phrasing from target passages flatters lexical retrieval, and
-its code-mixed shape did not reproduce what code-mixed questions written to be
-answered rather than matched look like. The full table is committed as
-`evals/report-retrieval-goldset.txt`.
+So the claim this paper can make is specific. Hybrid retrieval assembled the
+standard way is actively harmful across scripts, the harm is structural, and a
+change of arithmetic removes it at no cost. Whether hybrid retrieval is worth
+assembling at all, over a good dense retriever alone, is a closer call than we
+reported before verification: it helps on code-mixed queries and is otherwise
+within noise.
 
-**Third, and most consequentially, the central result is larger on the gold set
-and its cost disappears.** Script-aware fusion had never been measured on these
-items at all — it was absent from the retrieval harness and its figures came
-from a one-off script over the probes.
+**Weighted fusion does not help at any weighting.** Sweeping α over e5-base and
+BM25, no interior weighting beats pure dense on the test split (best α = 0.1 at
+0.720, equal to α = 0), and none does on the pooled set (0.728 at α = 0.1
+against 0.736). H2, in its weighted-fusion form, is not supported. An earlier
+version of this section reported the opposite; that sweep used the wrong dense
+encoder for its endpoint (§VIII), and was corrected before verification.
 
-| Slice | plain RRF | script-aware | dense alone | SA − plain | SA − dense |
-|---|---|---|---|---|---|
-| cross-lingual (n=90) | 0.111 | **0.500** | 0.367 | **+0.389** * | **+0.133** * |
-| code-mixed (n=100) | 0.210 | 0.230 | 0.090 | +0.020 | **+0.140** * |
-| monolingual (n=130) | 0.969 | 0.962 | 0.962 | −0.008 | +0.000 |
-| **all (n=320)** | 0.491 | **0.603** | 0.522 | **+0.113** * | **+0.081** * |
-
-Figure 6 plots this beside Figure 3's probe version.
-
-Three of the probe-based qualifications in §VI-E do not survive. The
-cross-lingual gain roughly triples, from +0.131 to +0.389 (p = 0.0001). The
-monolingual regression, which §VIII-C treats as the honest price of the method,
-falls from −0.044 (p = 0.032) to −0.008 (p = 1.00) — on these questions there is
-no measurable cost. And the overall gain, which the probes could not
-distinguish from noise at p = 0.32, becomes +0.113 at p = 0.0001, making
-script-aware fusion the best of the nine systems evaluated at 0.603 Recall@5.
-
-The code-mixed gain moves the other way, from +0.145 to +0.020 (p = 0.72), for
-the same reason LaBSE's advantage evaporated: these questions carry English
-scheme names that the lexical retriever can already match, so plain RRF was not
-being penalised much to begin with. Against dense retrieval alone the gain
-remains significant on every cross-script slice.
-
-We do not restate the headline numbers on this basis, because these items are
-unverified and the probe figures at least rest on ground truth that is correct
-by construction. But the direction is worth being plain about: on real
-questions the correction helps more and costs less than the probe set
-suggested.
-
-### A.2 The correction is orthogonal to encoder choice
+### A.1 The correction is orthogonal to encoder choice
 
 §VIII-E argues that the mechanism is about asymmetric coverage rather than about
-any particular encoder. That is testable by applying the same correction over
-different dense retrievers, and on the gold set it holds for all three we have
-embeddings for.
+any particular encoder. Applying the same correction over each dense retriever
+(pooled dev and test, 313 questions):
 
 | Encoder | dense alone | with script-aware fusion | gain |
 |---|---|---|---|
-| multilingual-e5-base | 0.522 | **0.603** | +0.081 |
-| MiniLM-L12 | 0.416 | 0.519 | +0.103 |
-| LaBSE | 0.394 | 0.466 | +0.072 |
+| multilingual-e5-base | 0.736 | **0.764** | +0.028 |
+| MiniLM-L12 | 0.504 | 0.666 | +0.162 |
+| LaBSE | 0.512 | 0.597 | +0.085 |
 
-Fusion improves every one, by a similar margin, which is what a claim about the
-*arithmetic* rather than the representation predicts.
+Fusion improves every one, and the weaker the dense retriever the more the
+lexical half contributes once it is no longer allowed to penalise what it
+cannot see. Fusing over e5-base remains the best configuration: fusing over
+MiniLM is worse by 0.097 and over LaBSE by 0.167 overall (both p ≤ 0.0003).
+MiniLM's fusion leads the cross-lingual slice (0.736 against 0.669) but not
+significantly (p = 0.26), and loses heavily on every other slice.
 
-It also settles a question §IX previously listed as open. Fusing over LaBSE does
-not beat fusing over e5-base: it is worse by 0.138 overall (p = 0.0001), and by
-0.246 on the monolingual slice. MiniLM leads the cross-lingual slice at 0.578
-against 0.500, but the gap is not significant (p = 0.23) and it loses heavily
-everywhere else. multilingual-e5-base remains the right primary encoder for this
-corpus, and the §VI-F caveat about LaBSE is a statement about one slice of one
-probe set rather than a better configuration we declined to use.
+### A.2 What the probe-set sections below do and do not show
+
+§VI-B to §VI-F were measured on 180 synthetic probes, 120 of them monolingual
+and many lifting phrasing directly from their target passage, which flatters
+lexical retrieval. They are kept because they are where the fusion penalty was
+first found and diagnosed (§VIII), and the mechanism they describe — zero
+lexical recall across a script boundary, and a fusion rule that docks passages
+for it — is structural and is confirmed above. Their magnitudes are not the
+paper's results. Where they disagree with Table II, Table II stands; in
+particular §VI-F's observation that LaBSE leads the code-mixed slice does not
+hold on real questions (LaBSE 0.239 against 0.500 for BM25 and 0.556 for
+script-aware fusion).
 
 ### B. Lexical against dense retrieval (Module 1)
 
@@ -401,108 +379,70 @@ token-F1 is the informative column.
 
 ### H. Answerability (Module 5)
 
-A retrieval-score threshold is the standard abstention signal, and on this
-corpus it does not work at any operating point. The reason is not that it is
-poorly calibrated. It is that the quantity it thresholds does not separate the
-classes.
+A retrieval-score threshold is the standard abstention signal. On the verified
+set whether it works depends on which score it thresholds, and this reverses the
+finding we reported before verification.
 
-**Top retrieval score by gold label, all 400 items** `[PROBE]`
+All figures below fit the threshold, or the calibrated combination of §IV-F, on
+the 120-item dev split and report on the 273-item test split (57 unanswerable,
+a base rate of 0.21).
 
-| Retriever | answerable | unanswerable | best F1 | precision at best |
-|---|---|---|---|---|
-| BM25 | 13.55 | **13.82** | 0.366 | 0.235 |
-| TF-IDF | 0.1424 | **0.1485** | 0.370 | 0.231 |
-| Script-aware RRF | 0.0327 | 0.0325 | 0.351 | 0.216 |
+**TABLE III — Answerability on the test split, UNANSWERABLE as the positive class**
 
-The medians are indistinguishable, and in two of the three retrievers the
-*unanswerable* questions score marginally higher — the opposite of the direction
-a threshold assumes. Across the full sweep of τ, plotted as Figure 5, precision
-never leaves the neighbourhood of 0.21–0.24 against an unanswerable base rate of
-0.20, which is the signature of a signal carrying no information: abstaining at random achieves
-precision equal to the prevalence.
+| Signal | score | test F1 | precision | recall | abstains on |
+|---|---|---|---|---|---|
+| threshold | BM25 top score | **0.525** | 0.408 | 0.737 | 38% |
+| calibrated combination | BM25 features | 0.481 | 0.431 | 0.544 | 26% |
+| threshold | script-aware RRF top score | 0.381 | 0.240 | 0.930 | 81% |
+| calibrated combination | RRF features | 0.454 | 0.435 | 0.474 | 23% |
 
-The best F1 of 0.366 is reached at 86% abstention. Those two numbers have to be
-read together. A recall of 0.93 on the unanswerable class, bought by refusing
-most of the answerable questions as well, is not detection; it is silence.
+**The lexical score separates the classes.** Under BM25 the median top score is
+25.5 for answerable questions and 13.8 for unanswerable ones, and every
+retrieval feature separates them: AUC 0.791 for the top score, 0.790 for the
+spread between the top and the k-th result, 0.766 for the mean of the top k,
+0.717 for the top-1 to top-2 margin. A threshold fitted on dev catches every
+out-of-scope question on test, 0.857 of the under-specified ones and 0.667 of
+the false-premise ones, while answering 155 of 216 answerable questions.
 
-The top score is the quantity a threshold uses, but it is not the only
-retrieval-side feature available, and the calibrated combination of §IV-F is fit
-over all of them. None of them separates either.
+**It is weakest where it matters most.** On near-miss questions — scheme
+present, specific fact absent — recall is 0.522: half of them retrieve as
+confidently as questions the corpus answers, because the passages they find are
+genuinely about the right scheme. A score threshold detects the absence of a
+topic; it detects the absence of a *fact* only about as often as chance would
+suggest for a question drawn to sit right beside one.
 
-**Feature separation under BM25, all 400 items.** AUC is P(a random answerable
-question scores above a random unanswerable one); 0.500 is chance.
+**Rank fusion discards the signal.** The script-aware RRF score is built from
+ranks, not magnitudes, and its top score is 0.0328 for answerable questions
+against 0.0325 for unanswerable ones. Its best single feature reaches AUC 0.712,
+and a threshold fitted on dev lands at the degenerate end of the curve, refusing
+81% of test questions for a precision of 0.240 — barely above the base rate.
+The hybrid retriever that §VI-A recommends for finding evidence is therefore the
+wrong place to read an abstention signal from; the lexical component's raw score,
+computed anyway as part of fusion, is the better signal by a wide margin.
 
-| Feature | answerable | unanswerable | AUC |
-|---|---|---|---|
-| top1 − top2 margin | 2.1769 | 1.2750 | 0.594 |
-| score spread (top1 − topK) | 5.2127 | 3.7732 | 0.599 |
-| max score | 13.5509 | 13.8179 | 0.545 |
-| mean top-k | 10.2447 | 10.3221 | 0.510 |
-| scheme agreement | 0.4000 | 0.4000 | 0.504 |
+**Combining features does not beat the best one.** The calibrated combination
+over BM25 features reaches AUC 0.781 against 0.791 for the top score alone, and
+a lower test F1 (0.481 against 0.525), though it abstains less. Its fitted
+weights put score spread first (1.245) and the top score second (0.636).
 
-The margin deserves comment because it was the feature we expected to work. The
-reasoning was that a near-miss question retrieves several similarly-scoring
-passages — the topic is present, the specific fact is not — and so shows a
-smaller top1-to-top2 gap than a question with one clear answer. The prediction
-holds in direction: 1.28 against 2.18. It fails in magnitude. An AUC of 0.594
-orders a random pair correctly 59% of the time against a chance rate of 50%,
-which is not a basis for abstention.
+**What changed, and why.** Before verification we reported that no retrieval
+score separated the classes, that the median unanswerable question scored
+*higher* than the median answerable one under BM25, and that the top score was
+the least informative feature. All three were properties of the unverified
+questions. Of the 400 bootstrapped items, 85 did not name what they were
+asking about and 112 were unreadable; a question that does not name
+its scheme retrieves weakly whether or not the corpus answers it, which pushed
+answerable scores down onto the unanswerable ones. The leakage control of
+§III-F rules out the other explanation — that rewritten questions copied their
+passage's wording — since same-script overlap is essentially unchanged (median
+Jaccard 0.077 against 0.066) and no cell shows a larger BM25 edge on its
+high-overlap half.
 
-We fit the calibrated combination of §IV-F over these features to see how much
-of that is recoverable, on the same split, and report it beside the threshold.
-
-| Signal | test F1 | abstains on | AUC |
-|---|---|---|---|
-| 1. retrieval threshold | 0.345 | 87.0% | — |
-| 4. calibrated combination | **0.360** | **37.5%** | 0.663 |
-
-Combining does extract more than any feature alone: AUC 0.663 against a best
-single feature of 0.599. F1 barely moves, which is what a near-chance feature
-set predicts, but the *operating point* improves substantially — a comparable F1
-while refusing 37% of questions rather than 87%. The distinction matters for
-deployment, where the cost of silence is borne by users who asked answerable
-questions.
-
-The fitted coefficients are the sharper result:
-
-| Feature | weight |
-|---|---|
-| score spread | 0.739 |
-| mean top-k | −0.350 |
-| margin | 0.138 |
-| scheme agreement | 0.104 |
-| **max score** | **0.011** |
-
-`max_score` receives the smallest weight of the five, and it is the only
-quantity the standard threshold looks at. The conventional abstention signal
-thresholds the least informative feature available to it. What little
-information exists lies in the *geometry* of the score distribution — how far
-the top result stands above the rest of the retrieved set — rather than in its
-magnitude.
-
-**This follows from the dataset rather than from the retriever.** Of the 80
-unanswerable items, 55 — the near-miss, false-premise and under-specified
-classes — are deliberately written about schemes that *are* in the corpus. A
-false-premise question names a real scheme and asserts something untrue of it; a
-near-miss question matches a scheme's subject matter without matching any
-particular statement. Such questions retrieve exactly as well as answerable
-ones, because the passages they retrieve are genuinely about the topic. Only the
-25 out-of-scope items concern absent subjects, and those are the only ones a
-retrieval score can see.
-
-A corpus-absence detector is therefore what a retrieval threshold is, and
-answerability is not corpus absence. The distinction matters for deployment: a
-system fielding questions about schemes it documents will meet the hard classes
-far more often than the easy one.
-
-We draw two conclusions. The first is negative and firm: **retrieval-score
-thresholds should not be used as answerability signals on corpora where
-unanswerable questions concern present topics**, and reporting a single fitted
-operating point conceals this, because the fitted point moves from 0.000 recall
-to 0.93 depending only on the split while the underlying curve stays flat. The
-second is the motivation for §IV-F: deciding whether a *specific claim* is
-supported requires reading the passage, which is what the generator and the
-entailment check do and what a retrieval score cannot.
+We draw two conclusions. A lexical retrieval score is a usable first-stage
+abstention signal on well-formed questions: it removes out-of-scope and most
+under-specified questions cheaply. It is not an answerability signal for the
+near-miss class, which needs a model to read the passage (§VI-H.1), and it
+must be read from the lexical score rather than from a rank-fused one.
 
 ### H.1 All four signals, on the same items
 

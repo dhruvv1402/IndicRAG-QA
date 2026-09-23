@@ -73,8 +73,9 @@ is strong enough to be a standard baseline.
 
 We find that hybrid retrieval assembled in this standard way does not merely
 fail to help the cross-lingual case. It *actively harms* it, scoring below the
-dense component it contains. On our corpus, plain RRF reaches 0.022 Recall@5 on
-cross-lingual queries while its own dense retriever, used alone, reaches 0.125.
+dense component it contains. On the verified test split of our corpus, plain
+RRF reaches 0.274 Recall@5 on cross-lingual queries while its own dense
+retriever, used alone, reaches 0.661.
 
 The cause is structural rather than a matter of tuning, which is why an α sweep
 over weighted fusion found nothing and reported a clean negative result. Rank
@@ -89,8 +90,12 @@ is the only informative signal available.
 The correction that follows from this diagnosis is small: score each candidate
 over the retrievers that were *eligible* to return it rather than over those
 that did. It requires no training, no tuning and one lookup per candidate, and
-it recovers cross-lingual Recall@5 from 0.022 to 0.153 and code-mixed from 0.028
-to 0.173, at a measured and reported cost of 0.044 on monolingual queries.
+it recovers cross-lingual Recall@5 from 0.274 to 0.685 (p = 0.0001) with no
+measurable cost on monolingual queries (0.964 against 0.964). What it does not
+do is beat the dense retriever alone by much: +0.030 overall (p = 0.052), and
+significantly only on code-mixed queries (+0.085, p = 0.004). The contribution
+is removing a harm that standard fusion introduces, not a large gain over a
+strong dense baseline, and we report it as such.
 
 ### C. How the result was found
 
@@ -118,11 +123,12 @@ away from it.
    correct it in a form that generalises beyond language to any
    asymmetric-coverage setting.
 
-2. **A bilingual evidence-grounded QA set.** 400 items over Indian government
+2. **A bilingual evidence-grounded QA set.** 393 items over Indian government
    welfare schemes, with an explicit query-language × evidence-language matrix
    covering six cells, a four-class unanswerable taxonomy, per-item gold passage
-   identifiers, and a documented annotation protocol with blind second-pass
-   agreement.
+   sets, and a sealed dev/test split. It was verified by a language model in two
+   independent passes rather than by a person, which we disclose on every
+   report built from it (§III-D, §IX).
 
 3. **A four-signal comparison of answerability, and a negative result on the
    standard one.** Retrieval-score thresholds carry no information on a corpus

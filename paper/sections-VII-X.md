@@ -2,12 +2,9 @@
 
 Written as paper prose rather than notes, continuing `sections-III-IV-V.md`.
 
-Every retrieval figure quoted here is `[PROBE]`: measured on 180 synthetic
-probes, not on the human-verified gold set. The probe set is built from real
-article titles and real passages, so the *structure* of the finding is sound, but
-no number below may be reported as a gold-set result until the 400-item set has
-been through verification. Where a number would change the argument if it moved,
-that is said explicitly rather than left to the reader.
+Figures here are from the model-verified gold set, on its sealed test split
+unless stated, except where a section describes the probe-set work that found
+the mechanism, which is marked as such.
 
 ---
 
@@ -142,43 +139,47 @@ contribution alone — the only evidence that ever existed about it — instead 
 being penalised for a vote that was never possible.
 
 The change is small, requires no training and no tuning, and adds one lookup per
-candidate. On the probe set it takes cross-lingual Recall@5 from 0.022 to 0.153
-(paired randomization test, p = 0.0001) and code-mixed Recall@5 from 0.028 to
-0.173 (p = 0.0002), against a dense-only baseline of 0.125 and 0.132
-respectively. The comparison against dense alone is the one that decides whether
-hybrid retrieval earns its place at all, and script-aware fusion beats it
-overall by 0.050 (p = 0.0086).
+candidate. On the sealed test split of the verified gold set it takes
+cross-lingual Recall@5 from 0.274 under plain RRF to 0.685 (paired randomization
+test, p = 0.0001, n = 62), and overall Recall@5 from 0.618 to 0.750
+(p = 0.0001, n = 216). On the probe set where it was found, the same correction
+took cross-lingual recall from 0.022 to 0.153.
 
-This also revises a negative result reported earlier in the same work. The α
-sweep had found no interior weighting that beat both endpoints, and we had
-recorded the hypothesis that hybrid retrieval outperforms its components as
-unsupported. That verdict was correct about the method it tested and wrong about
-the hypothesis: hybrid retrieval does beat its own components on this corpus,
-but only once fusion stops penalising passages for being written in the language
-the query was not.
+The comparison against dense retrieval alone is the one that decides whether
+hybrid retrieval earns its place at all, and here the verified set is less
+generous than the probes were. Script-aware fusion beats e5-base alone by
++0.030 overall on the test split (p = 0.052) and +0.027 on dev and test pooled
+(p = 0.021); by slice, the gain is significant only on code-mixed queries
+(+0.085, p = 0.0037), where Romanized questions carrying English scheme names
+give the lexical retriever something the dense one misses, and it is +0.024 on
+cross-lingual queries (p = 0.62). The honest reading is that the correction
+removes a harm plain fusion introduces, and that once removed, fusing adds a
+small gain over a strong multilingual dense retriever, concentrated in
+code-mixed queries.
+
+This also revises a negative result reported earlier in the same work, though
+less than we first claimed. The α sweep found no interior weighting that beat
+both endpoints, and still finds none on the verified set (best α = 0.1 at 0.720
+against 0.720 for pure dense, test split). We had read the script-aware result as
+showing that hybrid retrieval does beat its components once fusion stops
+penalising cross-script passages. On the verified set that holds for code-mixed
+queries and is within noise elsewhere.
 
 ### C. The cost, stated plainly
 
-Script-aware fusion is a trade and not a free win. Monolingual Recall@5 falls
-from 0.712 to 0.668, a regression of 0.044 at p = 0.032. Removing the lexical
-double-vote costs precision exactly where it was legitimate — where both
-retrievers could see the same passage, agreement between them really was
-evidence, and we are now discarding some of it.
+On the probe set the correction was a trade: monolingual Recall@5 fell from
+0.712 to 0.668, a regression of 0.044 at p = 0.032, because removing the lexical
+double-vote discards agreement between retrievers exactly where both could see
+the same passage and agreement really was evidence.
 
-On this corpus the trade is clearly favourable, because monolingual retrieval
-was already strong and cross-lingual retrieval was near zero, and a method that
-moves a slice from 0.022 to 0.153 at the cost of 0.044 elsewhere is buying a
-great deal for very little.
-
-**The cost may not exist at all.** The 0.044 is a probe-set figure. Measured on
-the 320 gold questions (§VI-A.1) the monolingual regression is −0.008 at
-p = 1.00, while the cross-lingual gain rises to +0.389. Neither set is verified,
-so we report the probe figure as the conservative one and note that the only
-measurement taken on real questions found no price worth naming. On a deployment whose queries are overwhelmingly
-monolingual the same trade would be a poor one. We report the regression rather
-than the aggregate because the aggregate hides it: overall Recall@5 moves from
-0.483 to 0.500, a difference indistinguishable from noise (p = 0.32), and a
-paper reporting only that number would be concealing both the gain and the cost.
+**On the verified set there is no cost to state.** Monolingual Recall@5 is
+0.964 under both plain and script-aware fusion on the test split (p = 1.00),
+against 0.976 for dense alone (p = 0.75). The probe set's monolingual questions
+were built by lifting phrasing from their passages, which is the case where
+lexical agreement is most informative and discarding it costs most; real
+questions do not do that. We report the probe regression anyway, because on a
+deployment whose queries are overwhelmingly lexical-overlap monolingual ones it
+is the figure that would apply.
 
 ### D. Retrieval is not the binding constraint here
 
@@ -254,23 +255,30 @@ script asymmetry in general from one that happens to handle this pair. Behaviour
 with three or more scripts, and with partially overlapping scripts such as those
 sharing a Perso-Arabic base, is untested.
 
-**Scale, and a single primary annotator.** The evaluation set is 400 items, of
-which 320 are answerable, spread over six query-language-by-passage-language
-cells. Cells therefore hold 45 to 70 items each, and per-cell differences of a
-few points are not resolvable. All items are authored by a single primary
-annotator working from model-generated candidates; a stratified 15% second pass
-re-labels the answerability decision blind, and Cohen's κ is reported, with
-κ ≥ 0.70 treated as a gate on reporting any answerability result. Inter-annotator
-agreement on a 15% sample is a weaker control than independent double annotation
-throughout, which was not feasible here.
+**Scale, and no human annotator.** The evaluation set is 393 verified items, of
+which 313 are answerable, spread over six query-language-by-passage-language
+cells of 44 to 69 items, and the sealed test split holds 273 of them; per-cell
+differences of a few points are not resolvable. The larger limitation is who
+verified them. The protocol called for a person to confirm every item and for a
+second person to re-label a blind sample, with κ ≥ 0.70 as a gate on reporting
+any answerability result. Both steps were carried out by a language model
+instead (§III-D). The second pass agrees perfectly with the first, κ = 1.000
+over 59 items, but two instances of one model share its blind spots, and the
+confirming pass had already dropped the items it disagreed with, so that figure
+measures consistency and is not the gate the protocol describes. The
+verification did find and remove real defects — wrong answers, unreadable
+translations, duplicated unanswerable items — and every figure in §VI rests on
+the corrected set; but a gold set checked only by a model inherits that model's
+judgement of what a passage states, and a human pass over at least the test
+split remains the most valuable single piece of outstanding work.
 
-**Preliminary numbers.** Every retrieval figure in this paper is measured on
-synthetic probes rather than on the verified gold set, and is marked `[PROBE]`
-throughout. The probes are constructed from real passages and real article
-titles, and the mechanism they expose is structural rather than statistical, so
-we do not expect the direction of the fusion result to change. The magnitudes
-may. Any figure still marked `[PROBE]` at submission is labelled as such in the
-text, and no such figure is reported as a gold-set result.
+**Probe-set figures are kept, and they disagree with the gold set.** The
+analyses in §VI-B to §VI-F were measured on 180 synthetic probes before the gold
+set existed, and are marked `[PROBE]`. The direction of the fusion result held
+on the verified set, as the mechanism predicted; the magnitudes did not. The
+probes understated the repair to plain fusion and overstated the gain over dense
+retrieval alone, and one probe-set observation — LaBSE leading the code-mixed
+slice — does not hold on real questions. Where they disagree, §VI-A stands.
 
 **A small quantized generator on CPU.** Generation uses Qwen2.5-3B-Instruct at
 4-bit quantization on a four-core CPU. This is a deliberate constraint — the
@@ -282,9 +290,10 @@ results, which are model-independent, and the retrieval results are where our
 contribution lies.
 
 **The fusion correction is demonstrated over three encoders, not all of them.**
-§VI-A.2 applies it over multilingual-e5-base, MiniLM-L12 and LaBSE on the gold
-set, and it improves each by a similar margin (+0.081, +0.103, +0.072), which is
-what a claim about the arithmetic rather than the representation predicts. That
+§VI-A.1 applies it over multilingual-e5-base, MiniLM-L12 and LaBSE on the
+verified set, and it improves each (+0.028, +0.162, +0.085), more for the weaker
+encoders, which is what a claim about the arithmetic rather than the
+representation predicts. That
 is evidence for the generalisation in §VIII-E but not proof of it: three
 sentence encoders on one corpus is a narrow base, and we have not tested the
 mechanism on the non-language asymmetries §VIII-E claims it reaches.
@@ -327,9 +336,10 @@ which addresses exactly the classes the threshold cannot see.
 
 We have presented IndicRAG-QA, an evidence-grounded question answering system
 for Hindi, English and Hindi–English code-mixed queries over a parallel corpus
-of Indian government welfare schemes, together with a 400-item evaluation set
-annotated across six query-language-by-passage-language cells and a taxonomy of
-four unanswerable question types.
+of Indian government welfare schemes, together with a 393-item evaluation set
+across six query-language-by-passage-language cells and a taxonomy of four
+unanswerable question types, verified by a language model and disclosed as
+such.
 
 The central finding is about rank fusion rather than about any individual
 retriever. Reciprocal Rank Fusion, applied unmodified to a lexical and a dense
@@ -338,9 +348,12 @@ lexical retriever's structural inability to return them, and in doing so
 discards the only informative evidence available in exactly the cross-lingual
 and code-mixed cases such a system exists to serve. Scoring each candidate over
 the retrievers *eligible* to return it, rather than those that did, is sufficient
-to correct this: cross-lingual Recall@5 improves roughly sevenfold and code-mixed
-roughly sixfold on our probe set, at a measured cost of 0.044 monolingual
-Recall@5, with no training and one additional lookup per candidate.
+to correct this: on the verified test split cross-lingual Recall@5 rises from
+0.274 to 0.685, with no measurable monolingual cost, no training and one
+additional lookup per candidate. Against a strong multilingual dense retriever
+used alone, the corrected hybrid gains little — +0.030 overall, significant only
+on code-mixed queries — so the finding is that standard fusion does harm and the
+correction removes it, not that fusion is a large win.
 
 Two things about how the result was obtained seem worth carrying forward. The
 first is that it was invisible in the aggregate metrics, which showed only that
@@ -362,8 +375,9 @@ limits answer quality on a corpus like this one. Separating the two is what the
 oracle arm exists to do, and doing it changed what we would advise a
 practitioner to fix first.
 
-Immediate future work is to complete human verification of the evaluation set
-and replace every `[PROBE]` figure with a gold-set measurement; to extend the
+Immediate future work is a human verification pass over the evaluation set,
+at least its test split, to replace the model verification it currently rests
+on; to extend the
 corpus beyond Hindi to at least one non-Devanagari Indic script, which would
 distinguish a general treatment of script asymmetry from a Hindi-specific one;
 and to test the eligibility formulation on asymmetric-coverage settings outside

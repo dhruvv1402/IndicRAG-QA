@@ -1,17 +1,11 @@
 # Abstract and Section I — full draft
 
-Completes the prose draft. With `section-II-related-work.md`,
-`sections-III-IV-V.md` and `sections-VII-X.md`, every section but §VI (Results)
-now exists as paper text; §VI waits on Module 4 and Module 5 numbers.
-
-Retrieval figures are `[PROBE]` — measured on 180 synthetic probes, not the
-verified gold set.
+Figures are from the sealed test split of the model-verified gold set, except
+where a sentence says otherwise.
 
 ---
 
 ## Abstract
-
-*(~210 words. Figures marked `[PROBE]`; to be re-measured on the gold set.)*
 
 > Retrieval-augmented generation over multilingual corpora is commonly built by
 > fusing a lexical retriever with a dense one, on the assumption that their
@@ -22,16 +16,18 @@ verified gold set.
 > passage collects one vote where a same-script passage collects two, and is
 > penalised for the lexical retriever's *blindness* rather than for its own
 > irrelevance. On a bilingual Hindi–English corpus of Indian government welfare
-> schemes, Reciprocal Rank Fusion reaches 0.022 Recall@5 on cross-lingual
-> queries against 0.125 for its own dense component. We propose **script-aware
-> fusion**, which scores each candidate over the retrievers *eligible* to return
-> it, recovering 0.153 cross-lingual and 0.173 code-mixed Recall@5
-> (p = 0.0001, p = 0.0002) at a cost of 0.044 monolingual Recall@5. An oracle
-> arm bounds what this buys end to end: generation error is 0.597 against
-> retrieval error of 0.193, and the fusion gain is not separable from dense
-> retrieval alone in downstream answer quality at our sample size. We release a
-> 400-item bilingual QA set with an explicit query-language × evidence-language
-> matrix and a four-class unanswerable taxonomy.
+> schemes and a sealed test split of 216 answerable questions, Reciprocal Rank
+> Fusion reaches 0.274 Recall@5 on cross-lingual queries against 0.661 for its
+> own dense component. We propose **script-aware fusion**, which scores each
+> candidate over the retrievers *eligible* to return it: it recovers 0.685
+> cross-lingual Recall@5 (+0.411 over plain RRF, p = 0.0001) at no monolingual
+> cost, though its gain over the dense retriever alone is small (+0.030 overall)
+> and significant only on code-mixed queries. For abstention, the BM25 top score
+> separates answerable from unanswerable questions (AUC 0.791) while the fused
+> score does not, and it catches only half of near-miss questions. We release a
+> 393-item bilingual QA set with a query-language × evidence-language matrix and
+> a four-class unanswerable taxonomy, verified by a language model rather than a
+> person, and say so on every result.
 
 ---
 
@@ -130,18 +126,15 @@ away from it.
    independent passes rather than by a person, which we disclose on every
    report built from it (§III-D, §IX).
 
-3. **A four-signal comparison of answerability, and a negative result on the
-   standard one.** Retrieval-score thresholds carry no information on a corpus
-   whose unanswerable questions concern present topics: answerable and
-   unanswerable questions have indistinguishable top scores — 13.55 against
-   13.82 for BM25, with the *unanswerable* marginally higher — and precision
-   across the full sweep stays at the base rate. A retrieval threshold is a
-   corpus-absence detector and answerability is not corpus absence. Both
-   retrieval-side signals degenerate to near-total abstention, the calibrated
-   combination literally refusing every question in the reported set; the
-   generator's own abstention is the only signal producing a usable system, and
-   an entailment check on top of it adds nothing because the generator has
-   already declined nearly everything it should.
+3. **Which retrieval score carries an abstention signal.** On verified
+   questions the BM25 top score separates answerable from unanswerable (medians
+   25.5 against 13.8, AUC 0.791; test F1 0.525), while the rank-fused score
+   does not (0.0328 against 0.0325), because rank fusion discards magnitudes. A
+   threshold on the lexical score rejects every out-of-scope question and about
+   half of near-misses — questions about a covered scheme asking for a fact it
+   does not state — which only a reader of the passage can catch. Before
+   verification the same measurement showed no signal at all; malformed
+   questions had hidden it, and we report both.
 
 4. **A controlled negative result on Indic MLM checkpoints.** Off-the-shelf
    masked-language-model encoders for Indic languages underperform

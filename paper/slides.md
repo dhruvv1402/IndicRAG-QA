@@ -9,8 +9,10 @@ the start. Slides 5–8 are the spine and 11–12 are the payoff — if time run
 then 13, then 14. Never 12: it is the one that stops the talk being a sales
 pitch.
 
-Retrieval figures are `[PROBE]` (180 synthetic probes). Any figure still marked
-`[PROBE]` on the day must be labelled on the slide, not just in the notes.
+Retrieval and answerability-threshold figures are from the sealed test split of
+the model-verified gold set. Slides 11, 12 and the signals half of 14 are still
+from the unverified Module 4 run until its test-split re-run finishes, and are
+labelled so on the slide, not just in the notes.
 
 ---
 
@@ -194,6 +196,7 @@ anecdote.
 ## 11. Does it actually help the answers?
 
 Four arms, same generator, differing only in the evidence given.
+*Unverified items, 72-item sample — re-run on the test split pending.*
 
 | Arm | token-F1 | abstains | Citation Support |
 |---|---|---|---|
@@ -217,6 +220,8 @@ of questions. The paired test is what settles it.
 ---
 
 ## 12. But retrieval is not the bottleneck
+
+*Unverified items, 72-item sample.*
 
 | | |
 |---|---|
@@ -271,7 +276,8 @@ Before verification the BM25 medians were reversed (13.55 vs 13.82): questions
 that did not name their scheme retrieved weakly whether or not they were
 answerable.
 
-Four signals, same items. Of 28 answerable questions, how many get answered?
+Four signals, same items (*unverified set, enriched sample*). Of 28 answerable
+questions, how many get answered?
 
 | signal | catches unanswerable | answers answerable |
 |---|---|---|

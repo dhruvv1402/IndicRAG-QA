@@ -74,6 +74,7 @@ indicrag ask "Scholarship ke liye minimum eligibility kya hai?"
 
 indicrag eval retrieval --report evals/report-retrieval.txt
 indicrag eval all --report evals/      # corpus, retrieval, errors, answerability reports
+indicrag eval qa --split test --sample 72 --nli --gguf <qwen2.5-3b.gguf>   # Module 4
 python scripts/regenerate-reports.py --check   # every committed report, diffed against evals/
 ```
 
@@ -85,93 +86,76 @@ what is committed under `evals/` is byte-identical to what was shown.
 
 ## What has been measured
 
-All preliminary, and labelled as such in every report under `evals/`. Retrieval
-figures come from 180 synthetic probes; the question-answering and answerability
-figures come from the 400-item set, of which **0 are human-verified**. Nothing
-below may be quoted as a gold-set result. Six findings so far:
+On the gold set: 393 items (313 answerable, 80 unanswerable), **verified by a language
+model, not by a person** -- see "Status" below. Every figure here is from the sealed test
+split (216 answerable, 273 in all), scored once, with tuning on the 120-item dev split.
+Every report under `evals/` carries the same disclosure in its banner.
 
-**Lexical retrieval does not cross the language boundary at all.** BM25 Recall@5
-is 0.740 monolingual but 0.006 cross-lingual and 0.028 code-mixed. A Romanized or
-Devanagari query and an English passage share essentially no tokens.
+**Lexical retrieval does not cross the script boundary.** BM25 Recall@5 is 0.970 on
+monolingual queries and 0.153 cross-lingual: a Devanagari question and an English passage
+share essentially no tokens. multilingual-e5-base reaches 0.661 cross-lingual and is the
+best single retriever overall (0.720 against BM25's 0.581, p=0.0001).
 
-**Naive hybrid fusion makes that worse, not better.** Plain RRF lost every one of
-the 8 error cases where dense retrieval alone had found the gold passage. BM25
-can only return passages sharing a script with the query, so in rank fusion a
-cross-script passage is docked roughly 2:1 for the *lexical retriever's
-blindness* rather than its own irrelevance. `script_aware_rrf` scores each
-passage over the systems eligible to retrieve it, which takes cross-lingual
-Recall@5 from 0.022 to 0.153 (p=0.0001) and code-mixed from 0.028 to 0.173
-(p=0.0002), at a real cost of -0.044 monolingual (p=0.032).
+**Plain rank fusion throws that away, and a one-line correction restores it.** Reciprocal
+Rank Fusion of BM25 and e5 scores 0.274 cross-lingual, less than half of e5 alone. BM25 can
+only return passages in the query's script, so under RRF a cross-script passage is docked a
+full vote for the lexical retriever's *blindness* rather than its own irrelevance.
+`script_aware_rrf` scores each passage over the retrievers eligible to return it: 0.685
+cross-lingual (+0.411 over plain RRF, p=0.0001), 0.750 overall (+0.132, p=0.0001), and no
+monolingual cost (0.964 under both).
 
-**Only the generator can tell an answerable question from an unanswerable one.**
-Four signals on the same 120 items: the retrieval threshold answers 6 of 28
-answerable questions, the calibrated combination answers **0 of 28** — it
-refuses everything, which is how it reaches recall 1.000 — and the generator's
-own abstention answers 17 of 28 while still catching 52 of 56 unanswerable.
-Adding an NLI entailment check on top changes nothing, because the generator has
-already declined all but 25 of the 120 and only 2 of those are wrong.
+**Against e5 alone, the corrected hybrid gains little.** +0.030 overall (p=0.052), and
+significant only on code-mixed queries (+0.085, p=0.004), where Romanized questions carry
+English scheme names that BM25 can match. The finding is that standard fusion does harm and
+the correction removes it, not that fusion is a large win. The alpha sweep finds no
+weighting better than pure dense (best alpha 0.1 at 0.720 against 0.720).
 
-**A retrieval-score threshold carries no answerability signal at all here.**
-Answerable and unanswerable questions have indistinguishable top scores, and the
-unanswerable ones score marginally *higher*: 13.55 against 13.82 under BM25,
-0.1424 against 0.1485 under TF-IDF, 0.0327 against 0.0325 under script-aware
-RRF. Precision stays at the 0.20 base rate across the entire threshold sweep.
-The cause is the taxonomy, not the retriever: 55 of the 80 unanswerable items
-are deliberately about schemes that *are* in the corpus, so they retrieve
-exactly as well as answerable ones. A retrieval threshold detects corpus
-absence, and answerability is not corpus absence.
+**Indic pretraining is not retrieval training.** MuRIL, pretrained on 17 Indian languages,
+reaches 0.048 cross-lingual with mean pooling and 0.024 with CLS; the pooling choice does not
+explain it.
 
-**Pick the encoder by query script, not by language coverage.** LaBSE was
-expected to lead the cross-lingual slice and does not (0.097, below MiniLM at
-0.136). It instead dominates code-mixed at 0.332 against script-aware fusion's 0.173,
-a paired +0.159 at p=0.0094. The reverse holds monolingually, equally
-significantly: LaBSE loses there by 0.233 (p=0.0001). It is not a better
-retriever, it is a differently shaped one. On code-mixed queries a better
-encoder beats correcting the fusion over a weaker one. MuRIL, meanwhile,
-pretrained on 17 Indian languages, scores exactly 0.000 on both cross-lingual
-and code-mixed: pretraining-language coverage does not substitute for retrieval
-training.
+**The lexical score is a usable first-stage abstention signal; the fused score is not.** A
+BM25 top-score threshold fitted on dev reaches unanswerable F1 0.525 on test (AUC 0.791),
+catching every out-of-scope question but only 0.522 of near-misses -- questions about a
+scheme the corpus covers, asking for a fact it does not state. The script-aware RRF score
+carries almost no signal (medians 0.0328 against 0.0325), because rank fusion discards score
+magnitudes.
 
-**Retrieval-augmented generation works, and the generator is the bottleneck.**
-Four arms over a 72-item stratified sample, one generator throughout, differing
-only in the evidence supplied. Citation Support Rate -- the share of answered
-questions whose answer the cited evidence supports -- goes 0.162 closed-book to
-0.762 with dense retrieval, paired delta +0.593 at p=0.0001. The closed-book arm
-answers 37 of 72 and only 16% of those answers are supported: it recites
-eligibility thresholds from memory and is usually wrong.
+**Retrieval-augmented generation works; measured so far only on unverified items.**
+Module 4 compares four arms -- closed-book, dense RAG, script-aware RAG, and an oracle
+given the gold passage -- with one generator (Qwen2.5-3B, 4-bit). On a 72-item sample of
+the unverified set, citation support rose from 0.162 closed-book to 0.762 with retrieval
+(+0.593, p=0.0001), the choice of retriever did not show up downstream, and generation
+error (0.597) was three times retrieval error (0.193). The re-run on the sealed test split
+is 186 of 288 generations in. Until it finishes, `evals/report-qa.txt` and
+`report-answerability-signals.txt` hold the unverified run; the second says so in its
+banner, and the first predates banners and does not.
 
-*Which* retriever does not show up downstream. Script-aware fusion against dense
-alone is +0.026 citation support (p=1.00) and +0.003 token-F1 (p=0.89), paired
-over the questions both arms answered. The unpaired rates look like a win
-(0.826 against 0.762) only because the two arms answer different numbers of
-questions.
-
-The oracle arm then bounds the whole thing. Generation error is 0.597 against
-retrieval error of 0.193, so fixing retrieval entirely would buy less than a
-third of what the 3B generator is losing. The fusion result is a claim about
-retrieval measured as retrieval; it is not a claim that retrieval is what limits
-answer quality here.
-
-See `evals/report-retrieval-probes.txt`, `evals/report-script-aware-fusion.txt`,
-`evals/report-qa.txt`, `evals/report-answerability.txt` and
-`evals/report-errors.txt`.
+See `evals/report-retrieval-test.txt`, `evals/report-fusion-test.txt`,
+`evals/report-answerability-bm25.txt`, `evals/report-answerability-signals.txt`,
+`evals/report-qa.txt`, `evals/report-errors-test.txt` and `evals/report-observed-votes.txt`. The earlier 180-probe results
+(`report-retrieval-probes.txt`, `report-script-aware-fusion.txt`) are where the fusion
+mechanism was found; where they disagree with the gold set, the gold set stands.
 
 ## Status
 
-P0–P3 complete, P4 running, P5 blocked, P6 substantially drafted. `docs/PLAN.md`
-§10 carries the phase table and what is not built yet, and that list is kept
-honest.
+All six phases have run. `docs/PLAN.md` §10 carries the phase table and what is
+not built, and that list is kept honest.
 
-**The one real blocker is human verification: 0 of 400 items.** PRD §10.2
-excludes unverified items from any reported result, so every number in this
-repository is `[PROBE]` and every report says so in its own banner.
-`indicrag dataset split` enforces this by refusing to run — it splits verified
-items only. That is annotation work, not engineering.
+**The gold set was verified by a model, not by a person.** The owner asked for the
+verification to be completed without them. Two independent model passes read every item
+against its evidence; every item records `annotator: model:...`, and every report says so.
+The blind second pass is also a model instance (kappa 1.000 over 59 items), which measures
+self-consistency rather than the inter-annotator agreement PRD §6.5 asks for. A person
+confirming at least the test split is the most valuable piece of outstanding work;
+`indicrag dataset verify` records a human annotator item by item, and the banners will then
+report the mix.
 
-The paper is drafted in full (`paper/paper.md`, §I–§X), with a 14-slide deck, 4
-figures and an IEEE `.docx`. All three are built by script from the committed
-data — `scripts/build-paper.py`, `build-figures.py`, `build-docx.py` — so a
-figure cannot quietly disagree with the table beside it.
+The paper (`paper/paper.md`, IEEE `.docx` and `.pdf`), the slide deck and every figure are
+built by script from committed data -- `scripts/build-paper.py`, `build-figures.py`,
+`build-docx.py`, `build-pptx.py` -- so a figure cannot quietly disagree with the table
+beside it. `python scripts/regenerate-reports.py --check` regenerates every committed report
+and diffs it.
 
 ## Attribution
 

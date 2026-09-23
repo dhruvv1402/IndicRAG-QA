@@ -1,11 +1,11 @@
-Generated: 2026-09-23 04:57
+Generated: 2026-09-24 00:37
 Source:    evals\gold.jsonl
 Items:     393 (313 answerable, 80 unanswerable)
 Verified:  393/393  (0 by a person, 393 by a model)
 
 MODEL-VERIFIED. Verification of these items was done by a language-model
 pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
-paper §III-E for the procedure and its agreement figures.
+paper §III-D for the procedure and its agreement figures.
 
 tau fitted on 120 items (F1=0.586); reported on 273 held out.
 
@@ -85,10 +85,10 @@ FEATURE SEPARATION -- bm25
   score_spread             10.9480        4.2291   0.790  <-- separates
   scheme_agreement          0.6000        0.4000   0.650  <-- separates
 
-  Best single feature reaches AUC 0.791. Combining them recovers
-  somewhat more than any one of them -- see the calibrated section below --
-  but a combination is bounded by what its inputs carry, and every column
-  here is closer to chance than to a usable signal.
+  Best single feature reaches AUC 0.791. Whether combining them
+  helps is in the calibrated section below; a combination is
+  bounded by what its inputs carry, and
+  at least one column here is closer to a usable signal than to chance.
 
 THRESHOLD SWEEP
 ------------------------------------------------------------------------------

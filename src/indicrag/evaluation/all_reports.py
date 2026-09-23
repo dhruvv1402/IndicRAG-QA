@@ -96,7 +96,7 @@ def provenance(items: Sequence[QAItem], source: str) -> list[str]:
             "",
             "MODEL-VERIFIED. Verification of these items was done by a language-model",
             "pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see",
-            "paper §III-E for the procedure and its agreement figures.",
+            "paper §III-D for the procedure and its agreement figures.",
         ]
     if verified < total:
         lines += [

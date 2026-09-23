@@ -537,6 +537,21 @@ def test_the_report_bounds_the_combination_without_overclaiming():
     assert "cannot be rescued" not in text
 
 
+def test_the_verdict_follows_the_measured_auc():
+    """The footer used to call every column 'closer to chance' unconditionally,
+    and printed it under a BM25 top score with AUC 0.791."""
+    from indicrag.answerability.signals import Features
+    from indicrag.evaluation.answerability import feature_separation, format_feature_separation
+
+    labels = [True, True, False, False]
+    strong = [Features(max_score=s) for s in (0.9, 0.8, 0.2, 0.1)]
+    flat = [Features(max_score=0.5) for _ in range(4)]
+    strong_text = "\n".join(format_feature_separation(feature_separation(strong, labels)))
+    flat_text = "\n".join(format_feature_separation(feature_separation(flat, labels)))
+    assert "closer to a usable signal than to chance" in strong_text
+    assert "closer to chance than to a usable signal" in flat_text
+
+
 # --- the calibrated combination --------------------------------------------------
 
 

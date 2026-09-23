@@ -113,6 +113,7 @@ def script_aware_rrf(
     query_script: str,
     k: int = 10,
     rrf_k: int = RRF_K,
+    count_observed_votes: bool = False,
 ) -> list[Retrieved]:
     """RRF that does not penalise a passage the lexical retriever could never see.
 
@@ -133,6 +134,20 @@ def script_aware_rrf(
     So each passage is scored over the systems that were *eligible* to retrieve
     it. A cross-script candidate is judged on the dense contribution alone rather
     than being docked for a vote that was never possible.
+
+    `count_observed_votes` corrects a defect found in the test-split error
+    analysis (paper §VII). Eligibility is decided by script, but BM25 does
+    sometimes return a cross-script passage -- a Hindi passage that quotes
+    "Soil Health Card" in Latin letters, or shares a digit string -- and the
+    doubling meant for a missing vote then doubles a vote that was cast, which
+    can lift an irrelevant passage to rank 1. With the flag, a passage the
+    lexical retriever actually returned counts as eligible. It stays off: on the
+    dev split it is worse, not better (-0.026 Recall@5 overall, -0.093
+    cross-lingual, neither significant; evals/report-observed-votes.txt).
+    Over dev and test it changes 6 queries' hit@5: 5 lost, 1 gained. In 4 of
+    the 5 losses BM25 reached the cross-script gold through a year or number in
+    the question, in the fifth through a Latin acronym (ICDS) -- so a cast
+    cross-script vote is usually real evidence, and doubling it usually helps.
     """
     eligible_both = query_script in ("mixed", "unknown")
 
@@ -145,6 +160,8 @@ def script_aware_rrf(
     for pid, parts in contributions.items():
         passage_script = script_of.get(pid, "unknown")
         lexical_could_see = eligible_both or passage_script == query_script
+        if count_observed_votes and "lexical" in parts:
+            lexical_could_see = True
         n_eligible = 2 if lexical_could_see else 1
         fused[pid] = sum(parts.values()) * (2.0 / n_eligible)
 

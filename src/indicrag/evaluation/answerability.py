@@ -567,12 +567,20 @@ def format_feature_separation(table, *, method: str = "") -> list[str]:
         out.append(f"  {name:<20}{a_med:>12.4f}{u_med:>14.4f}{area:>8.3f}{note}")
 
     best = max(table.values(), key=lambda v: abs(v[2] - 0.5))
+    # An AUC of 0.75 is halfway between chance and perfect separation. The
+    # verdict is computed rather than written, because the same formatter
+    # renders features that separate the classes and features that do not.
+    verdict = (
+        "at least one column here is closer to a usable signal than to chance."
+        if abs(best[2] - 0.5) >= 0.25
+        else "every column here is closer to chance than to a usable signal."
+    )
     out += [
         "",
-        f"  Best single feature reaches AUC {best[2]:.3f}. Combining them recovers",
-        "  somewhat more than any one of them -- see the calibrated section below --",
-        "  but a combination is bounded by what its inputs carry, and every column",
-        "  here is closer to chance than to a usable signal.",
+        f"  Best single feature reaches AUC {best[2]:.3f}. Whether combining them",
+        "  helps is in the calibrated section below; a combination is",
+        "  bounded by what its inputs carry, and",
+        f"  {verdict}",
     ]
     return out
 

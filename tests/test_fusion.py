@@ -91,3 +91,25 @@ def test_fusing_with_no_candidates_on_one_side_keeps_the_other_side_ordered():
     dense = _run("e5", [("p1", 0.9), ("p2", 0.5)])
     fused = weighted_fusion([], dense, alpha=0.4, k=2)
     assert [r.passage_id for r in fused] == ["p1", "p2"]
+
+
+def test_a_cast_lexical_vote_is_not_doubled_when_observed_votes_count():
+    """A Latin query can reach a Hindi passage through a Latin word it quotes.
+    Doubling that passage's score for a 'missing' vote that was in fact cast
+    lifted an irrelevant passage to rank 1 in the test-split error analysis."""
+    from indicrag.index.hybrid import script_aware_rrf
+    from indicrag.models import Retrieved
+
+    def run(ids):
+        return [Retrieved(passage_id=p, score=1.0, rank=r, method="x") for r, p in enumerate(ids, 1)]
+
+    script_of = {"en-good": "latin", "hi-quotes-card": "deva"}
+    lexical = run(["en-good", "hi-quotes-card"])
+    dense = run(["en-good", "hi-quotes-card"])
+
+    old = script_aware_rrf(lexical, dense, script_of=script_of, query_script="latin", k=2)
+    new = script_aware_rrf(
+        lexical, dense, script_of=script_of, query_script="latin", k=2, count_observed_votes=True
+    )
+    assert old[0].passage_id == "hi-quotes-card"  # the defect, pinned
+    assert new[0].passage_id == "en-good"

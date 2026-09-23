@@ -1,0 +1,351 @@
+Generated: 2026-09-24 00:39
+Source:    evals\gold.jsonl [test split]
+Items:     216 (216 answerable, 0 unanswerable)
+Verified:  216/216  (0 by a person, 216 by a model)
+
+MODEL-VERIFIED. Verification of these items was done by a language-model
+pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
+paper §III-D for the procedure and its agreement figures.
+
+System analysed: Hybrid RRF script-aware (BM25 + multilingual-e5-base)
+
+MODULE 6 -- ERROR ANALYSIS
+==============================================================================
+15 cases across 8 taxonomy categories.
+
+Cases are selected by rule, not by hand: within each category, the failure
+where the system was most confident and most wrong. A confident miss is a
+systematic blind spot and the case a user would actually be harmed by,
+because nothing in the output warns them.
+
+WHAT A SINGLE COMPONENT WOULD HAVE RECOVERED
+------------------------------------------------------------------------------
+  BM25       found the gold in  1 of 15; the fused system lost 1 of those
+  Hybrid RRF (BM25 + multilingual-e5-base) found the gold in  0 of 15; the fused system lost 0 of those
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) found the gold in  0 of 15; the fused system lost 0 of those
+  LaBSE      found the gold in  2 of 15; the fused system lost 2 of those
+  TF-IDF     found the gold in  1 of 15; the fused system lost 1 of those
+  multilingual-e5-base found the gold in  1 of 15; the fused system lost 1 of those
+  muril-base-cased/cls found the gold in  1 of 15; the fused system lost 1 of those
+  muril-base-cased/mean found the gold in  0 of 15; the fused system lost 0 of those
+  paraphrase-multilingual-MiniLM-L12-v2 found the gold in  2 of 15; the fused system lost 2 of those
+
+  A fusion that discards what its stronger component got right is not a
+  method with a disappointing coefficient. This table is where the
+  script-aware correction came from.
+
+------------------------------------------------------------------------------
+[E01] code-mixing   (Code-Mixed)
+
+  query      Antyodaya card par har mahine kitne kilo gehun aur kitne kilo chawal milta hai?
+  gold       antyodaya-anna-hi#p0000 (antyodaya-anna/hi)
+  gold rank  not retrieved
+  top score  0.0424
+  primary    soil-health-card/hi | soil-health-card/hi | garib-kalyan-anna/en
+  BM25       antyodaya-anna/en | garib-kalyan-anna/en | garib-kalyan-anna/en
+  TF-IDF     antyodaya-anna/en | garib-kalyan-anna/en | garib-kalyan-anna/en
+  paraphrase-multilingual-MiniLM-L12-v2 antyodaya-anna/hi | garib-kalyan-anna/en | antyodaya-anna/en
+  multilingual-e5-base aadhaar/en | garib-kalyan-anna/en | matru-vandana/en
+  LaBSE      digital-india/hi | aadhaar/en | atal-pension/hi
+  muril-base-cased/mean indira-awaas/en | ayushman-bharat/en | garib-kalyan-anna/en
+  muril-base-cased/cls garib-kalyan-anna/en | antyodaya-anna/en | antyodaya-anna/en
+  Hybrid RRF (BM25 + multilingual-e5-base) garib-kalyan-anna/en | antyodaya-anna/en | aadhaar/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) garib-kalyan-anna/en | antyodaya-anna/en | aadhaar/en
+  diagnosis  gold passage not returned at all. Top hit is from a different scheme (soil-health-card vs antyodaya-anna).
+  component  retrieval
+  would fix  Transliterate the query to Devanagari before lexical retrieval (H5 ablation).
+
+------------------------------------------------------------------------------
+[E02] code-mixing   (Code-Mixed)
+
+  query      Sarva Shiksha Abhiyan ka parivyay kis varsh mein badhakar 10,004 karod rupaye kar diya gaya?
+  gold       sarva-shiksha-hi#p0002 (sarva-shiksha/hi)
+  gold rank  6
+  top score  0.0408
+  primary    swachh-bharat/hi | sarva-shiksha/en | sarva-shiksha/en
+  BM25       sarva-shiksha/en | sarva-shiksha/en | rte-act/en
+  TF-IDF     sarva-shiksha/en | swachh-bharat/en | rte-act/en
+  paraphrase-multilingual-MiniLM-L12-v2 swachh-bharat/hi | sarva-shiksha/en | sarva-shiksha/en
+  multilingual-e5-base jeevan-jyoti/en | matru-vandana/en | sarva-shiksha/en
+  LaBSE      swachh-bharat/en | smart-cities/hi | sukanya/hi
+  muril-base-cased/mean ayushman-bharat/en | sukanya/en | sukanya/en
+  muril-base-cased/cls sarva-shiksha/en | rte-act/en | sarva-shiksha/en
+  Hybrid RRF (BM25 + multilingual-e5-base) sarva-shiksha/en | sarva-shiksha/en | sarva-shiksha/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) sarva-shiksha/en | sarva-shiksha/en | jeevan-jyoti/en
+  diagnosis  gold passage returned at rank 6, below the cut. Top hit is from a different scheme (swachh-bharat vs sarva-shiksha).
+  component  retrieval
+  would fix  Transliterate the query to Devanagari before lexical retrieval (H5 ablation).
+
+------------------------------------------------------------------------------
+[E03] transliteration-variation   (Code-Mixed)
+
+  query      Sukanya Samriddhi account kholne ke liye kitne documents chahiye?
+  gold       sukanya-hi#p0009 (sukanya/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    sukanya/en | sukanya/en | sukanya/en
+  BM25       sukanya/en | sukanya/en | sukanya/en
+  TF-IDF     sukanya/en | sukanya/en | sukanya/en
+  paraphrase-multilingual-MiniLM-L12-v2 sukanya/en | sukanya/en | sukanya/en
+  multilingual-e5-base sukanya/en | sukanya/en | sukanya/en
+  LaBSE      sukanya/hi | sukanya/hi | sukanya/en
+  muril-base-cased/mean sukanya/en | mudra/en | beti-bachao/en
+  muril-base-cased/cls sukanya/en | sukanya/en | sukanya/en
+  Hybrid RRF (BM25 + multilingual-e5-base) sukanya/en | sukanya/en | sukanya/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) sukanya/en | sukanya/en | sukanya/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Extend the scheme alias table with Romanized spelling variants.
+
+------------------------------------------------------------------------------
+[E04] transliteration-variation   (Code-Mixed)
+
+  query      Sukanya Samriddhi khate ki vaidhanikta kitne varsh ki hoti hai?
+  gold       sukanya-hi#p0004 (sukanya/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    sukanya/en | sukanya/en | sukanya/en
+  BM25       sukanya/en | sukanya/en | sukanya/en
+  TF-IDF     sukanya/en | ayushman-bharat/en | sukanya/en
+  paraphrase-multilingual-MiniLM-L12-v2 sarva-shiksha/en | beti-bachao/en | swachh-bharat/en
+  multilingual-e5-base sukanya/en | sukanya/en | mudra/en
+  LaBSE      sukanya/hi | sukanya/en | sukanya/hi
+  muril-base-cased/mean sukanya/en | ayushman-bharat/en | sukanya/en
+  muril-base-cased/cls sukanya/en | sukanya/en | sukanya/en
+  Hybrid RRF (BM25 + multilingual-e5-base) sukanya/en | sukanya/en | sukanya/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) sukanya/en | sukanya/en | sukanya/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Extend the scheme alias table with Romanized spelling variants.
+
+------------------------------------------------------------------------------
+[E05] named-entity   (Indic)
+
+  query      सर्व शिक्षा अभियान में माता-पिता, शिक्षकों और अन्य हितधारकों पर नैतिक बाध्यता किस कानून के माध्यम से लगाई जाती है?
+  gold       sarva-shiksha-en#p0008 (sarva-shiksha/en)
+  gold rank  not retrieved
+  top score  0.0548
+  primary    sarva-shiksha/en | rte-act/hi | sarva-shiksha/hi
+  BM25       sarva-shiksha/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  TF-IDF     sarva-shiksha/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  paraphrase-multilingual-MiniLM-L12-v2 rte-act/hi | rte-act/en | rte-act/en
+  multilingual-e5-base rte-act/hi | sarva-shiksha/hi | rte-act/hi
+  LaBSE      rte-act/hi | rte-act/hi | rte-act/hi
+  muril-base-cased/mean swachh-bharat/hi | matru-vandana/hi | epfo/hi
+  muril-base-cased/cls sukanya/hi | skill-india/hi | make-in-india/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) rte-act/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) rte-act/hi | sarva-shiksha/hi | sarva-shiksha/hi
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Boost exact entity matches in fusion, or add an entity-aware reranking pass.
+
+------------------------------------------------------------------------------
+[E06] named-entity   (Indic)
+
+  query      अगस्त 2023 में स्वच्छ भारत मिशन पर आधारित कौन सी फिल्म रिलीज़ हुई?
+  gold       beti-bachao-en#p0006 (beti-bachao/en)
+  gold rank  not retrieved
+  top score  0.0409
+  primary    smart-cities/en | swachh-bharat/hi | swachh-bharat/hi
+  BM25       swachh-bharat/hi | swachh-bharat/hi | swachh-bharat/hi
+  TF-IDF     swachh-bharat/hi | swachh-bharat/hi | swachh-bharat/hi
+  paraphrase-multilingual-MiniLM-L12-v2 swachh-bharat/en | beti-bachao/en | swachh-bharat/hi
+  multilingual-e5-base swachh-bharat/hi | swachh-bharat/hi | swachh-bharat/hi
+  LaBSE      swachh-bharat/hi | ayushman-bharat/hi | smart-cities/hi
+  muril-base-cased/mean swachh-bharat/hi | gram-sadak/hi | swachh-bharat/hi
+  muril-base-cased/cls digital-india/hi | make-in-india/hi | sarva-shiksha/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) swachh-bharat/hi | swachh-bharat/hi | swachh-bharat/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) swachh-bharat/hi | swachh-bharat/hi | swachh-bharat/hi
+  diagnosis  gold passage not returned at all. Top hit is from a different scheme (smart-cities vs beti-bachao).
+  component  retrieval
+  would fix  Boost exact entity matches in fusion, or add an entity-aware reranking pass.
+
+------------------------------------------------------------------------------
+[E07] amount   (Indic)
+
+  query      2022 में अमित शाह के अनुसार आत्मनिर्भर भारत किस आंदोलन से प्रेरित था?
+  gold       atmanirbhar-en#p0001 (atmanirbhar/en)
+  gold rank  7
+  top score  0.0509
+  primary    atmanirbhar/en | jan-dhan/en | atmanirbhar/hi
+  BM25       atmanirbhar/hi | beti-bachao/hi | atmanirbhar/hi
+  TF-IDF     atmanirbhar/hi | atmanirbhar/hi | nps/hi
+  paraphrase-multilingual-MiniLM-L12-v2 atmanirbhar/hi | mudra/hi | atmanirbhar/hi
+  multilingual-e5-base atmanirbhar/hi | atmanirbhar/hi | atmanirbhar/hi
+  LaBSE      atmanirbhar/hi | make-in-india/hi | swachh-bharat/hi
+  muril-base-cased/mean make-in-india/hi | ayushman-bharat/hi | atmanirbhar/hi
+  muril-base-cased/cls digital-india/hi | make-in-india/hi | smart-cities/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) atmanirbhar/hi | atmanirbhar/hi | atmanirbhar/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) atmanirbhar/hi | atmanirbhar/hi | atmanirbhar/hi
+  diagnosis  gold passage returned at rank 7, below the cut. Top hit is the same scheme but a different section (Introduction).
+  component  retrieval
+  would fix  Index canonical amount keys alongside the text so numeric answers are matchable.
+
+------------------------------------------------------------------------------
+[E08] amount   (Indic)
+
+  query      वित्त वर्ष 2017-18 के बजट में स्किल इंडिया मिशन को बढ़ावा देने के लिए भारत सरकार ने कितनी राशि अलग रखी?
+  gold       skill-india-en#p0003 (skill-india/en)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    skill-india/en | make-in-india/hi | swachh-bharat/en
+  BM25       nps/hi | stand-up-india/hi | mudra/hi
+  TF-IDF     nps/hi | stand-up-india/hi | mudra/hi
+  paraphrase-multilingual-MiniLM-L12-v2 skill-india/en | atmanirbhar/en | mudra/en
+  multilingual-e5-base skill-india/en | mudra/hi | make-in-india/hi
+  LaBSE      stand-up-india/hi | pm-kisan/hi | icds/hi
+  muril-base-cased/mean pm-kisan/hi | pm-kisan/hi | garib-kalyan-anna/hi
+  muril-base-cased/cls digital-india/hi | make-in-india/hi | ujjwala/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) make-in-india/hi | mudra/hi | stand-up-india/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) skill-india/en | mudra/hi | stand-up-india/hi
+  diagnosis  gold passage not returned at all. Top hit is the same scheme but a different section (Skill India Developments).
+  component  retrieval
+  would fix  Index canonical amount keys alongside the text so numeric answers are matchable.
+
+------------------------------------------------------------------------------
+[E09] date   (Code-Mixed)
+
+  query      2011 ki janaganana ke anusar desh ke lagabhag kitane ganv dur sanchar sampark ke antargat kavar nahin kie gae hain?
+  gold       jan-dhan-hi#p0004 (jan-dhan/hi)
+  gold rank  9
+  top score  0.0320
+  primary    indira-awaas/en | indira-awaas/en | beti-bachao/hi
+  BM25       ayushman-bharat/en | pds/en | mudra/en
+  TF-IDF     ayushman-bharat/en | pds/en | mudra/en
+  paraphrase-multilingual-MiniLM-L12-v2 swachh-bharat/en | swachh-bharat/en | swachh-bharat/en
+  multilingual-e5-base indira-awaas/en | indira-awaas/en | jeevan-jyoti/en
+  LaBSE      swachh-bharat/en | atal-pension/hi | indira-awaas/en
+  muril-base-cased/mean indira-awaas/en | indira-awaas/en | suraksha-bima/en
+  muril-base-cased/cls swachh-bharat/en | swachh-bharat/en | indira-awaas/en
+  Hybrid RRF (BM25 + multilingual-e5-base) indira-awaas/en | indira-awaas/en | pds/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) indira-awaas/en | indira-awaas/en | ayushman-bharat/en
+  diagnosis  gold passage returned at rank 9, below the cut. Top hit is from a different scheme (indira-awaas vs jan-dhan).
+  component  retrieval
+  would fix  Normalise date expressions to a canonical form on both sides.
+
+------------------------------------------------------------------------------
+[E10] date   (Indic)
+
+  query      राजीव आवास योजना के कार्यान्वयन के लिए 12वीं पंचवर्षीय योजना में सरकार ने कितनी राशि निर्धारित की थी?
+  gold       awas-yojana-en#p0008 (awas-yojana/en)
+  gold rank  6
+  top score  0.0318
+  primary    awas-yojana/hi | awas-yojana/hi | indira-awaas/hi
+  BM25       kgbv/hi | midday-meal/hi | awas-yojana/hi
+  TF-IDF     pm-kisan/hi | kgbv/hi | awas-yojana/hi
+  paraphrase-multilingual-MiniLM-L12-v2 indira-awaas/hi | awas-yojana/en | indira-awaas/en
+  multilingual-e5-base awas-yojana/hi | indira-awaas/hi | awas-yojana/hi
+  LaBSE      ddu-gky/hi | kgbv/hi | jeevan-jyoti/hi
+  muril-base-cased/mean indira-awaas/hi | atmanirbhar/hi | pm-kisan/hi
+  muril-base-cased/cls awas-yojana/hi | digital-india/hi | ujjwala/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) awas-yojana/hi | awas-yojana/hi | indira-awaas/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) awas-yojana/hi | awas-yojana/hi | indira-awaas/hi
+  diagnosis  gold passage returned at rank 6, below the cut. Top hit is the hi side where the gold is en.
+  component  retrieval
+  would fix  Normalise date expressions to a canonical form on both sides.
+
+------------------------------------------------------------------------------
+[E11] ambiguity   (English)
+
+  query      How many people does Ayushman Bharat offer services to?
+  gold       ayushman-bharat-en#p0001 (ayushman-bharat/en)
+  gold rank  10
+  top score  0.0323
+  primary    ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  BM25       ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  TF-IDF     ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  paraphrase-multilingual-MiniLM-L12-v2 ayushman-bharat/en | swachh-bharat/en | ujjwala/en
+  multilingual-e5-base ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  LaBSE      ayushman-bharat/en | ayushman-bharat/hi | ayushman-bharat/en
+  muril-base-cased/mean ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  muril-base-cased/cls swachh-bharat/en | ayushman-bharat/en | indira-awaas/en
+  Hybrid RRF (BM25 + multilingual-e5-base) ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) ayushman-bharat/en | ayushman-bharat/en | ayushman-bharat/en
+  diagnosis  gold passage returned at rank 10, below the cut. Top hit is the same scheme but a different section (Implementation > Participation by local people).
+  component  retrieval
+  would fix  Detect under-specification and ask for the scheme rather than guessing.
+
+------------------------------------------------------------------------------
+[E12] cross-lingual-gap   (Code-Mixed)
+
+  query      Atal Pension Yojana aur sambandhit yojanaon ke upyog se Bharat sarkar kin khaton ki sankhya kam karna chahti hai?
+  gold       atal-pension-hi#p0002 (atal-pension/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    atal-pension/en | atal-pension/en | atal-pension/hi
+  BM25       atal-pension/en | atal-pension/en | ayushman-bharat/en
+  TF-IDF     atal-pension/en | atal-pension/en | ayushman-bharat/en
+  paraphrase-multilingual-MiniLM-L12-v2 mgnrega/en | atal-pension/en | atal-pension/en
+  multilingual-e5-base atal-pension/en | atal-pension/en | atal-pension/hi
+  LaBSE      ayushman-bharat/hi | nsap/en | atal-pension/hi
+  muril-base-cased/mean sukanya/en | ayushman-bharat/en | jan-dhan/en
+  muril-base-cased/cls nsap/en | nsap/en | suraksha-bima/en
+  Hybrid RRF (BM25 + multilingual-e5-base) atal-pension/en | atal-pension/en | atal-pension/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) atal-pension/en | atal-pension/en | atal-pension/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  A stronger cross-lingual encoder; this is the H1 case.
+
+------------------------------------------------------------------------------
+[E13] cross-lingual-gap   (Code-Mixed)
+
+  query      bharat ki adhar pariyojana amerika ke soshal sikyoriti nambar se alag kyon hai?
+  gold       aadhaar-hi#p0001 (aadhaar/hi)
+  gold rank  not retrieved
+  top score  0.0328
+  primary    rte-act/hi | pds/en | atmanirbhar/hi
+  BM25       ayushman-bharat/en | swachh-bharat/en | swachh-bharat/en
+  TF-IDF     ayushman-bharat/en | swachh-bharat/en | swachh-bharat/en
+  paraphrase-multilingual-MiniLM-L12-v2 atmanirbhar/hi | atmanirbhar/en | atmanirbhar/hi
+  multilingual-e5-base rte-act/hi | jeevan-jyoti/en | pds/en
+  LaBSE      mudra/hi | ayushman-bharat/hi | sukanya/hi
+  muril-base-cased/mean aadhaar/en | make-in-india/en | aadhaar/en
+  muril-base-cased/cls aadhaar/en | digital-india/en | aadhaar/en
+  Hybrid RRF (BM25 + multilingual-e5-base) pds/en | ayushman-bharat/en | sarva-shiksha/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) rte-act/hi | jeevan-jyoti/en | pds/en
+  diagnosis  gold passage not returned at all. Top hit is from a different scheme (rte-act vs aadhaar).
+  component  retrieval
+  would fix  A stronger cross-lingual encoder; this is the H1 case.
+
+------------------------------------------------------------------------------
+[E14] long-tail-scheme   (Code-Mixed)
+
+  query      PM Suraksha Bima Yojana ki aalochna kis karan hoti rahi hai?
+  gold       suraksha-bima-hi#p0001 (suraksha-bima/hi)
+  gold rank  not retrieved
+  top score  0.0325
+  primary    suraksha-bima/en | suraksha-bima/en | ayushman-bharat/en
+  BM25       suraksha-bima/en | suraksha-bima/en | suraksha-bima/en
+  TF-IDF     suraksha-bima/en | suraksha-bima/en | jeevan-jyoti/en
+  paraphrase-multilingual-MiniLM-L12-v2 atmanirbhar/en | mudra/en | suraksha-bima/en
+  multilingual-e5-base suraksha-bima/en | ayushman-bharat/en | janani-suraksha/en
+  LaBSE      ayushman-bharat/hi | jeevan-jyoti/hi | jeevan-jyoti/hi
+  muril-base-cased/mean suraksha-bima/en | jan-dhan/en | sukanya/en
+  muril-base-cased/cls suraksha-bima/en | suraksha-bima/en | sagy/en
+  Hybrid RRF (BM25 + multilingual-e5-base) suraksha-bima/en | suraksha-bima/en | ayushman-bharat/en
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) suraksha-bima/en | suraksha-bima/en | ayushman-bharat/en
+  diagnosis  gold passage not returned at all. Top hit is the en side where the gold is hi.
+  component  retrieval
+  would fix  Corpus imbalance: the scheme has too few passages to rank reliably.
+
+------------------------------------------------------------------------------
+[E15] long-tail-scheme   (Indic)
+
+  query      प्रधानमंत्री सुरक्षा बीमा योजना का वार्षिक प्रीमियम कितना है?
+  gold       suraksha-bima-en#p0001 (suraksha-bima/en)
+  gold rank  8
+  top score  0.0325
+  primary    jeevan-jyoti/hi | suraksha-bima/hi | jeevan-jyoti/hi
+  BM25       jeevan-jyoti/hi | suraksha-bima/hi | jeevan-jyoti/hi
+  TF-IDF     jeevan-jyoti/hi | jeevan-jyoti/hi | suraksha-bima/hi
+  paraphrase-multilingual-MiniLM-L12-v2 suraksha-bima/hi | jeevan-jyoti/hi | sukanya/hi
+  multilingual-e5-base suraksha-bima/hi | jeevan-jyoti/hi | jeevan-jyoti/hi
+  LaBSE      jeevan-jyoti/hi | jeevan-jyoti/hi | suraksha-bima/hi
+  muril-base-cased/mean jan-dhan/hi | suraksha-bima/hi | ayushman-bharat/hi
+  muril-base-cased/cls digital-india/hi | ayushman-bharat/hi | ujjwala/hi
+  Hybrid RRF (BM25 + multilingual-e5-base) jeevan-jyoti/hi | suraksha-bima/hi | jeevan-jyoti/hi
+  Hybrid weighted a=0.4 (BM25 + multilingual-e5-base) jeevan-jyoti/hi | suraksha-bima/hi | jeevan-jyoti/hi
+  diagnosis  gold passage returned at rank 8, below the cut. Top hit is from a different scheme (jeevan-jyoti vs suraksha-bima).
+  component  retrieval
+  would fix  Corpus imbalance: the scheme has too few passages to rank reliably.
+

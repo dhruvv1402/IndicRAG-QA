@@ -115,9 +115,18 @@ REPORTS: tuple[Report, ...] = (
     # re-selects cases on the current gold set, which is a different experiment
     # and would silently replace the evidence the paper cites.
     Report("report-errors.txt", (PY, "-c", _ERRORS), stdout=True),
-    Report("report-qa.txt", _cli("eval", "qa", "--gguf", "{gguf}", "--report", "{out}"),
+    # P5: Module 4 on a 72-item stratified sample of the sealed test split.
+    Report("report-qa.txt",
+           _cli("eval", "qa", "--split", "test", "--sample", "72", "--nli",
+                "--gguf", "{gguf}", "--report", "{out}"),
            needs=("gguf",),
            note="needs the Qwen2.5-3B GGUF and llama-cpp-python"),
+    # Module 6 re-selected on the sealed test split, over the paper's system.
+    # Its own files: report-errors.txt keeps the probe-era cases §VII-C cites.
+    Report("report-errors-test.txt",
+           _cli("eval", "errors", "--split", "test", "--system", "Hybrid RRF script-aware",
+                "--out", "{tmp}/errors-test.jsonl", "--report", "{out}"),
+           needs=ALL_DENSE),
     Report("report-amount-matching.txt", _script("check-amount-matching.py"), stdout=True),
     Report("report-leakage.txt", _script("check-leakage.py"), stdout=True, needs=(E5,)),
     Report("report-fusion-goldset.txt", _script("check-fusion-goldset.py"), stdout=True,
@@ -125,6 +134,9 @@ REPORTS: tuple[Report, ...] = (
     # P5: the paper's central comparison on the sealed test split, scored once.
     Report("report-fusion-test.txt", (*_script("check-fusion-goldset.py"), "--split", "test"),
            stdout=True, needs=(E5,)),
+    # A defect found in the test-split error cases, decided on dev (not adopted).
+    Report("report-observed-votes.txt", _script("check-observed-votes.py"), stdout=True,
+           needs=(E5,)),
     Report("report-fusion-normalisation.txt", _script("check-fusion-normalisation.py"),
            stdout=True, needs=(E5,)),
     Report("report-fusion-encoders.txt", _script("check-fusion-encoders.py"), stdout=True,

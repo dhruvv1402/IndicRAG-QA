@@ -1116,24 +1116,44 @@ def eval_errors(
     out: Path = typer.Option(Path("evals/errors.jsonl"), "--out"),
     limit: int = typer.Option(20, "--limit"),
     per_category: int = typer.Option(2, "--per-category"),
+    split: str = typer.Option("all", "--split", help="all | dev | test (after `dataset split`)."),
+    system: str = typer.Option(
+        "Hybrid RRF (", "--system",
+        help="Prefix of the system whose failures are analysed. The default is plain RRF, "
+        "which the committed probe-era cases analyse; 'Hybrid RRF script-aware' is the "
+        "system the paper recommends.",
+    ),
 ) -> None:
     """Module 6: the difficult cases, selected by rule rather than by hand."""
     import json as _json
 
+    from .evaluation.all_reports import provenance
     from .evaluation.errors import collect_cases, format_errors
     from .evaluation.run import run_retrieval
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
-    items = [i for i in read_jsonl(gold, QAItem) if i.answerable and i.gold_passage_ids]
-    if not items:
+    if split not in {"all", "dev", "test"}:
+        raise typer.BadParameter("--split must be all, dev or test")
+    items = [
+        i for i in read_jsonl(gold, QAItem)
+        if i.answerable and i.gold_passage_ids and (split == "all" or i.split == split)
+    ]
+    source = str(gold) if split == "all" else f"{gold} [{split} split]"
+    if not items and split == "all":
         items = list(read_jsonl(Path("evals/probes.jsonl"), QAItem))
+        source = "evals/probes.jsonl"
     if not passages or not items:
         raise typer.BadParameter("need passages and answerable items")
 
     reports, _skipped = run_retrieval(passages, items, progress=typer.echo)
     by_name = {r.system: r for r in reports}
-    primary = next((n for n in by_name if n.startswith("Hybrid RRF")), next(iter(by_name)))
+    primary = next((n for n in by_name if n.startswith(system)), None)
+    if primary is None:
+        # Without a dense index there is no hybrid to analyse; say so and fall
+        # back to the first system rather than failing the whole report.
+        primary = next(iter(by_name))
+        typer.echo(f"no system starts with {system!r}; analysing {primary}")
 
     other = {
         name: {o.item_id: list(o.retrieved) for o in rep.outcomes}
@@ -1150,7 +1170,11 @@ def eval_errors(
         for case in cases:
             fh.write(_json.dumps(case.as_dict(), ensure_ascii=False) + "\n")
     typer.echo(f"{len(cases)} cases -> {out}")
-    _emit(format_errors(cases, passages), report)
+    _emit(
+        provenance(items, source) + [f"System analysed: {primary}", ""]
+        + format_errors(cases, passages),
+        report,
+    )
 
 
 @eval_app.command("qa")

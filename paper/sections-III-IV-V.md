@@ -256,7 +256,7 @@ question has no single answer — and 2 more were dropped as duplicate questions
 most of them the other language's article (see below). Every verified item
 records `annotator: model:…`, and every report built on the set carries that
 disclosure in its banner. The figures in §VI are therefore model-verified, which
-is weaker than the human verification the protocol was designed around. The blind second pass (§VIII) was likewise run by a model instance, and its κ = 1.000 over 59 items measures one model's consistency, not agreement between annotators.
+is weaker than the human verification the protocol was designed around. The blind second pass (§IX) was likewise run by a model instance, and its κ = 1.000 over 59 items measures one model's consistency, not agreement between annotators.
 
 Two construction details materially affect the measurements. First,
 **cross-lingual items translate the question only** and leave the gold passage
@@ -365,6 +365,8 @@ segmented (§III-C), and indexed both lexically and densely. At query time the
 input is classified by language and script, retrieved against both indices,
 fused, passed to a generator constrained to the retrieved evidence, and gated by
 an answerability decision. Figure 1 gives the full diagram.
+
+![Fig. 1. System pipeline. Offline, once: Devanagari validation, segmentation, and lexical and dense indexing. Per query: language and script identification, script-aware fusion, generation constrained to the evidence, and an answerability decision. One path serves all three query types.](figures/fig1-pipeline.png)
 
 Crucially, **the pipeline does not branch on detected query language**. One path
 serves English, Hindi and code-mixed queries alike. This is deliberate: if

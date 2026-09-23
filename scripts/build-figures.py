@@ -5,7 +5,7 @@ artefacts the reports are rendered from, so a figure cannot quietly disagree
 with the table beside it -- which is the ordinary way a results section ends up
 internally inconsistent, and is exactly what PRD NFR-6 exists to prevent.
 
-The figures deliberately do not hide the cost of the method. Figure 3 plots the
+The figures deliberately do not hide the cost of the method. Figure 5 plots the
 monolingual regression on the same axes as the cross-lingual gain, because a
 chart showing only the slices that improved would be a more effective and less
 honest chart.
@@ -50,17 +50,20 @@ plt.rcParams.update(
     }
 )
 
-#: Recall@5 by language group, from evals/report-retrieval-probes.txt.
+#: Recall@5 by language group on the sealed test split (216 answerable), from
+#: evals/report-retrieval-test.txt. MuRIL is its better pooling, mean.
 BY_GROUP: dict[str, tuple[float, float, float]] = {
-    "BM25": (0.740, 0.006, 0.028),
-    "MiniLM-L12": (0.394, 0.136, 0.102),
-    "e5-base": (0.610, 0.125, 0.132),
-    "LaBSE": (0.435, 0.097, 0.332),
-    "MuRIL": (0.357, 0.000, 0.000),
+    "BM25": (0.970, 0.153, 0.500),
+    "MiniLM-L12": (0.624, 0.605, 0.195),
+    "e5-base": (0.976, 0.661, 0.472),
+    "LaBSE": (0.655, 0.540, 0.239),
+    "MuRIL": (0.582, 0.048, 0.082),
 }
 GROUPS = ("monolingual", "cross-lingual", "code-mixed")
 
-#: Script-aware against plain RRF, from evals/report-script-aware-fusion.txt.
+#: Script-aware against plain RRF on the 180 synthetic probes, from
+#: evals/report-script-aware-fusion.txt. Kept as the figure of where the
+#: mechanism was found; Figure 3 is the same comparison on the gold set.
 FUSION = {
     "cross-lingual": (0.022, 0.153, "0.0001"),
     "code-mixed": (0.028, 0.173, "0.0002"),
@@ -68,33 +71,36 @@ FUSION = {
     "overall": (0.483, 0.500, "0.32"),
 }
 
-#: Weighted fusion alpha sweep over BM25 + e5-base, Recall@5, from
-#: evals/report-retrieval-probes.txt. alpha=1.0 is pure lexical. An earlier
-#: version plotted a sweep whose dense endpoint was MiniLM, not the e5 every
-#: other fusion figure is built on.
+#: Weighted fusion alpha sweep over BM25 + e5-base, Recall@5 on the sealed test
+#: split, from evals/report-retrieval-test.txt. alpha=1.0 is pure lexical.
 ALPHA = [
-    (0.0, 0.449), (0.1, 0.460), (0.2, 0.465), (0.3, 0.506), (0.4, 0.524),
-    (0.5, 0.517), (0.6, 0.510), (0.7, 0.512), (0.8, 0.514), (0.9, 0.505),
-    (1.0, 0.499),
+    (0.0, 0.720), (0.1, 0.720), (0.2, 0.715), (0.3, 0.704), (0.4, 0.688),
+    (0.5, 0.657), (0.6, 0.653), (0.7, 0.618), (0.8, 0.611), (0.9, 0.602),
+    (1.0, 0.586),
 ]
-#: Paired randomization test, best interior alpha against pure lexical.
-ALPHA_P = 0.126
+#: Script-aware RRF on the same items, for reference: the fusion that does beat
+#: the dense endpoint is not a weighting at all.
+ALPHA_SCRIPT_AWARE = 0.750
 
-#: Threshold sweep from evals/report-answerability.txt: (tau, precision, recall,
-#: F1, abstention). The per-class recall figure this replaced plotted a single
-#: fitted operating point, and that point moved from 0.000 to 0.93 recall on the
-#: same data depending only on the split. The sweep is what shows why: the curve
-#: underneath is flat.
+#: BM25 top-score threshold sweep over all 393 verified items, from
+#: evals/report-answerability-bm25.txt: (tau, precision, recall, abstention),
+#: tau on the min-max normalised score. Before verification the same sweep was
+#: flat at the base rate; on the verified questions it is not.
 SWEEP = [
-    (0.000, 0.000, 0.000, 0.000), (0.300, 0.000, 0.000, 0.003),
-    (0.400, 0.000, 0.000, 0.025), (0.450, 0.091, 0.037, 0.083),
-    (0.500, 0.192, 0.312, 0.325), (0.550, 0.214, 0.925, 0.865),
-    (0.600, 0.216, 0.938, 0.868), (0.650, 0.216, 0.938, 0.870),
-    (0.700, 0.212, 0.938, 0.882), (0.750, 0.212, 0.950, 0.895),
-    (0.800, 0.206, 0.950, 0.922), (0.850, 0.205, 0.963, 0.940),
-    (0.900, 0.201, 0.963, 0.958), (0.950, 0.205, 1.000, 0.978),
+    (0.050, 1.000, 0.013, 0.003), (0.100, 0.647, 0.138, 0.043),
+    (0.150, 0.448, 0.325, 0.148), (0.200, 0.444, 0.550, 0.252),
+    (0.250, 0.428, 0.738, 0.351), (0.300, 0.354, 0.838, 0.481),
+    (0.350, 0.316, 0.887, 0.573), (0.400, 0.286, 0.925, 0.659),
+    (0.450, 0.258, 0.950, 0.751), (0.500, 0.248, 0.988, 0.812),
+    (0.550, 0.233, 1.000, 0.873), (0.600, 0.225, 1.000, 0.906),
+    (0.650, 0.217, 1.000, 0.936), (0.700, 0.214, 1.000, 0.952),
+    (0.750, 0.209, 1.000, 0.975), (0.800, 0.207, 1.000, 0.982),
+    (0.850, 0.205, 1.000, 0.992), (0.900, 0.204, 1.000, 0.997),
 ]
-BASE_RATE = 0.20
+BASE_RATE = 0.204
+#: The report's own best F1; recomputing it from rounded precision and recall
+#: gives 0.542.
+BEST_F1 = 0.541
 
 #: Script-aware fusion on the sealed test split of the model-verified gold set
 #: (216 answerable), from evals/report-fusion-test.txt: (plain RRF, script-aware,
@@ -210,16 +216,16 @@ def fig2_by_language_group() -> Path:
     ax.set_xticks(range(len(GROUPS)))
     ax.set_xticklabels(GROUPS)
     ax.set_ylabel("Recall@5")
-    ax.set_ylim(0, 0.85)
+    ax.set_ylim(0, 1.05)
     ax.legend(frameon=False, fontsize=7.5, ncol=5, loc="upper center", bbox_to_anchor=(0.5, 1.18))
     ax.set_title(
-        "BM25 collapses across the language boundary; MuRIL never crosses it",
+        "Test split: BM25 collapses across the script boundary; MuRIL barely crosses it",
         fontsize=8.5, pad=22,
     )
     return _save(fig, "fig2-by-language-group.png")
 
 
-def fig3_script_aware_fusion() -> Path:
+def fig5_fusion_probes() -> Path:
     """Script-aware against plain RRF, with the monolingual cost shown."""
     fig, ax = plt.subplots(figsize=(6.6, 3.0))
     slices = list(FUSION)
@@ -250,18 +256,18 @@ def fig3_script_aware_fusion() -> Path:
     ax.set_ylim(0, 0.88)
     ax.legend(frameon=False, fontsize=7.5, loc="upper left")
     ax.set_title(
-        "Large gains cross-lingually and code-mixed; a real monolingual cost",
+        "Probe set, where it was found: large cross-script gains, a monolingual cost",
         fontsize=8.5,
     )
-    return _save(fig, "fig3-script-aware-fusion.png")
+    return _save(fig, "fig5-fusion-probes.png")
 
 
 def fig4_alpha_sweep() -> Path:
     """The sweep that produced a clean negative result about the wrong question.
 
-    The best interior point clears the sweep's 0.02 margin but not a paired
-    test, so the annotation carries the p-value rather than letting the gap
-    read as a gain.
+    On the verified test split no interior weighting beats pure dense, so the
+    curve is drawn beside the fusion that does -- script-aware RRF, which is a
+    change of arithmetic rather than of weight.
     """
     fig, ax = plt.subplots(figsize=(4.6, 2.9))
     xs = [a for a, _ in ALPHA]
@@ -271,26 +277,24 @@ def fig4_alpha_sweep() -> Path:
     best_endpoint = max(ys[0], ys[-1])
     ax.axhline(best_endpoint, color=INK, linestyle=":", linewidth=1)
     ax.annotate(
-        f"best endpoint {best_endpoint:.3f}",
-        xy=(0.0, best_endpoint), fontsize=7, va="bottom", color=INK,
+        f"pure dense {best_endpoint:.3f}",
+        xy=(0.62, best_endpoint + 0.004), fontsize=7, va="bottom", color=INK,
     )
-    best_i = max(range(len(ys)), key=lambda i: ys[i])
+    ax.axhline(ALPHA_SCRIPT_AWARE, color=GOOD, linestyle="--", linewidth=1)
     ax.annotate(
-        f"best interior {ys[best_i]:.3f}\n(+{ys[best_i] - best_endpoint:.3f}, p = {ALPHA_P:.2f})",
-        xy=(xs[best_i], ys[best_i]), xytext=(0.55, 0.445),
-        fontsize=7, color=BAD,
-        arrowprops={"arrowstyle": "->", "color": BAD, "linewidth": 0.8},
+        f"script-aware RRF {ALPHA_SCRIPT_AWARE:.3f}",
+        xy=(0.52, ALPHA_SCRIPT_AWARE + 0.004), fontsize=7, va="bottom", color=GOOD,
     )
 
     ax.set_xlabel("α   (0 = pure dense, 1 = pure lexical)")
     ax.set_ylabel("Recall@5")
-    ax.set_ylim(0.42, 0.56)
-    ax.set_title("Weighted fusion: no significant interior gain", fontsize=8.5)
+    ax.set_ylim(0.55, 0.78)
+    ax.set_title("Weighted fusion never beats pure dense (test split)", fontsize=8.5)
     return _save(fig, "fig4-alpha-sweep.png")
 
 
-def fig5_answerability_sweep() -> Path:
-    """Why no threshold works: precision never leaves the base rate."""
+def fig7_answerability_sweep() -> Path:
+    """The BM25 threshold's trade-off: a usable signal, bought with abstention."""
     fig, ax = plt.subplots(figsize=(5.6, 3.1))
     taus = [r[0] for r in SWEEP]
 
@@ -302,29 +306,30 @@ def fig5_answerability_sweep() -> Path:
             linewidth=1.2, label="abstention rate")
 
     ax.axhline(BASE_RATE, color=INK, linestyle=":", linewidth=1)
-    ax.annotate(f"base rate {BASE_RATE:.2f}", xy=(0.02, BASE_RATE + 0.02),
+    ax.annotate(f"base rate {BASE_RATE:.3f}", xy=(0.72, BASE_RATE + 0.02),
                 fontsize=7, color=INK)
 
     best = max(SWEEP, key=lambda r: (2 * r[1] * r[2] / (r[1] + r[2])) if r[1] + r[2] else 0)
     ax.annotate(
-        f"best F1 at {best[3]:.0%}\nabstention",
-        xy=(best[0], best[2]), xytext=(0.42, 0.62),
+        f"best F1 {BEST_F1:.3f}\nat {best[3]:.0%} abstention",
+        xy=(best[0], best[2]), xytext=(0.36, 0.45),
         fontsize=7, color=BAD,
         arrowprops={"arrowstyle": "->", "color": BAD, "linewidth": 0.8},
     )
 
-    ax.set_xlabel("τ  (normalised retrieval score)")
+    ax.set_xlabel("τ  (normalised BM25 top score)")
     ax.set_ylabel("rate")
     ax.set_ylim(-0.02, 1.05)
-    ax.legend(frameon=False, fontsize=7.5, loc="upper left")
+    ax.legend(frameon=False, fontsize=7.5, loc="center right")
     ax.set_title(
-        "Precision never leaves the base rate at any threshold", fontsize=8.5
+        "BM25 threshold: precision leaves the base rate, at a cost in abstention",
+        fontsize=8.5,
     )
-    return _save(fig, "fig5-answerability-sweep.png")
+    return _save(fig, "fig7-answerability-sweep.png")
 
 
-def fig6_fusion_goldset() -> Path:
-    """The same comparison as Figure 3, on the verified test split."""
+def fig3_fusion_goldset() -> Path:
+    """Script-aware fusion on the verified test split; Figure 5 is the probe-set original."""
     fig, ax = plt.subplots(figsize=(6.6, 3.1))
     slices = list(FUSION_GOLD)
     x = range(len(slices))
@@ -363,7 +368,7 @@ def fig6_fusion_goldset() -> Path:
         "Test split: script-aware fusion repairs plain RRF; over dense alone it gains little",
         fontsize=8.5, pad=20,
     )
-    return _save(fig, "fig6-fusion-goldset.png")
+    return _save(fig, "fig3-fusion-goldset.png")
 
 
 def _save(fig, name: str) -> Path:
@@ -379,15 +384,16 @@ def main() -> int:
     for build in (
         fig1_pipeline,
         fig2_by_language_group,
-        fig3_script_aware_fusion,
+        fig3_fusion_goldset,
         fig4_alpha_sweep,
-        fig5_answerability_sweep,
-        fig6_fusion_goldset,
+        fig5_fusion_probes,
+        fig7_answerability_sweep,
     ):
         path = build()
         print(f"  {path.relative_to(ROOT)}  ({path.stat().st_size // 1024} KB)")
-    print("\nFigures 2-5 are [PROBE], from 180 synthetic probes. Figure 6 is from")
-    print("the sealed test split of the model-verified gold set (216 answerable).")
+    print("\nNumbered in order of appearance in the paper. Figure 5 is [PROBE], from")
+    print("180 synthetic probes. Figures 2-4 and 6 are from the sealed test split of")
+    print("the model-verified gold set, Figure 7 from all 393 verified items.")
     return 0
 
 

@@ -711,7 +711,7 @@ indicrag index lexical                     fit TF-IDF and BM25
 indicrag index build --encoder <name>      encode + cache; --all for every registry entry
                                            [--pooling mean|cls] [--batch-size 16]
 
-indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>]
+indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>] [--bm25-floor 18.08]
                                            the demo path; prints the §9 object.
                                            Extractive without --gguf, generated with it.
 
@@ -723,7 +723,7 @@ indicrag eval qa            [--report <p>] [--arms A,B,C,D] [--k 5] [--sample N]
 indicrag eval answerability [--report <p>] [--method hybrid] [--dev-fraction 0.3]
                                            [--gguf <p>]   adds signals 2 and 3
                                            [--sample N] [--enrich]
-indicrag eval errors        [--report <p>] [--out <p>] [--limit 20]
+indicrag eval errors        [--report <p>] [--out <p>] [--limit 20] [--split test] [--system <prefix>]
 indicrag eval all           [--report evals/]     regenerates every table
 
 indicrag dataset generate   [--gguf <p>] [--merge-into <p>]   candidate bootstrapping

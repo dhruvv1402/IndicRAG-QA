@@ -13,16 +13,23 @@ Layout follows the IEEE conference template: US Letter, 0.75in top / 1.0in
 bottom / 0.625in side margins, a single-column title block, and a two-column
 body at 10pt Times New Roman with 0.2in between columns.
 
-    python scripts/build-docx.py
+    python scripts/build-docx.py          # paper/IndicRAG-QA.docx
+    python scripts/build-docx.py --pdf    # and paper/IndicRAG-QA.pdf, via Word
 
 Writes paper/IndicRAG-QA.docx. Anything the converter could not handle is
 listed at the end rather than dropped silently -- a converter that quietly
 discards a table produces a paper missing a result.
+
+Figures are placed where the text puts them: a line `![Fig. N. Caption](figures/x.png)`
+in a section draft becomes the image at column width with its caption beneath.
+The PDF is exported by Microsoft Word through COM, so it is what Word lays out,
+not an approximation of it; without Word, `--pdf` says so and the .docx stands.
 """
 
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -36,6 +43,11 @@ from docx.shared import Inches, Pt
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "paper" / "paper.md"
 TARGET = ROOT / "paper" / "IndicRAG-QA.docx"
+PDF = TARGET.with_suffix(".pdf")
+
+#: One column of the two-column body: (8.5in - 2 x 0.625in - 0.2in) / 2.
+COLUMN_WIDTH = Inches(3.5)
+FIGURE = re.compile(r"!\[(.+?)\]\((.+?)\)")
 
 BODY_FONT = "Times New Roman"
 BODY_SIZE = Pt(10)
@@ -155,12 +167,35 @@ def parse_table(lines: list[str], start: int) -> tuple[list[list[str]], int]:
     return rows, i
 
 
+def add_figure(doc, path: Path, caption: str, warnings: list[str]) -> bool:
+    """Embed a figure at column width with an IEEE-style caption beneath it."""
+    if not path.exists():
+        warnings.append(f"figure {path.name} is missing; run scripts/build-figures.py")
+        body_paragraph(doc, f"[missing figure: {path.name}]", indent=False)
+        return False
+    pic = doc.add_paragraph()
+    pic.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    pic.paragraph_format.space_before = Pt(6)
+    pic.paragraph_format.space_after = Pt(2)
+    pic.paragraph_format.keep_with_next = True
+    pic.add_run().add_picture(str(path), width=COLUMN_WIDTH)
+
+    cap = doc.add_paragraph()
+    cap.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    cap.paragraph_format.space_after = Pt(8)
+    add_runs(cap, caption)
+    for run in cap.runs:
+        run.font.size = Pt(8)
+    return True
+
+
 def build() -> tuple[Document, list[str]]:
     text = SOURCE.read_text(encoding="utf-8")
     lines = text.splitlines()
     warnings: list[str] = []
 
     doc = Document()
+    doc.figures = 0
     style = doc.styles["Normal"]
     style.font.name = BODY_FONT
     style.font.size = BODY_SIZE
@@ -263,6 +298,14 @@ def build() -> tuple[Document, list[str]]:
             p.paragraph_format.space_after = Pt(6)
             continue
 
+        figure = FIGURE.fullmatch(stripped)
+        if figure:
+            flush()
+            if add_figure(doc, SOURCE.parent / figure.group(2), figure.group(1), warnings):
+                doc.figures += 1
+            i += 1
+            continue
+
         if re.match(r"^(\d+\.|[-*])\s+", stripped):
             flush()
             item = re.sub(r"^(\d+\.|[-*])\s+", "", stripped)
@@ -283,6 +326,27 @@ def build() -> tuple[Document, list[str]]:
     return doc, warnings
 
 
+def export_pdf(source: Path, target: Path) -> str | None:
+    """Export through Word's own layout engine. Returns an error, or None."""
+    script = (
+        "$ErrorActionPreference = 'Stop'; "
+        "$w = New-Object -ComObject Word.Application; $w.Visible = $false; "
+        f"try {{ $d = $w.Documents.Open('{source}', $false, $true); "
+        f"$d.ExportAsFixedFormat('{target}', 17); $d.Close($false) }} "
+        "finally { $w.Quit() }"
+    )
+    try:
+        proc = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, timeout=300,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return f"could not run Word: {exc}"
+    if proc.returncode != 0 or not target.exists():
+        return (proc.stderr or proc.stdout or "Word export failed").strip().splitlines()[0]
+    return None
+
+
 def main() -> int:
     if not SOURCE.exists():
         print(f"missing {SOURCE}; run scripts/build-paper.py first")
@@ -294,11 +358,18 @@ def main() -> int:
     tables = len(doc.tables)
     paras = len(doc.paragraphs)
     print(f"wrote {TARGET.relative_to(ROOT)}  ({paras} paragraphs, {tables} tables, "
-          f"{TARGET.stat().st_size // 1024} KB)")
+          f"{doc.figures} figures, {TARGET.stat().st_size // 1024} KB)")
     for w in warnings:
         print(f"  WARNING: {w}")
-    print("\nFigures are NOT embedded: place paper/figures/*.png manually, so that")
-    print("float placement is a decision rather than wherever a script put them.")
+
+    if "--pdf" in sys.argv[1:]:
+        if PDF.exists():
+            PDF.unlink()
+        error = export_pdf(TARGET, PDF)
+        if error:
+            print(f"  PDF NOT WRITTEN: {error}")
+            return 1
+        print(f"wrote {PDF.relative_to(ROOT)}  ({PDF.stat().st_size // 1024} KB)")
     return 0
 
 

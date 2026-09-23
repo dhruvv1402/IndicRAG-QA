@@ -42,7 +42,10 @@ more cleanly than any earlier measurement and qualifies the third.
 
 **Lexical retrieval does not cross the language boundary.** BM25 reaches 0.970
 on monolingual questions and 0.153 on cross-lingual ones. MuRIL, pretrained on
-Indic text but not trained for retrieval, reaches 0.048.
+Indic text but not trained for retrieval, reaches 0.048. Figure 2 plots the
+breakdown.
+
+![Fig. 2. Recall@5 by language group on the test split (216 answerable questions). Lexical retrieval collapses across the script boundary; MuRIL, pretrained on Indic text but not for retrieval, barely crosses it.](figures/fig2-by-language-group.png)
 
 **Plain fusion destroys the dense retriever's cross-lingual recall, and the
 script-aware correction restores it.** Plain RRF over BM25 and e5-base reaches
@@ -70,7 +73,9 @@ compensating for questions a dense retriever could not match because they did
 not say what they asked, though the rewrite and the relabelling changed too much
 at once to isolate that cause. On well-formed questions, a
 strong multilingual dense retriever alone does nearly as well as the corrected
-hybrid.
+hybrid. Figure 3 shows both comparisons on every slice.
+
+![Fig. 3. Script-aware fusion on the test split, against plain RRF (the repair) and against dense retrieval alone (whether fusing is worth it), with paired randomization-test p-values.](figures/fig3-fusion-goldset.png)
 
 So the claim this paper can make is specific. Hybrid retrieval assembled the
 standard way is actively harmful across scripts, the harm is structural, and a
@@ -81,10 +86,12 @@ within noise.
 
 **Weighted fusion does not help at any weighting.** Sweeping α over e5-base and
 BM25, no interior weighting beats pure dense on the test split (best α = 0.1 at
-0.720, equal to α = 0), and none does on the pooled set (0.728 at α = 0.1
-against 0.736). H2, in its weighted-fusion form, is not supported. An earlier
-version of this section reported the opposite; that sweep used the wrong dense
-encoder for its endpoint (§VIII), and was corrected before verification.
+0.720, equal to α = 0; Figure 4), and none does on the pooled set (0.728 at
+α = 0.1 against 0.736). H2, in its weighted-fusion form, is not supported. An
+earlier version of this section reported the opposite; that sweep used the wrong
+dense encoder for its endpoint, and was corrected before verification.
+
+![Fig. 4. Weighted fusion of BM25 and e5-base across α on the test split. No weighting beats pure dense; script-aware RRF, drawn for reference, does -- by changing how ranks combine rather than how much each retriever counts.](figures/fig4-alpha-sweep.png)
 
 ### A.1 The correction is orthogonal to encoder choice
 
@@ -159,8 +166,11 @@ systems behave in categorically different ways.
 | LaBSE | 0.435 | 0.097 | **0.332** |
 | MuRIL (mean-pooled) | 0.357 | **0.000** | **0.000** |
 
-Figure 2 plots the same numbers. Lexical retrieval does not cross the language
-boundary at all: BM25 scores 0.740 monolingual and 0.006 cross-lingual — a factor of more than a hundred. This is
+Lexical retrieval does not cross the language boundary at all: BM25 scores 0.740
+monolingual and 0.006 cross-lingual — a factor of more than a hundred. The verified
+test split (Table II, Figure 2) has the same shape at less extreme magnitudes,
+0.970 against 0.153, because real questions carry scheme names and numbers that
+occasionally survive the script change. This is
 not a weakness to be tuned away but the expected consequence of matching surface
 tokens between a Devanagari query and a Latin-script passage that share
 essentially none. It is the empirical form of the structural claim in §VIII, and
@@ -210,8 +220,11 @@ trials)** `[PROBE]`
 | monolingual | 0.712 | 0.668 | −0.044 | 0.032 * |
 | overall | 0.483 | 0.500 | +0.017 | 0.32 |
 
-Figure 3 plots the table, with the monolingual regression on the same axes as
-the gains rather than in a separate panel. Against dense alone — the comparison
+Figure 5 plots the table, with the monolingual regression on the same axes as
+the gains rather than in a separate panel.
+
+![Fig. 5. [PROBE] Script-aware against plain RRF on the 180 synthetic probes, where the mechanism was found. The monolingual cost shown here does not appear on the verified set (Figure 3).](figures/fig5-fusion-probes.png)
+ Against dense alone — the comparison
 that decides whether hybrid retrieval earns its place at all — script-aware
 fusion gains +0.028 cross-lingual (p = 0.037),
 +0.041 code-mixed (p = 0.074) and +0.050 overall (p = 0.0086).
@@ -225,12 +238,14 @@ the same passage and agreement between them genuinely was evidence. Third, the
 overall row is indistinguishable from noise, and a paper reporting only that row
 would conceal both the gain and the cost.
 
-This also revises the negative result of the α sweep, plotted as Figure 4, which
-found no interior weighting significantly better than the better endpoint (the
-best, α = 0.4, is +0.025 over pure lexical at p = 0.13) and recorded the hybrid
-hypothesis as unsupported. That verdict was correct about weighted fusion and
-wrong about the hypothesis: hybrid retrieval does beat its components here, once
-fusion stops penalising passages for their script.
+This also revises the negative result of the α sweep, which on the probes found
+no interior weighting significantly better than the better endpoint (the best,
+α = 0.4, was +0.025 over pure lexical at p = 0.13) and recorded the hybrid
+hypothesis as unsupported. That verdict was correct about weighted fusion, and on
+the verified set no weighting beats pure dense at all (Figure 4). Whether hybrid
+retrieval beats its components once fusion stops penalising passages for their
+script is answered in §VI-A: it does on code-mixed queries, and is within noise
+elsewhere.
 
 ### F. A caveat the fusion result does not remove
 
@@ -247,16 +262,19 @@ Romanized Hindi.
 
 We state this plainly because it qualifies the practical reading of §VI-E. The
 fusion correction is orthogonal to the choice of encoder: it is a statement
-about how rankings are combined, and nothing prevents applying it over LaBSE,
-which we have not tested and would expect to be stronger than either.
+about how rankings are combined, and nothing prevents applying it over LaBSE.
+§VI-A.1 does so on the verified set: fusion over LaBSE gains +0.085 over LaBSE
+alone, and remains well below fusion over e5-base.
 
 The result contradicts our own prior expectation, recorded before the
 experiment, that LaBSE would lead the cross-lingual slice by virtue of its
 translation-ranking objective. Instead it is the only model that handles
-Romanized Hindi well. If this survives the gold set, the practical guidance is
-to select the encoder by query *script* rather than by language coverage, and it
-is the most immediately useful finding in this section. It needs the gold set
-before it can be claimed.
+Romanized Hindi well. On the probes that suggested selecting the encoder by query
+*script* rather than by language coverage. It did not survive the gold set
+(§VI-A.2): on verified code-mixed questions LaBSE reaches 0.239, against 0.500
+for BM25 and 0.556 for script-aware fusion. We have not tested why the probes
+favoured it; the verification pass respelled the code-mixed questions, which
+changed their wording as well as their quality, so the two cannot be separated.
 
 ### G. Direct LLM against RAG (Module 4)
 

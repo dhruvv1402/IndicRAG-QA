@@ -464,18 +464,20 @@ Each shows the full output object: detected type, answerability, answer, confide
 
 ## 10. Status and what is not built yet
 
-**Updated 2026-09-21.** P0–P3 are done, P4 is running, P5 is blocked on human
-verification, P6 is substantially drafted.
+**Updated 2026-09-24.** P0–P3 are done with model verification in place of human
+verification (§10.1). P5 has run on the sealed test split for every module that needs
+no generator; the two that do, Module 4 and answerability signals 2–3, are re-running on
+verified items. P6 is written from the verified numbers except those two.
 
 | Phase | State |
 |---|---|
 | **P0** Environment | Done. CPU-only stack, caches redirected to G:, measured throughput in ARCHITECTURE §19 |
-| **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation |
-| **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, three fusion methods. `script_aware_rrf` came out of the P2 error analysis and is now the default |
-| **P3** Dataset | **Done.** 400/400 items generated — 320 answerable across six language-pair cells, 80 unanswerable across four classes. **0/400 human-verified**, which is the gate on everything in P5 |
-| **P4** Generation | **Done.** 288 generations, arms A–D over a stratified 72-item sample. H3 supported: citation support 0.162 closed-book against 0.762 dense, paired +0.593 at p=0.0001. Script-aware fusion is **not** separable from dense downstream (+0.026, p=1.00). Decomposition: generation error 0.597, retrieval error 0.193 |
-| **P5** Experiments | **Run, but blocked on verification for reporting.** Modules 1–6 all measured; answerability signals 1 and 4 on all 400 items, signals 2 and 3 on an enriched sample. Every number is `[PROBE]` or from the unverified set and may not be quoted as a gold-set result |
-| **P6** Write-up | Paper complete (§I–§X, ~13.4k words, `paper/paper.md`), 16-slide deck, 4 figures, IEEE `.docx` and `.pptx`. All five modules written from measured numbers; every figure is `[PROBE]` or drawn from the unverified set |
+| **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation. Frozen at segmentation v1 (§10.1a) |
+| **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, three fusion methods. `script_aware_rrf` came out of the P2 error analysis and is the default |
+| **P3** Dataset | **Done, model-verified.** 393 of 400 items verified by two independent model passes, 7 rejected; κ = 1.000 between model passes (not the PRD gate). Split sealed: dev 120 / test 273 |
+| **P4** Generation | Done on the unverified set (72-item sample, arms A–D). **Re-run on a 72-item sample of the test split in progress**: 186 of 288 generations cached, stopped at 2026-09-24 00:19 for low memory; `eval qa --split test --sample 72 --nli` resumes from the cache |
+| **P5** Experiments | **Test split scored** for Modules 1–3, 5 (signals 1 and 4) and 6: `report-retrieval-test.txt`, `report-fusion-test.txt`, `report-answerability*.txt`, `report-errors-test.txt`. Module 4 and signals 2–3 still cite the unverified run until their re-runs finish. H1 supported (e5 +0.139 over BM25, p=0.0001); H2 not supported in its weighted form, script-aware fusion +0.030 over dense alone (p=0.052) |
+| **P6** Write-up | Paper (`paper/paper.md`, IEEE `.docx` and `.pdf` with all figures embedded), 16-slide deck, 7 figures. §VI-G, §VI-H.1/H.2, the abstract and slides 11–12 and 14 await the Module 4 and signals re-runs |
 
 ### 10.1 Verification: done by a model, not a person
 

@@ -12,10 +12,10 @@ the mechanism, which is marked as such.
 
 ### A. Protocol
 
-We analyse twenty failures drawn against a fixed taxonomy of ten categories —
+We analyse failures drawn against a fixed taxonomy of ten categories —
 code-mixing, transliteration variation, named entities, amounts, dates,
-ambiguity, near-duplicate schemes across schemes, the cross-lingual gap,
-long-tail schemes, and short queries — with two cases per category.
+ambiguity, near-duplicate schemes, the cross-lingual gap, long-tail schemes, and
+short queries — taking at most two cases per category.
 
 Selection is by rule rather than by hand. Within each category we take the
 failures on which the system was most confident and most wrong, ranked by
@@ -27,42 +27,78 @@ count per category second, and the selection rule third means the cases are
 answerable to the taxonomy rather than to the argument.
 
 Each case is recorded as a structured record — query, gold passages, the ranked
-output of each system under comparison, the generated answer, a diagnosis, and
-the component judged to have failed — and is committed to the repository as
-`evals/errors.jsonl` alongside the rendered report. The diagnosis field names one
-of retrieval, generation, answerability or data, so that the distribution of
-failures across components is itself a result rather than an impression.
+output of every system, a diagnosis, and the component judged to have failed —
+and committed alongside its rendered report.
 
-### B. What the cases showed
+We ran the selection twice. The first run, twenty cases over plain RRF on the
+unverified questions (`evals/errors.jsonl`), is where the paper's main result
+came from, and §VII-C tells that story. Verification then rewrote every one of
+its twenty questions, so we repeated the selection on the sealed test split over
+the system the paper recommends, script-aware fusion
+(`evals/errors-test.jsonl`, `evals/report-errors-test.txt`). §VII-B reports
+that run. It yields 15 cases across 8 categories rather than 20 across 10: the
+near-duplicate and short-query categories produce no case under the rule, and we
+do not relax the rule to fill them.
 
-The dominant failure mode is not subtle. In the majority of the twenty cases the
-gold passage was never retrieved at all, and the top-ranked hit was the correct
-scheme in the *wrong language*: a Hinglish query about the National Health
-Mission's untied grants returns the English article when the gold passage is the
-Hindi one, and an English query about Sukanya Samriddhi eligibility does the
-same in reverse. The system was not confused about the topic. It was confused
-about nothing at all — it had simply never been able to see the passage that
-would have answered the question.
+### B. What the verified cases show
 
-This concentrates the error in one component. Categories that appear
-linguistically distinct in the taxonomy — code-mixing, transliteration
-variation, the cross-lingual gap — turn out to share a single mechanism once the
-retrieved lists are read side by side, and that mechanism is a retriever that
-cannot cross a script boundary. In 16 of the 20 cases the gold passage is not
-returned at any rank, and all 20 are diagnosed as retrieval failures.
+**The right scheme, the wrong passage.** In 12 of the 15 cases script-aware
+fusion puts a passage from the correct scheme in its top five; what it misses is
+the one passage that states the fact. Often that passage is in the other
+language: a Hinglish question about how many documents a Sukanya Samriddhi
+account needs retrieves five English Sukanya passages, and the only statement of
+the answer is in the Hindi article. The three remaining cases retrieve the wrong
+scheme altogether, one of them because the question spells Aadhaar as *adhar*.
 
-**That unanimity is a property of the selection, not a finding about the
-generator.** The cases are drawn from retrieval failures against a taxonomy of
-retrieval phenomena, so a generation error has no route into this sample. It
-would be a mistake to read "all 20 are retrieval" as evidence that the generator
-is sound, and §VI-G.1 shows the opposite: given the gold passage and nothing to
-find, the generator still loses 0.597 token-F1, three times what retrieval
-loses. The error analysis says where *retrieval* fails and why; the oracle arm
-is what says how the two components compare.
+**Two failures are the gold set's, not the retriever's.** The automatic
+diagnosis attributes all 15 cases to retrieval, and reading them corrects that
+twice. In E08 the retriever's first result states the answer — ₹17,000 crore set
+aside for Skill India in the 2017–18 budget — but the 25% overlap between
+adjacent passages copied that sentence into a passage the gold set does not
+list, so a correct retrieval is scored as a miss. In E04 the gold set omits the
+English passage that also states the 21-year maturity of a Sukanya account;
+that one remains a real miss, since the passage was not retrieved either.
+Verification added other-language passages to 73 items, and these two show it
+did not find every one. Overlap-duplicated sentences are a systematic source of
+such gaps, and resolving gold evidence to sentences rather than passages would
+close them.
+
+**One failure is a defect in script-aware fusion, and fixing it does not
+help.** In E01 the top result is a Hindi passage about the Soil Health Card,
+returned for a Romanized question about the Antyodaya ration. BM25 reached that
+passage through the one Latin word it quotes, *Card*, and script-aware fusion
+then doubled the score, since for a Latin query a Devanagari passage counts as
+ineligible for a lexical vote even when it received one. Counting a cast vote as
+eligible is the obvious correction. Because the defect was found on the test
+split, we decided on dev: there the correction is worse, −0.026 Recall@5
+overall and −0.093 cross-lingual, neither significant, and the test split moves
+the same way (`evals/report-observed-votes.txt`). Across both splits it changes
+six queries, losing five and gaining one; in four of the five losses BM25 had
+reached a cross-script gold passage through a year or number in the question,
+and in the fifth through a Latin acronym. A cast cross-script vote is usually
+real evidence, so the committed rule stays, and E01 is its price.
+
+**One failure is in the corpus.** E06 asks which film based on the Swachh Bharat
+Mission was released in August 2023. The only passage stating it belongs to the
+*Beti Bachao* article, which mentions the film in passing, so a question that
+names Swachh Bharat retrieves Swachh Bharat passages. No retriever should be
+expected to find it.
+
+**The taxonomy tagger is not always right.** E07 is filed under *amounts*
+because its question contains a year; it asks which movement inspired
+Atmanirbhar Bharat. The categories are assigned by heuristic, and a case's
+category is a pointer for reading it, not a finding.
+
+**That this sample is all retrieval is a property of the selection, not a
+finding about the generator.** The cases are drawn from retrieval failures
+against a taxonomy of retrieval phenomena, so a generation error has no route
+into this sample. §VI-G.1 makes the comparison the error analysis cannot: given
+the gold passage and nothing to find, the generator still loses more than
+retrieval does.
 
 ### C. The case that produced the paper's main result
 
-One case (E02 in the committed report) is worth stating in full, because the
+One case (E02 in `evals/report-errors.txt`) is worth stating in full, because the
 central contribution of this paper came out of it rather than out of a metric.
 
 The aggregate tables showed hybrid fusion performing *worse* than dense
@@ -73,7 +109,10 @@ found no interior setting significantly better than the better of its two
 endpoints, which reads as a clean negative result. Read as a table, the finding was that hybrid
 retrieval does not help here.
 
-Reading the twenty cases gave the actual explanation. Of the twenty failures,
+Reading the twenty cases gave the actual explanation. (They were drawn from the
+unverified questions, and verification has since rewritten all twenty; the
+mechanism they exposed is structural, and §VI-A confirms it on the verified
+set.) Of the twenty failures,
 the dense retriever alone had returned the gold passage in eight. Plain
 Reciprocal Rank Fusion lost all eight. A fusion method that discards every case
 its stronger component got right is not a method with a disappointing
@@ -318,17 +357,18 @@ off-the-shelf. Fine-tuning any of them on in-domain data would likely improve
 absolute numbers, and would confound the comparison we are making, which is
 between fusion methods holding the retrievers fixed.
 
-**The answerability threshold is a retrieval-side signal, and our negative
-result about it is bounded by our own taxonomy.** We show it carries no
-information here, but the reason is that 55 of our 80 unanswerable items are
-written about schemes present in the corpus. A benchmark whose unanswerable
-questions were predominantly out-of-scope would find the same threshold useful,
-and the 0.688 recall we measure on that one class shows why. The claim is
-therefore conditional: retrieval-score thresholds fail on unanswerable questions
-about *present* topics, which we argue is the deployment-relevant case for a
-system fielding questions about schemes it documents, but we have not shown they
-fail in general. We evaluate a natural-language-inference signal alongside,
-which addresses exactly the classes the threshold cannot see.
+**The answerability threshold is a retrieval-side signal, and what it can
+detect is bounded by our taxonomy.** On the verified set a BM25 top-score
+threshold is a usable first-stage filter (§VI-H), but its strength is uneven by
+class: it rejects every out-of-scope question on the test split and only 0.522
+of near-misses. Since 55 of our 80 unanswerable items are written about schemes
+present in the corpus, the aggregate F1 depends on that mix. A benchmark whose
+unanswerable questions were predominantly out-of-scope would find the threshold
+far stronger, and one made entirely of near-misses would find it close to
+useless. We report per-class recall for that reason, and we evaluate the
+generator's own abstention and an entailment check alongside it, since those
+read the passage and are the signals that can see a missing *fact* rather than
+a missing topic.
 
 ---
 

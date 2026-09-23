@@ -257,3 +257,25 @@ def test_a_hinglish_query_can_retrieve_a_devanagari_passage():
     )
     assert result.query_type == "Code-Mixed"
     assert "c#p0" in [c["passage_id"] for c in result.citations]
+
+
+def test_the_bm25_floor_refuses_whatever_retriever_supplies_the_evidence():
+    """§VI-H: the fused score carries no answerability signal, so the gate reads
+    the BM25 top score even when the evidence comes from another retriever."""
+    from indicrag.index.lexical import LexicalIndex
+
+    r = Retrievers(lexical=LexicalIndex.build(CORPUS))
+    asked = "How much do students receive per annum?"
+    top = r.lexical.search_bm25(asked, 1)[0].score
+
+    kept = answer_query(asked, CORPUS, retrievers=r, method="tfidf", k=2, bm25_floor=top - 1e-6)
+    refused = answer_query(asked, CORPUS, retrievers=r, method="tfidf", k=2, bm25_floor=top + 1)
+    assert kept.answerability == "ANSWERABLE"
+    assert refused.answerability == "UNANSWERABLE"
+    assert refused.retrieval["bm25_top"] == round(top, 4)
+    assert refused.citations, "a refusal still shows what was retrieved"
+
+
+def test_the_bm25_floor_is_off_by_default():
+    result = answer_query("How much do students receive?", CORPUS, k=3)
+    assert "bm25_floor" not in result.retrieval

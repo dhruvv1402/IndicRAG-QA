@@ -1305,6 +1305,11 @@ def ask(
         "", "--gguf",
         help="Generate the answer with this GGUF model instead of extracting a sentence.",
     ),
+    bm25_floor: float = typer.Option(
+        0.0, "--bm25-floor",
+        help="Refuse when the BM25 top score is below this. 18.08 is the threshold fitted "
+        "on the dev split (tau 0.25 x scale 72.31, paper §VI-H); 0 disables it.",
+    ),
 ) -> None:
     """Answer one question and print the full response object."""
     from .pipeline import Retrievers, answer_query
@@ -1349,7 +1354,8 @@ def ask(
         )
 
     result = answer_query(
-        query, passages, retrievers=retrievers, method=method, k=k, provider=provider
+        query, passages, retrievers=retrievers, method=method, k=k,
+        bm25_floor=bm25_floor, provider=provider,
     )
     import json
 

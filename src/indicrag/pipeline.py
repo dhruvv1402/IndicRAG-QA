@@ -110,6 +110,7 @@ def answer_query(
     method: str = "hybrid",
     k: int = 5,
     tau: float = 0.0,
+    bm25_floor: float = 0.0,
     provider=None,
 ) -> Answer:
     """Produce the full response object described in docs/PRD.md §9."""
@@ -152,6 +153,20 @@ def answer_query(
         "n_candidates": len(hits),
     }
 
+    # The abstention gate the paper recommends (§VI-H): the BM25 top score,
+    # read whatever retriever supplies the evidence. Rank fusion discards score
+    # magnitude, so the fused score cannot be thresholded usefully; the lexical
+    # score is computed anyway and does separate the classes on verified
+    # questions. It catches questions about topics the corpus lacks, and misses
+    # about half of near-misses, which only a reader of the passage can see.
+    below_floor = False
+    if bm25_floor > 0 and retrievers.lexical is not None:
+        lexical = retrievers.lexical.search_bm25(query, 1)
+        bm25_top = lexical[0].score if lexical else 0.0
+        retrieval_meta["bm25_top"] = round(bm25_top, 4)
+        retrieval_meta["bm25_floor"] = bm25_floor
+        below_floor = bm25_top < bm25_floor
+
     # Answerability. With tau=0 this abstains only when retrieval returned
     # nothing at all, which is the right default before the threshold has been
     # calibrated on the dev split -- an uncalibrated threshold would silently
@@ -164,7 +179,7 @@ def answer_query(
     # an observed scale for exactly this reason and is what the evaluation uses;
     # this field is the simple interactive knob, and its default of 0 avoids the
     # trap entirely.
-    if not hits or top_score < tau:
+    if not hits or top_score < tau or below_floor:
         ans = Answer.refusal(
             query=query,
             query_type=lang.query_type,

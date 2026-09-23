@@ -210,8 +210,8 @@ def test_fitting_the_self_report_on_nothing_does_not_raise():
 
 
 def test_it_reads_a_generation_without_importing_one():
-    from indicrag.rag.arms import Generation
     from indicrag.answerability.signals import SelfReport
+    from indicrag.rag.arms import Generation
 
     gen = Generation(
         item_id="i", arm="B", question="q", answerable=True,

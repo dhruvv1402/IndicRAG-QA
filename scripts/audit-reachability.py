@@ -179,7 +179,6 @@ def main() -> int:
     global DEFS
     DEFS = public_definitions()
     names = set(DEFS)
-    src_uses = external_uses(names, [SRC])
     all_uses = external_uses(names, [SRC, TESTS])
     # Intra-module callers count here: a helper used only by its own module is
     # live production code, and excluding it would flag most of the codebase.

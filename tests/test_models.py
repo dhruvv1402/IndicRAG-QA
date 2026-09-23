@@ -16,7 +16,6 @@ import json
 
 from indicrag.models import Passage, QAItem, read_jsonl, write_jsonl
 
-
 _ROW = {"id": "qa-1", "question": "q", "query_lang": "en", "answerable": True}
 
 

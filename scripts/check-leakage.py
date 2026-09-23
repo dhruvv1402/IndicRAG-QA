@@ -33,7 +33,7 @@ def main() -> int:
     from indicrag.config import get_settings
     from indicrag.evaluation.qa import normalize_answer
     from indicrag.evaluation.retrieval import evaluate
-    from indicrag.evaluation.stats import bootstrap_ci, paired_randomization_test
+    from indicrag.evaluation.stats import paired_randomization_test
     from indicrag.index.dense import DenseIndex, Encoder
     from indicrag.index.encoders import get
     from indicrag.index.lexical import LexicalIndex
@@ -117,7 +117,7 @@ def main() -> int:
             part_items = [i for i, _v in part]
             qv = {i.id: enc.encode_query(i.question) for i in part_items}
             bm = evaluate("bm25", part_items, lambda i: (lex.search_bm25(i.question, 5), 0.0))
-            dn = evaluate("dense", part_items, lambda i: (index.search_vector(qv[i.id], 5), 0.0))
+            dn = evaluate("dense", part_items, lambda i, qv=qv: (index.search_vector(qv[i.id], 5), 0.0))
             res = paired_randomization_test(
                 bm.outcomes, dn.outcomes, lambda o: o.recall_at(5)
             )

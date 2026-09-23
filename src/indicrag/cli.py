@@ -145,7 +145,7 @@ def corpus_repair_spans(
         typer.echo(line)
 
     moved = [
-        a for (a, b, c), p in zip(frozen, passages)
+        a for (a, b, c), p in zip(frozen, passages, strict=True)
         if (a, b, c) != (p.passage_id, p.text, p.token_count)
     ]
     if moved:
@@ -753,9 +753,9 @@ def eval_retrieval(
     split: str = typer.Option("all", "--split", help="all | dev | test (after `dataset split`)."),
 ) -> None:
     """Module 1-3: lexical, dense and fusion retrieval, with paired tests."""
+    from .evaluation.all_reports import provenance
     from .evaluation.report import format_by_slice, format_paired, format_retrieval
     from .evaluation.run import alpha_sweep, run_retrieval
-    from .evaluation.all_reports import provenance
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))

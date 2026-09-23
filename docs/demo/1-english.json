@@ -1,0 +1,68 @@
+{
+  "query": "How much is the annual premium of Pradhan Mantri Suraksha Bima Yojana?",
+  "query_type": "English",
+  "answerability": "ANSWERABLE",
+  "answer": "Pradhan Mantri Suraksha Bima Yojana is available to people (Indian Resident or NRI) between 18 and 70 years of age with bank accounts.",
+  "confidence": 0.95,
+  "query_lang": "en",
+  "answer_lang": "en",
+  "citations": [
+    {
+      "passage_id": "suraksha-bima-en#p0001",
+      "doc_id": "suraksha-bima-en",
+      "scheme": "suraksha-bima",
+      "lang": "en",
+      "section_path": "Provisions",
+      "score": 0.0328,
+      "snippet": "Pradhan Mantri Suraksha Bima Yojana is available to people (Indian Resident or NRI) between 18 and 70 years of age with bank accounts. It has an annual premium of ₹20 (21¢ US). Goods and Services Tax (GST) is exempted on Pradhan Mantri Suraksha Bima Yojana. The amount is automatically debited from t"
+    },
+    {
+      "passage_id": "jeevan-jyoti-en#p0000",
+      "doc_id": "jeevan-jyoti-en",
+      "scheme": "jeevan-jyoti",
+      "lang": "en",
+      "section_path": "Introduction",
+      "score": 0.0318,
+      "snippet": "Pradhan Mantri Jeevan Jyoti Bima Yojana (Prime Minister Jeevan Jyoti Insurance Scheme) is a Government-backed life insurance scheme in India. It was originally mentioned in the year 2015 budget speech by the then-Finance Minister, Arun Jaitley in February 2015. It was formally launched by Prime Mini"
+    },
+    {
+      "passage_id": "suraksha-bima-en#p0003",
+      "doc_id": "suraksha-bima-en",
+      "scheme": "suraksha-bima",
+      "lang": "en",
+      "section_path": "Criticism",
+      "score": 0.0318,
+      "snippet": "The success rate of the Pradhan Mantri Suraksha Bima Yojana (PMSBY) can be viewed through its high enrollment figures (over 50 crore cumulative enrollments as of May 2025), extensive reach into rural areas, and low rejection rate; however, it has experienced challenges in timely claim settlement, wi"
+    },
+    {
+      "passage_id": "suraksha-bima-en#p0000",
+      "doc_id": "suraksha-bima-en",
+      "scheme": "suraksha-bima",
+      "lang": "en",
+      "section_path": "Introduction",
+      "score": 0.0317,
+      "snippet": "Pradhan Mantri Suraksha Bima Yojana (PMSBY, translation: Prime Minister's Safety Insurance Scheme) is a government-backed accident insurance scheme in India. It was originally mentioned in the 2015 budget speech by Finance Minister Arun Jaitley in February 2015. It was formally launched by the Prime"
+    },
+    {
+      "passage_id": "jeevan-jyoti-en#p0001",
+      "doc_id": "jeevan-jyoti-en",
+      "scheme": "jeevan-jyoti",
+      "lang": "en",
+      "section_path": "Introduction",
+      "score": 0.0305,
+      "snippet": "Those who register for auto debit facility will have auto renewal up to 55 years. However, a person over age 50 cannot register to this scheme. There is no need for a person to submit health report or certificate while joining to this scheme. In case of death due to any cause, the payment to the nom"
+    }
+  ],
+  "explanation": "Extracted verbatim from suraksha-bima-en#p0001 (suraksha-bima, Provisions).",
+  "retrieval": {
+    "method": "hybrid",
+    "k": 5,
+    "top_score": 0.0328,
+    "margin": 0.001,
+    "n_candidates": 5,
+    "bm25_top": 30.5053,
+    "bm25_floor": 18.08
+  },
+  "model": "extractive",
+  "prompt_hash": ""
+}

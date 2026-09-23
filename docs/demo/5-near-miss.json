@@ -1,0 +1,68 @@
+{
+  "query": "What is the interest rate on a Kisan Credit Card loan in Nagaland?",
+  "query_type": "English",
+  "answerability": "ANSWERABLE",
+  "answer": "The Kisan Credit Card (KCC) scheme is a credit scheme introduced in August 1998 by Indian public sector banks to issue kisan credit card to the farmers of India.",
+  "confidence": 0.6548,
+  "query_lang": "en",
+  "answer_lang": "en",
+  "citations": [
+    {
+      "passage_id": "kisan-credit-card-en#p0000",
+      "doc_id": "kisan-credit-card-en",
+      "scheme": "kisan-credit-card",
+      "lang": "en",
+      "section_path": "Introduction",
+      "score": 0.0328,
+      "snippet": "The Kisan Credit Card (KCC) scheme is a credit scheme introduced in August 1998 by Indian public sector banks to issue kisan credit card to the farmers of India. This model scheme was prepared by the National Bank for Agriculture and Rural Development (NABARD) on the recommendations of the R. V. Gup"
+    },
+    {
+      "passage_id": "stand-up-india-hi#p0002",
+      "doc_id": "stand-up-india-hi",
+      "scheme": "stand-up-india",
+      "lang": "hi",
+      "section_path": "Stand Up India Scheme की मुख्य विशेषताए > स्टैंड उप इंडिया स्कीम का ऋण विवरण (Loan Details)",
+      "score": 0.0581,
+      "snippet": "ऋण राशि ₹10 लाख से ₹1 करोड़ तक ऋण का प्रकार - Composite Loan(Term Loan+Working capital) ब्याज दर - Marginal Cost of Lending Rate (MCLR) + अधिकतम 3% मार्जिन - अधिकतम 25% (योजना में 15% तक सहायता संभव) भुगतान अवधि - अधिकतम 7 वर्ष छूट अवधि - अधिकतम 18 महीने तक\n\nइस योजना के विषय में विस्तृत जानकारी नीचे"
+    },
+    {
+      "passage_id": "indira-awaas-en#p0007",
+      "doc_id": "indira-awaas-en",
+      "scheme": "indira-awaas",
+      "lang": "en",
+      "section_path": "Eligibility > Who is not eligible",
+      "score": 0.0318,
+      "snippet": "13 parameters set by the government of India exclude households or individuals from this program:\n\nHousehold having three or four wheeler and motorized boat;\nHousehold having mechanized three or four wheeler agriculture or allied equipment;\nKisan credit card holder having limit of 50,000 rupees;\nHou"
+    },
+    {
+      "passage_id": "sukanya-en#p0001",
+      "doc_id": "sukanya-en",
+      "scheme": "sukanya",
+      "lang": "en",
+      "section_path": "Summary",
+      "score": 0.0303,
+      "snippet": "The scheme was launched by Prime Minister Narendra Modi on 22 January 2015 in Panipat, Haryana. The accounts can be opened at any India Post office or a branch of some authorized commercial banks. Initially, the interest rate was set at 9.1% but later revised to 9.2% in late March 2015 for FY2015-16"
+    },
+    {
+      "passage_id": "kisan-credit-card-hi#p0000",
+      "doc_id": "kisan-credit-card-hi",
+      "scheme": "kisan-credit-card",
+      "lang": "hi",
+      "section_path": "Introduction",
+      "score": 0.0303,
+      "snippet": "किसान क्रेडिट कार्ड ( केसीसी ) योजना भारत के किसानों को किसान क्रेडिट कार्ड जारी करने के लिए भारतीय सार्वजनिक क्षेत्र के बैंकों द्वारा अगस्त 1998 में शुरू की गई एक क्रेडिट योजना है। यह मॉडल योजना कृषि आवश्यकताओं के लिए अग्रिम प्रदान करने के लिए आरवी गुप्ता समिति की सिफारिशों पर राष्ट्रीय कृषि और ग्र"
+    }
+  ],
+  "explanation": "Extracted verbatim from kisan-credit-card-en#p0000 (kisan-credit-card, Introduction).",
+  "retrieval": {
+    "method": "hybrid",
+    "k": 5,
+    "top_score": 0.0581,
+    "margin": 0.0253,
+    "n_candidates": 5,
+    "bm25_top": 20.7458,
+    "bm25_floor": 18.08
+  },
+  "model": "extractive",
+  "prompt_hash": ""
+}

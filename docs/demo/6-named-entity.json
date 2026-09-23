@@ -1,0 +1,68 @@
+{
+  "query": "PMJDY ke tahat kitne bank khate khole gaye?",
+  "query_type": "Code-Mixed",
+  "answerability": "UNANSWERABLE",
+  "answer": "Insufficient information available in the provided documents.",
+  "confidence": 0.9683,
+  "query_lang": "hi-en",
+  "answer_lang": "",
+  "citations": [
+    {
+      "passage_id": "jan-dhan-hi#p0000",
+      "doc_id": "jan-dhan-hi",
+      "scheme": "jan-dhan",
+      "lang": "hi",
+      "section_path": "Introduction",
+      "score": 0.0317,
+      "snippet": "प्रधानमंत्री जन धन योजना (संक्षेप में - पीएमजेडीवाई) भारत में वित्तीय समावेशन पर राष्ट्रीय मिशन है और जिसका उद्देश्य देश भर में सभी परिवारों को बैंकिंग सुविधाएं मुहैया कराना और हर परिवार का बैंक खाता खोलना है। इस योजना की घोषणा 15 अगस्त 2014 को तथा इसका शुभारंभ 28 अगस्त 2014 को भारतीय प्रधानमंत्री श"
+    },
+    {
+      "passage_id": "jan-dhan-en#p0003",
+      "doc_id": "jan-dhan-en",
+      "scheme": "jan-dhan",
+      "lang": "en",
+      "section_path": "Performance",
+      "score": 0.0313,
+      "snippet": "Uttar Pradesh and West Bengal have 29% of the total deposits under the scheme, whereas Kerala and Goa became the first states in the country to have at least one basic bank account in every household. The total number of account holders stood at 294.8 million, including 176.1 million account holders"
+    },
+    {
+      "passage_id": "pmkvy-hi#p0000",
+      "doc_id": "pmkvy-hi",
+      "scheme": "pmkvy",
+      "lang": "hi",
+      "section_path": "Introduction",
+      "score": 0.0312,
+      "snippet": "प्रधानमंत्री कौशल विकास योजना (PMKVY)। इसे प्रधानमंत्री यूथ ट्रेनिंग प्रोग्राम के नाम से भी जाना जाता है। भारत सरकार ने इस योजना को जुलाई 2015 में शुरू किया गया था। इस योजना के तहत 2020 तक एक करोड़ युवाओं को प्रशिक्षण (ट्रेनिंग) देने की योजना बनाई गई थी। इस योजना का उद्देश्य ऐसे लोगों को रोजगार मुहै"
+    },
+    {
+      "passage_id": "mudra-en#p0006",
+      "doc_id": "mudra-en",
+      "scheme": "mudra",
+      "lang": "en",
+      "section_path": "Economic policies > Social welfare",
+      "score": 0.0308,
+      "snippet": "Modi launched Pradhan Mantri Jan Dhan Yojana (PMJDY) in August 2014. The initiative aimed to create bank accounts and debit cards for 150 million families, and to allow them an overdraft of ₹5,000 (US$52) and accident insurance. After the launch, 125.4 million accounts were opened by January 2015. T"
+    },
+    {
+      "passage_id": "jan-dhan-en#p0004",
+      "doc_id": "jan-dhan-en",
+      "scheme": "jan-dhan",
+      "lang": "en",
+      "section_path": "Performance",
+      "score": 0.0303,
+      "snippet": "As of January 27, 2021, a total number of 417.5 million accounts have been opened under the Pradhan Mantri Jan Dhan Yojana (PMJDY), out of which 359.6 million accounts are operative. According to the World Bank's Spring 2025 Poverty and Equity Brief, approximately 171 million people in India moved o"
+    }
+  ],
+  "explanation": "",
+  "retrieval": {
+    "method": "hybrid",
+    "k": 5,
+    "top_score": 0.0317,
+    "margin": 0.0005,
+    "n_candidates": 5,
+    "bm25_top": 10.7209,
+    "bm25_floor": 18.08
+  },
+  "model": "",
+  "prompt_hash": ""
+}

@@ -1,0 +1,68 @@
+{
+  "query": "Scholarship ke liye minimum eligibility kya hai?",
+  "query_type": "Code-Mixed",
+  "answerability": "UNANSWERABLE",
+  "answer": "Insufficient information available in the provided documents.",
+  "confidence": 0.9677,
+  "query_lang": "hi-en",
+  "answer_lang": "",
+  "citations": [
+    {
+      "passage_id": "awas-yojana-hi#p0003",
+      "doc_id": "awas-yojana-hi",
+      "scheme": "awas-yojana",
+      "lang": "hi",
+      "section_path": "योजना > पात्रता",
+      "score": 0.0323,
+      "snippet": "इस योजना हेतु भारत सरकार द्वारा निम्न पात्रता मापदंड तय किया गया है:-\n\nआवेदक की उम्र 70 से कम हो, आवेदक या उसके परिवार के किसी सदस्य के नाम से कोई घर या फ्लॅट न हो, आवेदक द्वारा घर खरीदने के लिए किसी भी प्रकार का सरकारी छुट न लिया हो, घर का मालिकाना हक या तो महिला के नाम से हो, या उस परिवार में केवल"
+    },
+    {
+      "passage_id": "sukanya-en#p0003",
+      "doc_id": "sukanya-en",
+      "scheme": "sukanya",
+      "lang": "en",
+      "section_path": "Summary",
+      "score": 0.0313,
+      "snippet": "If the girl is over 18 and married, normal closure is allowed. The Sukanya Samriddhi Yojana (SSY) scheme is highly flexible regarding annual deposit amounts. You are not required to deposit the same amount every year.Key Deposit RulesFlexible Amounts: You can choose to deposit any amount between the"
+    },
+    {
+      "passage_id": "atal-pension-en#p0002",
+      "doc_id": "atal-pension-en",
+      "scheme": "atal-pension",
+      "lang": "en",
+      "section_path": "Scheme",
+      "score": 0.0307,
+      "snippet": "To be eligible to avail the scheme, a person's age should be between 18 and 40 years. The pension of the person joining the scheme depends on the investment made in it and the time limit of investment. In order to incentivize people to enroll in this scheme and widen its reach, the government announ"
+    },
+    {
+      "passage_id": "sukanya-en#p0001",
+      "doc_id": "sukanya-en",
+      "scheme": "sukanya",
+      "lang": "en",
+      "section_path": "Summary",
+      "score": 0.0288,
+      "snippet": "The scheme was launched by Prime Minister Narendra Modi on 22 January 2015 in Panipat, Haryana. The accounts can be opened at any India Post office or a branch of some authorized commercial banks. Initially, the interest rate was set at 9.1% but later revised to 9.2% in late March 2015 for FY2015-16"
+    },
+    {
+      "passage_id": "epfo-en#p0014",
+      "doc_id": "epfo-en",
+      "scheme": "epfo",
+      "lang": "en",
+      "section_path": "EPF calculation > Percentage breakdown",
+      "score": 0.0281,
+      "snippet": "EPFOF dues has two contributions. One is the employee's contribution which is deducted from employee's salary / wages and another is employer's contribution which is to be paid by the employer every month. The employee's contribution is 12% of the basic wage as per sec.2(b) of the act and employer's"
+    }
+  ],
+  "explanation": "",
+  "retrieval": {
+    "method": "hybrid",
+    "k": 5,
+    "top_score": 0.0323,
+    "margin": 0.001,
+    "n_candidates": 5,
+    "bm25_top": 10.2878,
+    "bm25_floor": 18.08
+  },
+  "model": "",
+  "prompt_hash": ""
+}

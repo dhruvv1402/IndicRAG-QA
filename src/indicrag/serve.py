@@ -2,7 +2,7 @@
 
 `indicrag ask` reloads the dense encoder on every call, which is most of its
 ~50 s per query. The server loads the system once and keeps it warm, so the
-web Playground answers in about a second (extractive) or a minute (with a
+web Playground answers in about a quarter of a second (extractive) or a minute (with a
 generator). It is a demo surface, not a deployment: standard library only,
 bound to localhost, one request at a time.
 

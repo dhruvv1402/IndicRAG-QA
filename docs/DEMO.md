@@ -100,7 +100,7 @@ bank accounts".
 ## What the demo does not do
 
 - **The web interface is a local demo surface.** `indicrag serve` loads the
-  system once and serves `web/`, so the Playground answers in about a second
+  system once and serves `web/`, so the Playground answers in about 0.25 s
   rather than the ~51 s `ask` spends reloading the encoder. Opened as a plain
   file, the page falls back to the six rehearsed outputs in `docs/demo/`
   (embedded by `scripts/build-web.py`). It binds to localhost and is not built

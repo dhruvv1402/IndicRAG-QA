@@ -133,6 +133,52 @@
   .step.key p { color: #b9b9b4; }
   .step.key .chip { border-color: var(--bg); }
 
+  /* architecture */
+  .arch { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(280px, 1fr); gap: 28px; align-items: start; }
+  .lanes { display: grid; gap: 14px; }
+  .lane { border-top: 1px solid var(--ink); padding-top: 10px; }
+  .lane-head { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .08em; margin-bottom: 12px; }
+  .lane-head span:last-child { color: var(--muted); text-transform: none; letter-spacing: 0; }
+  .nodes { display: flex; align-items: stretch; flex-wrap: wrap; gap: 22px 0; }
+  .node { position: relative; border: 1px solid var(--ink); background: var(--bg); padding: 10px 12px; min-width: 104px;
+    text-align: left; font-size: 13px; line-height: 1.25; display: flex; flex-direction: column; gap: 4px; margin-right: 26px;
+    transition: background-color .2s, color .2s, transform .2s; }
+  .node small { color: var(--muted); font-size: 11px; font-family: ui-monospace, Consolas, monospace; }
+  .node:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 50%; width: 26px; height: 1px; background: var(--ink); }
+  .node:not(:last-child)::before { content: ""; position: absolute; left: calc(100% + 20px); top: calc(50% - 3px);
+    border: 3px solid transparent; border-left: 6px solid var(--ink); }
+  .node.key { background: var(--ink); color: var(--bg); }
+  .node.key small { color: #b9b9b4; }
+  .node:hover, .node[aria-pressed="true"] { transform: translateY(-2px); box-shadow: 4px 4px 0 var(--ink); }
+  .node.key[aria-pressed="true"] { box-shadow: 4px 4px 0 var(--good); }
+  .stack { display: flex; flex-direction: column; gap: 8px; margin-right: 26px; position: relative; }
+  .stack .node { margin-right: 0; }
+  .stack .node::after, .stack .node::before { display: none; }
+  .stack:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 50%; width: 26px; height: 1px; background: var(--ink); }
+  .feeds { font-size: 12px; color: var(--muted); margin: 14px 0 0; }
+  .detail { position: sticky; top: 70px; border: 1px solid var(--ink); padding: 18px; min-height: 360px; background: var(--bg); }
+  .detail .kicker { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .detail h3 { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125; text-transform: uppercase;
+    font-size: clamp(22px, 2.2vw, 32px); line-height: 1; margin: 8px 0 12px; }
+  .detail .files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .detail .files code { font-size: 12px; background: var(--soft); padding: 2px 7px; }
+  .detail p { margin: 0 0 16px; font-size: 15px; }
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 12px; border-top: 1px solid var(--rule); padding-top: 14px; }
+  .facts b { display: block; font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
+    font-size: 26px; line-height: 1; letter-spacing: -0.02em; }
+  .facts span { font-size: 12px; color: var(--muted); }
+  .detail .why { margin-top: 14px; font-size: 13px; color: var(--muted); border-left: 2px solid var(--ink); padding-left: 10px; }
+  .detail.swap-in > * { animation: rise .35s cubic-bezier(.2,.7,.1,1); }
+  .below { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-top: var(--gap-l); }
+  .tree { font-family: ui-monospace, Consolas, monospace; font-size: 13px; line-height: 1.7; margin: 0; white-space: pre; overflow-x: auto;
+    border-top: 1px solid var(--ink); padding-top: 12px; }
+  .tree i { font-style: normal; color: var(--muted); }
+  .invariant { font-size: 15px; margin: 12px 0 0; }
+  .numbers { border-top: 1px solid var(--ink); padding-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+  .numbers b { display: block; font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125; font-size: clamp(30px, 3.4vw, 48px); line-height: 1; }
+  .numbers span { font-size: 13px; color: var(--muted); }
+
   /* findings */
   .swing { display: flex; align-items: baseline; gap: 3vw; flex-wrap: wrap; margin: 0 0 18px;
     font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
@@ -286,6 +332,13 @@
     .bars { grid-template-columns: 90px 1fr; }
     .bars .g { display: none; }
     .lists { grid-template-columns: 1fr; }
+    .arch, .below { grid-template-columns: 1fr; }
+    .detail { position: static; min-height: 0; }
+    .nodes { flex-direction: column; align-items: stretch; gap: 16px; }
+    .node, .stack { margin-right: 0; }
+    .node:not(:last-child)::after { left: 50%; top: 100%; width: 1px; height: 16px; }
+    .node:not(:last-child)::before { left: calc(50% - 3px); top: calc(100% + 10px); border: 3px solid transparent; border-top: 6px solid var(--ink); }
+    .stack:not(:last-child)::after { display: none; }
     .list.fused { border-left: 0; padding-left: 0; border-top: 2px solid var(--ink); padding-top: 12px; }
     .list li.gold::before { display: none; }
     .result { grid-template-columns: 1fr; }
@@ -308,7 +361,7 @@
 
 <nav>
   <a class="brand" href="#top" aria-label="IndicRAG-QA, back to top">indicrag<b>अ</b></a>
-  <div class="mid"><a href="#about">About</a><a href="#fusion">How fusion breaks</a><a href="#playground">Playground</a></div>
+  <div class="mid"><a href="#about">About</a><a href="#architecture">Architecture</a><a href="#fusion">How fusion breaks</a><a href="#playground">Playground</a></div>
   <a class="end" href="#paper">Read the paper</a>
 </nav>
 
@@ -375,6 +428,73 @@
       <div class="step key"><span class="n">03</span><h3>Fuse by eligibility</h3><p>A passage in the other script is scored on the retriever that could see it — not docked for a vote BM25 could never cast.</p><span class="chip">script-aware RRF</span></div>
       <div class="step"><span class="n">04</span><h3>Answer from evidence</h3><p>The generator answers only from the retrieved passages and names the one it used.</p><span class="chip">cited passage id</span></div>
       <div class="step"><span class="n">05</span><h3>Or refuse</h3><p>Below the BM25 floor, or when the generator finds no answer in the passages: <i>"Insufficient information available in the provided documents."</i></p><span class="chip">4 answerability signals</span></div>
+    </div>
+  </section>
+
+  <section id="architecture">
+    <div class="label">Architecture</div>
+    <h2 class="display reveal">Built once,<br>asked often.</h2>
+    <div class="arch">
+      <div class="lanes" id="lanes" role="group" aria-label="System components; select one for details">
+        <div class="lane reveal">
+          <div class="lane-head"><span>Offline</span><span>once per corpus · about 40 min on a CPU</span></div>
+          <div class="nodes">
+            <button type="button" class="node" data-n="fetch">Fetch<small>corpus/fetch.py</small></button>
+            <button type="button" class="node" data-n="validate">Validate<small>corpus/devanagari.py</small></button>
+            <button type="button" class="node" data-n="normalize">Normalize<small>corpus/normalize.py</small></button>
+            <button type="button" class="node" data-n="segment">Segment<small>corpus/segment.py</small></button>
+            <div class="stack">
+              <button type="button" class="node" data-n="lexical">Lexical index<small>index/lexical.py</small></button>
+              <button type="button" class="node" data-n="dense">Dense index<small>index/dense.py</small></button>
+            </div>
+          </div>
+        </div>
+        <div class="lane reveal">
+          <div class="lane-head"><span>Per query</span><span>~0.25 s extracted · ~1 min generated</span></div>
+          <div class="nodes">
+            <button type="button" class="node" data-n="langid">Language ID<small>query/langid.py</small></button>
+            <button type="button" class="node" data-n="retrieve">Retrieve ×2<small>pipeline.py</small></button>
+            <button type="button" class="node key" data-n="fusion">Script-aware fusion<small>index/hybrid.py</small></button>
+            <button type="button" class="node" data-n="generate">Generate<small>rag/providers.py</small></button>
+            <button type="button" class="node" data-n="answerability">Answerability<small>answerability/</small></button>
+            <button type="button" class="node" data-n="response">Response<small>models.py</small></button>
+          </div>
+          <p class="feeds">Retrieve reads both offline indices; fusion reads each passage's script.</p>
+        </div>
+        <div class="lane reveal">
+          <div class="lane-head"><span>Evaluation</span><span>every committed number, one command</span></div>
+          <div class="nodes">
+            <button type="button" class="node" data-n="gold">Gold set<small>evals/gold.jsonl</small></button>
+            <button type="button" class="node" data-n="metrics">Metrics<small>evaluation/</small></button>
+            <button type="button" class="node" data-n="stats">Statistics<small>evaluation/stats.py</small></button>
+            <button type="button" class="node" data-n="reports">Reports<small>evals/report-*.txt</small></button>
+          </div>
+        </div>
+      </div>
+      <aside class="detail" id="archDetail" aria-live="polite"></aside>
+    </div>
+    <div class="below">
+      <div class="reveal">
+        <div class="label" style="margin-bottom:12px">Storage &amp; caching</div>
+<pre class="tree">data/
+├── corpus_manifest.jsonl   <i>sha256 + licence per source</i>
+├── text/&lt;doc_id&gt;.txt       <i>extracted, before normalization</i>
+├── passages.jsonl          <i>694 passages, frozen at v1</i>
+├── lex/lexical.pkl         <i>TF-IDF + BM25</i>
+├── emb/&lt;model&gt;.npy         <i>float32, L2-normalized</i>
+├── emb/&lt;model&gt;.meta.json   <i>passage fingerprint</i>
+└── gen/&lt;model&gt;.jsonl       <i>generations, keyed by prompt hash</i></pre>
+        <p class="invariant">Nothing expensive is computed twice, and every cache carries the hash of its input: an index built from different passages refuses to load.</p>
+      </div>
+      <div class="reveal">
+        <div class="label" style="margin-bottom:12px">The project, measured</div>
+        <div class="numbers">
+          <div><b>0</b><span>GPUs — every figure reproduces on a 4-core laptop</span></div>
+          <div><b>393</b><span>tests (pytest), plus a ruff-clean tree</span></div>
+          <div><b>25</b><span>CLI commands, audited against the docs</span></div>
+          <div><b>22</b><span>reports, each regenerated and diffed by <code>regenerate-reports.py --check</code></span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -607,6 +727,90 @@
   }, { passive: true });
   hero.addEventListener("pointerenter", () => ring.classList.add("swap"));
   hero.addEventListener("pointerleave", () => ring.classList.remove("swap"));
+
+  /* ---------- architecture: components as built (docs/ARCHITECTURE.md, the paper §III–V) ---------- */
+  const ARCH = {
+    fetch: ["Offline", "Fetch", ["corpus/fetch.py", "corpus/sources.py"],
+      "Resolves each scheme's English and Hindi Wikipedia articles through Wikipedia's own interlanguage links, so parallelism is the source's claim, not ours. Stub articles are rejected, not padded.",
+      [["40", "schemes kept of 49 seeded"], ["80", "documents, EN + HI"]],
+      "Official ministry PDFs were tried first: Hindi pages returned soft 404s and an 18-page scan yielded 17 characters of text."],
+    validate: ["Offline", "Validate", ["corpus/devanagari.py", "corpus/integrity.py"],
+      "Five checks on every Hindi document: misplaced vowel signs, dangling viramas, Devanagari codepoint ratio, Hindi function-word rate, replacement characters. Broken fonts produce text that looks like Hindi and is not.",
+      [["5", "integrity checks"], ["80/80", "documents pass"]],
+      "Three clean documents first failed: formal Hindi writes a zero-width non-joiner after a virama, which split the token. Strip it before validating."],
+    normalize: ["Offline", "Normalize", ["corpus/normalize.py"],
+      "NFC composition, Devanagari digits to ASCII, and danda-aware sentence splitting — applied identically to passages and to queries, so the two always match.",
+      [["0/694", "passages changed by a second pass"], ["87", "gold questions carry an amount"]],
+      "Amount canonicalisation (₹3.5 lakh = 3,50,000) is applied in scoring, not in the index; measured, it would move BM25 Recall@5 by +0.011 (p = 0.13)."],
+    segment: ["Offline", "Segment", ["corpus/segment.py"],
+      "Structure-aware split into 120–220-token passages with 25% overlap and stable positional IDs.",
+      [["694", "passages"], ["v1", "frozen: the gold set's IDs"]],
+      "A later fix to section merging is implemented but not applied, because it would re-point 312 passage IDs the gold set cites."],
+    lexical: ["Offline", "Lexical index", ["index/lexical.py", "index/tokenize.py"],
+      "TF-IDF and BM25 over a tokenizer that dispatches per token by script — needed for code-mixed text, where English words sit beside Romanized Hindi.",
+      [["1.2 / 0.75", "BM25 k₁ / b"], ["0.153", "cross-lingual Recall@5"]],
+      "A Devanagari passage and a Latin query share almost no tokens, so BM25 cannot cross the script boundary at any rank."],
+    dense: ["Offline", "Dense index", ["index/dense.py", "index/encoders.py"],
+      "multilingual-e5-base is primary; MiniLM-L12, LaBSE and MuRIL (mean and CLS pooling) are compared. Exact search over L2-normalized float32; no approximate index to confound model error.",
+      [["0.720", "e5 Recall@5 (test)"], ["~40 min", "to encode all, CPU"]],
+      "IndicBERT is a gated repository and could not be evaluated. MuRIL, pretrained on Indic text but not for retrieval, reaches 0.048 cross-lingual."],
+    langid: ["Per query", "Language ID", ["query/langid.py"],
+      "Rules, not a model: mostly Devanagari is Indic; both scripts is Code-Mixed; Latin with an unambiguous Hindi function word (kya, ke, liye…) is Code-Mixed; otherwise English.",
+      [["3", "types: English · Indic · Code-Mixed"], ["400/400", "gold questions agree"]],
+      "Words like 'is', 'to' and 'me' are also Romanized Hindi, so they corroborate but never trigger Code-Mixed — or plain English questions get misclassified."],
+    retrieve: ["Per query", "Retrieve ×2", ["pipeline.py"],
+      "BM25 and the dense encoder each return a deeper pool than the answer needs, so fusion has something to reorder.",
+      [["50", "candidates per retriever"], ["5", "passages to the generator"]],
+      "Retrieval never branches on the detected language: one path for all three query types, so the per-language comparison measures the retrievers, not routing."],
+    fusion: ["Per query", "Script-aware fusion", ["index/hybrid.py"],
+      "Reciprocal Rank Fusion scored over the retrievers eligible to return a passage: 2/|eligible| × Σ 1/(60 + rank). A Hindi passage is judged on the dense vote alone, not docked for BM25's silence.",
+      [["0.274 → 0.685", "cross-lingual Recall@5"], ["+0.030", "over dense alone (p = 0.052)"]],
+      "No training, no tuning, one lookup per candidate. Found by reading twenty failure cases, not by sweeping a parameter."],
+    generate: ["Per query", "Generate", ["rag/providers.py", "rag/prompts.py", "rag/arms.py"],
+      "Qwen2.5-3B-Instruct (4-bit, llama.cpp, CPU) answers only from the top five passages and names the passage it used; an extractive provider is the no-model fallback.",
+      [["~58 s", "per RAG answer, prefill-bound"], ["0.870", "answers supported by their citation"]],
+      "Grammar-constrained JSON decoding was tried and dropped: slower, and no more reliable. Every generation is cached by prompt hash."],
+    answerability: ["Per query", "Answerability", ["answerability/signals.py", "answerability/nli.py", "answerability/calibrate.py"],
+      "Four signals, fitted on dev: a BM25 top-score floor, the generator's own abstention, an NLI entailment check (mDeBERTa-v3), and a calibrated logistic combination.",
+      [["18.08", "BM25 floor (dev-fitted)"], ["22/23", "near-misses the generator refuses"]],
+      "The fused RRF score carries almost no signal — rank fusion discards magnitudes — so the floor reads BM25's raw score."],
+    response: ["Per query", "Response", ["models.py", "pipeline.py"],
+      "The full response object: query type and language, answerability, answer, confidence, citations with passage ID, language and score, and an explanation.",
+      [["1", "fixed refusal string"], ["PRD §9", "output contract"]],
+      "A refusal still lists what was retrieved and rejected, so an operator can see why the system declined."],
+    gold: ["Evaluation", "Gold set", ["evals/gold.jsonl", "evals/splits.json"],
+      "393 items: 313 answerable across six query × evidence language cells, 80 unanswerable in four classes. Verified in two language-model passes, the test split then reviewed by the author.",
+      [["120 / 273", "dev / test, sealed"], ["6", "language-pair cells"]],
+      "Every threshold, weight and prompt is chosen on dev; the test split is scored once."],
+    metrics: ["Evaluation", "Metrics", ["evaluation/retrieval.py", "evaluation/qa.py", "evaluation/grounding.py"],
+      "Recall@k, MRR, nDCG@10 for retrieval; exact match and token-F1 with a script-aware normalizer for answers; Citation Support Rate, lexical and by entailment.",
+      [["4", "QA arms incl. oracle"], ["2", "citation-support variants"]],
+      "A SQuAD-style normalizer is silently wrong for Hindi: it leaves the danda in place and scores every Hindi row a few points low."],
+    stats: ["Evaluation", "Statistics", ["evaluation/stats.py"],
+      "95% percentile-bootstrap intervals on every headline figure; paired randomization tests between systems, paired on question ID.",
+      [["1,000", "bootstrap resamples"], ["10,000", "permutation trials"]],
+      "Per-query Recall@5 is 0 or 1, so a test assuming normality is wrong; the permutation test assumes only exchangeability."],
+    reports: ["Evaluation", "Reports", ["scripts/regenerate-reports.py", "evals/"],
+      "Every committed report records the command that produced it and a banner saying who verified the items it rests on.",
+      [["22", "committed reports"], ["1", "command to check them all"]],
+      "--check regenerates each report into a scratch directory and diffs it against evals/."],
+  };
+  const detail = $("#archDetail"), lanes = $("#lanes");
+  function showNode(key) {
+    const [lane, title, files, body, facts, why] = ARCH[key];
+    detail.textContent = ""; detail.classList.remove("swap-in"); void detail.offsetWidth; detail.classList.add("swap-in");
+    const f = el("div", "files"); files.forEach((x) => f.appendChild(el("code", null, x)));
+    const fx = el("div", "facts");
+    facts.forEach(([n, l]) => { const d = el("div"); d.append(el("b", null, n), el("span", null, l)); fx.appendChild(d); });
+    detail.append(el("div", "kicker", lane), el("h3", null, title), f, el("p", null, body), fx, el("div", "why", why));
+    lanes.querySelectorAll(".node").forEach((n) => n.setAttribute("aria-pressed", String(n.dataset.n === key)));
+  }
+  lanes.querySelectorAll(".node").forEach((n) => {
+    n.addEventListener("click", () => showNode(n.dataset.n));
+    if (finePointer) n.addEventListener("pointerenter", () => showNode(n.dataset.n));
+    n.addEventListener("focus", () => showNode(n.dataset.n));
+  });
+  showNode("fusion");
 
   /* ---------- reveal + counters ---------- */
   const io = new IntersectionObserver((entries) => entries.forEach((en) => {

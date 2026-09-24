@@ -732,7 +732,7 @@ indicrag dataset scaffold-unanswerable             the 80 unanswerable items
 indicrag dataset verify [--assist <p>]             annotation review loop, resumable; shows pre-review notes [--recheck --split test --annotator <name>]
 indicrag dataset review [--notes <p> --reviewed-by <who>] [--out <p>] [--report <p>]
                                                    rule checks + reading-pass notes; advice, never verifies
-indicrag dataset second-pass [--draw|--compare]    blind 15% sample, Cohen's kappa
+indicrag dataset second-pass [--draw|--compare]    blind 15% sample, Cohen's kappa [--label <p> --labeller <name>]
 indicrag dataset split      [--seed 20260922]      stratified dev/test, verified only
 indicrag dataset stats                             matrix coverage vs PRD §6.2
 indicrag dataset reanchor --out <p> [--to-version 2] [--report <p>]

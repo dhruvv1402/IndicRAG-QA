@@ -213,3 +213,31 @@ def test_agreement_between_model_passes_is_not_reported_as_passing_the_gate(tmp_
     text = "\n".join(format_agreement(compare(items, path)))
     assert "PASSES" not in text
     assert "not between" in text and "model:x" in text
+
+
+def test_the_blind_labeller_shows_no_verdict_and_records_the_labeller(tmp_path):
+    import json
+
+    from indicrag.dataset.second_pass import label_blind
+    from indicrag.models import Passage
+
+    passage = Passage(passage_id="d#p0", doc_id="d", scheme="s", lang="en",
+                      text="Loans are repaid over up to 7 years.", section_path="",
+                      token_count=7)
+    rows = [
+        {"id": "a", "question": "Repayment period?", "evidence_ids": ["d#p0"], "answerable": None},
+        {"id": "b", "question": "Interest in Nagaland?", "evidence_ids": ["d#p0"], "answerable": None},
+    ]
+    path = tmp_path / "blind.jsonl"
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+
+    shown: list[str] = []
+    answers = iter(["y", "w"])
+    done, total = label_blind(path, [passage], labeller="Second Person",
+                              ask=lambda _p: next(answers), say=shown.append)
+    assert (done, total) == (1, 2)
+    saved = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert saved[0]["answerable"] is True and saved[0]["labelled_by"] == "Second Person"
+    assert saved[1]["answerable"] is None  # quit before it; resumable
+    text = "\n".join(shown)
+    assert "Loans are repaid" in text and "gold" not in text.lower()

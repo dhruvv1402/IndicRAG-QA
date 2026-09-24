@@ -506,6 +506,10 @@ def dataset_second_pass(
     fraction: float = typer.Option(0.15, "--fraction"),
     seed: int = typer.Option(20260922, "--seed"),
     report: Path = typer.Option(None, "--report"),
+    label: Path = typer.Option(
+        None, "--label", help="Label a blind sample interactively (question and evidence only)."
+    ),
+    labeller: str = typer.Option("", "--labeller", help="Name recorded on each label."),
 ) -> None:
     """Draw a blind re-labelling sample, or score one and report Cohen's kappa.
 
@@ -522,6 +526,21 @@ def dataset_second_pass(
         format_agreement,
         write_blind_sample,
     )
+
+    if label is not None:
+        from .dataset.second_pass import label_blind
+
+        if not labeller:
+            raise typer.BadParameter("--label needs --labeller <name>")
+        cfg = get_settings()
+        done, total = label_blind(
+            label, list(read_jsonl(cfg.passages_path, Passage)),
+            labeller=labeller, ask=typer.prompt, say=typer.echo,
+        )
+        typer.echo(f"\n{done}/{total} labelled -> {label}")
+        if done == total:
+            typer.echo(f"then: indicrag dataset second-pass --compare {label}")
+        return
 
     items = list(read_jsonl(path, QAItem))
     if not items:
@@ -570,7 +589,8 @@ def dataset_second_pass(
     typer.echo(f"{n} items -> {sample_out}")
     typer.echo(f"  strata: {dict(strata)}")
     typer.echo("")
-    typer.echo("Label each item's `answerable` field WITHOUT consulting the first pass,")
+    typer.echo("Label it WITHOUT consulting the first pass:")
+    typer.echo(f"  indicrag dataset second-pass --label {sample_out} --labeller <name>")
     typer.echo(f"then: indicrag dataset second-pass --compare {sample_out}")
 
 

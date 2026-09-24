@@ -235,3 +235,47 @@ def format_agreement(agreement: Agreement) -> list[str]:
             "  guideline gap, not a mistake by either labeller.",
         ]
     return out
+
+
+def label_blind(path: Path, passages, *, labeller: str, ask, say) -> tuple[int, int]:
+    """Interactive blind labelling of a sample written by `write_blind_sample`.
+
+    Shows each unlabelled row's question and its evidence passages -- nothing
+    else: no gold answer, no first-pass verdict, no pre-review note. Records
+    `answerable` and `labelled_by`, and rewrites the file after every decision
+    so a sitting can stop and resume anywhere. Returns (labelled, total).
+    """
+    path = Path(path)
+    rows = [r for r in read_jsonl(path) if isinstance(r, dict)]
+    by_id = {p.passage_id: p for p in passages}
+
+    def save() -> None:
+        with path.open("w", encoding="utf-8", newline="\n") as fh:
+            for r in rows:
+                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+    say("  [y] answerable -- the evidence states the answer    [n] not answerable")
+    say("  [s] skip    [w] save and quit")
+    todo = [r for r in rows if r.get("answerable") is None]
+    for n, row in enumerate(todo, start=1):
+        say("")
+        say("=" * 78)
+        say(f"[{n}/{len(todo)}]  {row['question']}")
+        for k, pid in enumerate(row.get("evidence_ids", []), start=1):
+            p = by_id.get(pid)
+            say(f"  --- passage {k} ({pid})")
+            say(f"  {p.text if p else '(passage missing from corpus)'}")
+        while True:
+            choice = (ask("  answerable? [y/n/s/w]> ") or "").strip().lower()
+            if choice in {"y", "n"}:
+                row["answerable"] = choice == "y"
+                row["labelled_by"] = labeller
+                save()
+                break
+            if choice == "s":
+                break
+            if choice == "w":
+                done = sum(1 for r in rows if r.get("answerable") is not None)
+                return done, len(rows)
+    done = sum(1 for r in rows if r.get("answerable") is not None)
+    return done, len(rows)

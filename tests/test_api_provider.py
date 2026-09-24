@@ -152,3 +152,18 @@ def test_an_unreachable_api_is_a_502_not_a_crash():
     status, body = handle_ask({"query": "How much do students receive?", "method": "bm25",
                                "bm25_floor": 0}, system)
     assert status == 502 and "could not reach" in body["error"]
+
+
+def test_a_refusal_written_as_the_answer_is_a_refusal_whatever_the_flag_says():
+    """Seen live from a Groq-hosted model: answerable true, answer = the refusal."""
+    reply = json.dumps({"answerable": True, "answer": REFUSAL, "citation": "b#p0"})
+    out = _provider(FakeOpener(_reply(reply))).answer(
+        "What is the interest rate in Nagaland?", PASSAGES, lang=classify("What is the interest rate in Nagaland?"))
+    assert out.answerable is False and out.text == REFUSAL
+
+
+def test_every_request_carries_a_user_agent():
+    """Groq's edge returns a bare 403 to urllib's default User-Agent."""
+    opener = FakeOpener(_reply('{"answerable": true, "answer": "x", "citation": "b#p0"}'))
+    _provider(opener).complete("prompt")
+    assert opener.requests[0].get_header("User-agent") == "indicrag/0.1"

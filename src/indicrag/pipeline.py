@@ -210,11 +210,15 @@ def answer_query(
         primary = cited_ids[0]
         citations.sort(key=lambda c: c["passage_id"] != primary)
 
+    # The generator's own verdict decides the label. This used to be hard-coded
+    # to ANSWERABLE, so a generator that declined -- the answerability signal
+    # that works best on this corpus -- printed the refusal sentence under an
+    # ANSWERABLE label. Module 4 reads the verdict directly and was unaffected.
     ans = Answer(
         query=query,
         query_type=lang.query_type,
         query_lang=lang.lang,
-        answerability="ANSWERABLE",
+        answerability="ANSWERABLE" if generated.answerable else "UNANSWERABLE",
         answer=generated.text,
         answer_lang=generated.lang,
         confidence=round(float(generated.confidence), 4),

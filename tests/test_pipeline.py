@@ -279,3 +279,20 @@ def test_the_bm25_floor_refuses_whatever_retriever_supplies_the_evidence():
 def test_the_bm25_floor_is_off_by_default():
     result = answer_query("How much do students receive?", CORPUS, k=3)
     assert "bm25_floor" not in result.retrieval
+
+
+def test_a_generator_that_declines_is_labelled_unanswerable():
+    """The label used to be hard-coded ANSWERABLE after generation, so a refusal
+    from the generator was printed under an ANSWERABLE label."""
+    from indicrag.rag.providers import Generated
+
+    class Declines:
+        name = "declines"
+
+        def answer(self, query, passages, *, lang):
+            return Generated(text=Answer.REFUSAL, answerable=False, citations=[passages[0].passage_id])
+
+    result = answer_query("How much do students receive?", CORPUS, k=2, provider=Declines())
+    assert result.answerability == "UNANSWERABLE"
+    assert result.answer == Answer.REFUSAL
+    assert result.citations, "the rejected evidence is still shown"

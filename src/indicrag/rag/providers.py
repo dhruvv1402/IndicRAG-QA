@@ -478,7 +478,10 @@ def grounded_answer(provider, query: str, passages: Sequence[Passage], *, lang: 
         )
 
     text = (data.get("answer") or "").strip()
-    answerable = bool(data.get("answerable", True)) and bool(text)
+    # A model can set `answerable: true` and still write the refusal sentence as
+    # its answer (seen from Groq-hosted models). The words are the decision.
+    refused_in_words = text.rstrip(".").casefold() == REFUSAL.rstrip(".").casefold()
+    answerable = bool(data.get("answerable", True)) and bool(text) and not refused_in_words
     cited = (data.get("citation") or "").strip()
     # Fall back to the top passage when the model names an id that is not in
     # the context. Its own citation is preferred, but an invented one must
@@ -521,7 +524,9 @@ API_PRESETS: dict[str, dict[str, str]] = {
     "groq": {
         "base_url": "https://api.groq.com/openai/v1",
         "key_env": "GROQ_API_KEY",
-        "model": "llama-3.3-70b-versatile",
+        # Checked against the key's model list on 2026-09-25; Llama 3.3 had been
+        # withdrawn. Answered correctly in English and Hindi at ~0.6 s.
+        "model": "qwen/qwen3.8-27b",
     },
     "gemini": {
         "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
@@ -599,7 +604,11 @@ class OpenAICompatProvider:
         for attempt in range(self.retries + 1):
             req = urllib.request.Request(
                 f"{self.base_url}/chat/completions", data=body, method="POST",
-                headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._key}"},
+                # An explicit User-Agent is required, not cosmetic: Groq's edge
+                # (Cloudflare) rejects urllib's default "Python-urllib/3.x" with a
+                # bare 403 before the request reaches the API.
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._key}",
+                         "User-Agent": "indicrag/0.1"},
             )
             try:
                 with self._open(req, timeout=self.timeout) as resp:

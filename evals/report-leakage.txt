@@ -1,4 +1,4 @@
-313 answerable gold items (model-verified)
+313 answerable gold items (216 person-reviewed, 97 model-verified)
 
 OVERLAP BY CELL -- content-token Jaccard, question against gold passage
 ------------------------------------------------------------------------------

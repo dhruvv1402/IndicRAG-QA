@@ -1,11 +1,10 @@
-Generated: 2026-09-24 00:34
+Generated: 2026-09-24 22:34
 Source:    evals\gold.jsonl [test split]
 Items:     216 (216 answerable, 0 unanswerable)
-Verified:  216/216  (0 by a person, 216 by a model)
+Verified:  216/216  (216 by a person, 0 by a model)
 
-MODEL-VERIFIED. Verification of these items was done by a language-model
-pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
-paper §III-D for the procedure and its agreement figures.
+PERSON-REVIEWED. Every item was reviewed by a person, after two
+language-model verification passes; see paper §III-D.
 
 RETRIEVAL -- overall
 ------------------------------------------------------------------------------

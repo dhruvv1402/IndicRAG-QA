@@ -1,5 +1,5 @@
 
-313 answerable gold items (model-verified)
+313 answerable gold items (216 person-reviewed, 97 model-verified)
 
 --- cross-lingual
     dense/LaBSE         0.521 [0.419, 0.618]

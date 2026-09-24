@@ -1,11 +1,11 @@
-Generated: 2026-09-24 00:31
+Generated: 2026-09-24 22:31
 Source:    evals\gold.jsonl
 Items:     313 (313 answerable, 0 unanswerable)
-Verified:  313/313  (0 by a person, 313 by a model)
+Verified:  313/313  (216 by a person, 97 by a model)
 
-MODEL-VERIFIED. Verification of these items was done by a language-model
-pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
-paper §III-D for the procedure and its agreement figures.
+PARTLY MODEL-VERIFIED. 216 of these items were reviewed by a person
+after two model passes; the other 97 were verified by the model
+passes only (annotator 'model:...'). See paper §III-D.
 
 RETRIEVAL -- overall
 ------------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 Written as paper prose rather than notes, continuing `sections-III-IV-V.md`.
 
-Figures here are from the model-verified gold set, on its sealed test split
+Figures here are from the verified gold set, on its sealed test split
 unless stated, except where a section describes the probe-set work that found
 the mechanism, which is marked as such.
 
@@ -293,22 +293,20 @@ script asymmetry in general from one that happens to handle this pair. Behaviour
 with three or more scripts, and with partially overlapping scripts such as those
 sharing a Perso-Arabic base, is untested.
 
-**Scale, and no human annotator.** The evaluation set is 393 verified items, of
+**Scale, and one annotator.** The evaluation set is 393 verified items, of
 which 313 are answerable, spread over six query-language-by-passage-language
 cells of 44 to 69 items, and the sealed test split holds 273 of them; per-cell
-differences of a few points are not resolvable. The larger limitation is who
-verified them. The protocol called for a person to confirm every item and for a
-second person to re-label a blind sample, with κ ≥ 0.70 as a gate on reporting
-any answerability result. Both steps were carried out by a language model
-instead (§III-D). The second pass agrees perfectly with the first, κ = 1.000
-over 59 items, but two instances of one model share its blind spots, and the
-confirming pass had already dropped the items it disagreed with, so that figure
-measures consistency and is not the gate the protocol describes. The
-verification did find and remove real defects — wrong answers, unreadable
-translations, duplicated unanswerable items — and every figure in §VI rests on
-the corrected set; but a gold set checked only by a model inherits that model's
-judgement of what a passage states, and a human pass over at least the test
-split remains the most valuable single piece of outstanding work.
+differences of a few points are not resolvable. The larger limitation is how
+they were verified. The protocol called for a person to confirm every item and
+for a second person to re-label a blind sample, with κ ≥ 0.70 as a gate on
+reporting any answerability result. The model passes did find and remove real
+defects — wrong answers, unreadable translations, duplicated unanswerable items
+— and a person then reviewed the whole test split (§III-D). But that review saw
+the model's verdicts and accepted every item, so it confirms the model passes
+rather than measuring agreement with them; the dev split was checked by the
+model alone; and the blind second pass was a model instance, whose κ = 1.000
+measures consistency, not the gate the protocol describes. An independent,
+blind second annotator remains the most valuable outstanding work.
 
 **Probe-set figures are kept, and they disagree with the gold set.** The
 analyses in §VI-B to §VI-F were measured on 180 synthetic probes before the gold
@@ -377,8 +375,8 @@ We have presented IndicRAG-QA, an evidence-grounded question answering system
 for Hindi, English and Hindi–English code-mixed queries over a parallel corpus
 of Indian government welfare schemes, together with a 393-item evaluation set
 across six query-language-by-passage-language cells and a taxonomy of four
-unanswerable question types, verified by a language model and disclosed as
-such.
+unanswerable question types, verified in two language-model passes with its
+test split reviewed by a person.
 
 The central finding is about rank fusion rather than about any individual
 retriever. Reciprocal Rank Fusion, applied unmodified to a lexical and a dense
@@ -417,9 +415,8 @@ error sources is what the oracle arm exists to do, and on verified items it
 changed our advice: before verification the generator looked like the only
 thing worth fixing, and it is not.
 
-Immediate future work is a human verification pass over the evaluation set,
-at least its test split, to replace the model verification it currently rests
-on; to extend the
+Immediate future work is an independent, blind second annotator for the
+evaluation set, to measure the agreement the protocol asks for; to extend the
 corpus beyond Hindi to at least one non-Devanagari Indic script, which would
 distinguish a general treatment of script asymmetry from a Hindi-specific one;
 and to test the eligibility formulation on asymmetric-coverage settings outside

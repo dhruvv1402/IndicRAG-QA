@@ -212,7 +212,7 @@ article dominating a matrix cell.
 
 ### D. Question-answer set
 
-*(Verified 2026-09-23 — **by a language model, not by a person**; see the procedure below. 393 items survive, 7 were rejected.)*
+*(Verified 2026-09-23 in two language-model passes; test split reviewed by a person 2026-09-24. 393 items survive, 7 were rejected.)*
 
 The set was built as 400 instances, 320 answerable and 80 unanswerable; after
 verification it holds 393, 313 answerable and 80 unanswerable. The
@@ -239,9 +239,9 @@ which is precisely why code-mixed queries are expected to be hardest.
 
 Candidates are bootstrapped with a locally hosted quantized model
 (Qwen2.5-3B-Instruct, Q4_K_M). The protocol specified that a person then verify
-each one. **That is not what happened, and we say so plainly: the set was
-verified by a language model (Claude Opus 5.5), in two independent passes, and
-no item has been checked by a person.** The first pass read every item against
+each one. **Verification instead began with a language model (Claude Opus
+5.5), in two independent passes, and a person then reviewed the test split.**
+The first pass read every item against
 its cited passage and proposed a correction or a rejection; it judged only 27 of
 the 320 bootstrapped answerable items correct as generated, found 63 gold
 answers the passage contradicts or does not state, and found 112 questions that
@@ -253,10 +253,19 @@ its final form against its evidence and the passages a retriever returns for it,
 confirming 353 and making small corrections to 42. It rejected 5 — three
 because another passage in the corpus gives a conflicting figure, so the
 question has no single answer — and 2 more were dropped as duplicate questions. It also added, for 73 items, passages that state the same fact,
-most of them the other language's article (see below). Every verified item
-records `annotator: model:…`, and every report built on the set carries that
-disclosure in its banner. The figures in §VI are therefore model-verified, which
-is weaker than the human verification the protocol was designed around. The blind second pass (§IX) was likewise run by a model instance, and its κ = 1.000 over 59 items measures one model's consistency, not agreement between annotators.
+most of them the other language's article (see below).
+
+A person — the author — then reviewed every one of the 273 test-split items
+against its evidence, with the model passes' notes shown beside it, and
+accepted all 273 as they stood: no question or answer was edited and none was
+rejected. Two qualifications apply. The review was not blind, since the
+reviewer saw the model's verdict, so its 100% acceptance is a confirmation of
+the model passes rather than an independent labelling of the items; and it was
+one person. The 120 dev-split items, which are used only for fitting
+thresholds, were verified by the model passes alone. Each item records who
+checked it (`annotator`), and every report states the mix in its banner. The
+blind second pass (§IX) was run by a model instance, and its κ = 1.000 over 59
+items measures one model's consistency, not agreement between annotators.
 
 Two construction details materially affect the measurements. First,
 **cross-lingual items translate the question only** and leave the gold passage

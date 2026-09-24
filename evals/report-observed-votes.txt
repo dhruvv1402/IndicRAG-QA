@@ -1,4 +1,4 @@
-313 answerable gold items (model-verified)
+313 answerable gold items (216 person-reviewed, 97 model-verified)
 
 === dev split (decides)
     a doubled cast vote reaches the top 5 on 16 of 97 queries

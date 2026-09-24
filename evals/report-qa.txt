@@ -1,11 +1,10 @@
-Generated: 2026-09-24 21:50
+Generated: 2026-09-24 22:37
 Source:    evals\gold.jsonl [test split], 72-item stratified sample
 Items:     72 (72 answerable, 0 unanswerable)
-Verified:  72/72  (0 by a person, 72 by a model)
+Verified:  72/72  (72 by a person, 0 by a model)
 
-MODEL-VERIFIED. Verification of these items was done by a language-model
-pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
-paper §III-D for the procedure and its agreement figures.
+PERSON-REVIEWED. Every item was reviewed by a person, after two
+language-model verification passes; see paper §III-D.
 
 MODULE 4 -- direct LLM vs retrieval-augmented question answering
 ------------------------------------------------------------------------------

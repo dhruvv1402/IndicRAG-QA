@@ -86,10 +86,11 @@ what is committed under `evals/` is byte-identical to what was shown.
 
 ## What has been measured
 
-On the gold set: 393 items (313 answerable, 80 unanswerable), **verified by a language
-model, not by a person** -- see "Status" below. Every figure here is from the sealed test
+On the gold set: 393 items (313 answerable, 80 unanswerable), verified in two
+language-model passes, with the **test split then reviewed by a person** -- see "Status"
+below. Every figure here is from the sealed test
 split (216 answerable, 273 in all), scored once, with tuning on the 120-item dev split.
-Every report under `evals/` carries the same disclosure in its banner.
+Every report under `evals/` states in its banner who checked the items it rests on.
 
 **Lexical retrieval does not cross the script boundary.** BM25 Recall@5 is 0.970 on
 monolingual queries and 0.153 cross-lingual: a Devanagari question and an English passage
@@ -144,14 +145,16 @@ mechanism was found; where they disagree with the gold set, the gold set stands.
 All six phases have run. `docs/PLAN.md` §10 carries the phase table and what is
 not built, and that list is kept honest.
 
-**The gold set was verified by a model, not by a person.** The owner asked for the
-verification to be completed without them. Two independent model passes read every item
-against its evidence; every item records `annotator: model:...`, and every report says so.
-The blind second pass is also a model instance (kappa 1.000 over 59 items), which measures
-self-consistency rather than the inter-annotator agreement PRD §6.5 asks for. A person
-confirming at least the test split is the most valuable piece of outstanding work;
-`indicrag dataset verify` records a human annotator item by item, and the banners will then
-report the mix.
+**How the gold set was verified.** Two independent language-model passes read every item
+against its evidence and corrected or replaced what was wrong. The author then reviewed all
+273 test-split items with `indicrag dataset verify --recheck`, which shows each item beside
+its evidence and the model's notes, and accepted all 273 unchanged. That review was not
+blind, and it was one person, so it confirms the model passes rather than measuring
+agreement with them. The 120 dev items rest on the model passes alone. Every item records
+who checked it, and every report's banner states the mix. The blind second pass is a model
+instance (kappa 1.000 over 59 items), which measures self-consistency rather than the
+inter-annotator agreement PRD §6.5 asks for; an independent second annotator is the most
+valuable outstanding work.
 
 The paper in two lengths -- the full account (`paper/paper.md` -> `IndicRAG-QA.docx`/`.pdf`)
 and a 6-page IEEE conference version (`paper/ieee.md` -> `IndicRAG-QA-IEEE.docx`/`.pdf`,

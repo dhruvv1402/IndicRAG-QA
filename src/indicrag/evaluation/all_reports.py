@@ -69,9 +69,12 @@ def verification_label(items: Sequence[QAItem]) -> str:
     """One word for a report header: who checked these items, if anyone."""
     if not items or not all(i.verified for i in items):
         return "UNVERIFIED" if not any(i.verified for i in items) else "partly verified"
-    if all(i.annotator.startswith(MODEL_ANNOTATOR_PREFIX) for i in items):
+    by_model = sum(1 for i in items if i.annotator.startswith(MODEL_ANNOTATOR_PREFIX))
+    if by_model == len(items):
         return "model-verified"
-    return "verified"
+    if by_model:
+        return f"{len(items) - by_model} person-reviewed, {by_model} model-verified"
+    return "person-reviewed"
 
 
 def provenance(items: Sequence[QAItem], source: str) -> list[str]:
@@ -82,21 +85,35 @@ def provenance(items: Sequence[QAItem], source: str) -> list[str]:
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
 
     by_model = sum(1 for i in items if i.verified and i.annotator.startswith(MODEL_ANNOTATOR_PREFIX))
+    by_person = verified - by_model
     lines = [
         f"Generated: {stamp}",
         f"Source:    {source}",
         f"Items:     {total} ({answerable} answerable, {total - answerable} unanswerable)",
         f"Verified:  {verified}/{total}"
-        + (f"  ({verified - by_model} by a person, {by_model} by a model)" if by_model else ""),
+        + (f"  ({by_person} by a person, {by_model} by a model)" if verified else ""),
     ]
-    if by_model:
-        # Said on every report, not only in the paper: a number copied out of
-        # a report must not lose the fact that no person checked its items.
+    # Said on every report, not only in the paper: a number copied out of a
+    # report must not lose who checked the items it rests on.
+    if by_model and not by_person:
         lines += [
             "",
             "MODEL-VERIFIED. Verification of these items was done by a language-model",
             "pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see",
             "paper §III-D for the procedure and its agreement figures.",
+        ]
+    elif by_model:
+        lines += [
+            "",
+            f"PARTLY MODEL-VERIFIED. {by_person} of these items were reviewed by a person",
+            f"after two model passes; the other {by_model} were verified by the model",
+            "passes only (annotator 'model:...'). See paper §III-D.",
+        ]
+    elif by_person:
+        lines += [
+            "",
+            "PERSON-REVIEWED. Every item was reviewed by a person, after two",
+            "language-model verification passes; see paper §III-D.",
         ]
     if verified < total:
         lines += [

@@ -1,4 +1,4 @@
-216 answerable gold items (model-verified)
+216 answerable gold items (person-reviewed)
 
 --- cross-lingual  (n=62)
     plain RRF     0.274 [0.177, 0.371]

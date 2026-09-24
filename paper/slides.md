@@ -9,7 +9,7 @@ the start. Slides 5–8 are the spine and 11–12 are the payoff — if time run
 then 13, then 14. Never 12: it is the one that stops the talk being a sales
 pitch.
 
-Every figure is from the model-verified gold set, on its sealed test split.
+Every figure is from the verified gold set, on its sealed test split.
 Figures that ever come from another set must be labelled on the slide, not just
 in the notes.
 
@@ -65,7 +65,7 @@ time, but it is what makes the answerability work more than a checkbox.
   documents, not a translation
 - **393-item QA set** (313 answerable, 80 unanswerable in 4 classes),
   query-language × evidence-language matrix, 6 cells; sealed dev 120 / test 273
-- **Verified by a language model, not a person** — disclosed on every report
+- Verified in two model passes; **test split reviewed by a person** (all 273 accepted)
 
 **Deviation, stated up front:** intended to use official scheme PDFs. Soft 404s
 and image-only scans — one 18-page document yielded 17 characters of extractable
@@ -299,8 +299,9 @@ on that. In deployment: BM25 floor first, generator abstention second.
 
 - Encyclopedic corpus, **not** regulatory text
 - **One** Indic language; two scripts only
-- 393 items, **verified by a model, not a person**; blind second pass κ = 1.000
-  is one model agreeing with itself, not the 0.70 inter-annotator gate
+- 393 items: two model passes, then one person reviewed the test split, not
+  blind; dev split model-only; blind second pass κ = 1.000 is one model agreeing
+  with itself, not the 0.70 inter-annotator gate
 - Probe-set numbers kept only where the mechanism was found; results are test split
 - Qwen2.5-3B Q4_K_M on CPU; nothing fine-tuned
 

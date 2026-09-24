@@ -1,6 +1,6 @@
 # Abstract and Section I — full draft
 
-Figures are from the sealed test split of the model-verified gold set, except
+Figures are from the sealed test split of the verified gold set, except
 where a sentence says otherwise.
 
 ---
@@ -26,8 +26,8 @@ where a sentence says otherwise.
 > separates answerable from unanswerable questions (AUC 0.791) while the fused
 > score does not, and it catches only half of near-miss questions. We release a
 > 393-item bilingual QA set with a query-language × evidence-language matrix and
-> a four-class unanswerable taxonomy, verified by a language model rather than a
-> person, and say so on every result.
+> a four-class unanswerable taxonomy, verified in two language-model passes and
+> then, on its test split, reviewed by a person.
 
 ---
 
@@ -122,9 +122,10 @@ away from it.
 2. **A bilingual evidence-grounded QA set.** 393 items over Indian government
    welfare schemes, with an explicit query-language × evidence-language matrix
    covering six cells, a four-class unanswerable taxonomy, per-item gold passage
-   sets, and a sealed dev/test split. It was verified by a language model in two
-   independent passes rather than by a person, which we disclose on every
-   report built from it (§III-D, §IX).
+   sets, and a sealed dev/test split. It was verified in two independent
+   language-model passes, and every item of the test split was then reviewed
+   by a person; every report built from it says which items were checked by
+   whom (§III-D, §IX).
 
 3. **Which retrieval score carries an abstention signal.** On verified
    questions the BM25 top score separates answerable from unanswerable (medians

@@ -464,7 +464,7 @@ Each shows the full output object: detected type, answerability, answer, confide
 
 ## 10. Status and what is not built yet
 
-**Updated 2026-09-24, evening.** Every phase has run on the model-verified gold set
+**Updated 2026-09-24, evening.** Every phase has run on the verified gold set
 (§10.1). P5 has scored the sealed test split for all six modules; P6 is written from
 those numbers throughout.
 
@@ -473,35 +473,32 @@ those numbers throughout.
 | **P0** Environment | Done. CPU-only stack, caches redirected to G:, measured throughput in ARCHITECTURE §19 |
 | **P1** Corpus | Done, with a documented source change (PRD §5.4). 40 schemes × EN/HI = 80 documents → 694 passages, 80/80 passing integrity validation. Frozen at segmentation v1 (§10.1a) |
 | **P2** Indexing | Done. TF-IDF, BM25, four dense encoders, three fusion methods. `script_aware_rrf` came out of the P2 error analysis and is the default |
-| **P3** Dataset | **Done, model-verified.** 393 of 400 items verified by two independent model passes, 7 rejected; κ = 1.000 between model passes (not the PRD gate). Split sealed: dev 120 / test 273 |
+| **P3** Dataset | **Done.** 393 of 400 items verified by two independent model passes, 7 rejected; the author then reviewed all 273 test items (accepted 273, not blind). Dev 120 is model-only. κ = 1.000 between model passes, not the PRD gate. Split sealed: dev 120 / test 273 |
 | **P4** Generation | **Done on the test split.** Arms A–D over a 72-item stratified sample, 288 generations. H3 supported: citation support 0.184 closed-book against 0.870 dense (+0.684, p=0.0001). Script-aware against dense RAG −0.027 token-F1 (p=0.55). Decomposition: generation error 0.359, retrieval error 0.223 |
 | **P5** Experiments | **Done on the test split.** Modules 1–3 (`report-retrieval-test.txt`, `report-fusion-test.txt`), 4 (`report-qa.txt`), 5 (`report-answerability*.txt`, all four signals) and 6 (`report-errors-test.txt`). H1 supported (e5 +0.139 over BM25, p=0.0001); H2 not supported in weighted form, script-aware fusion +0.030 over dense alone (p=0.052); H3 supported; generator self-report is the best answerability signal (F1 0.889, near-miss 22/23) |
 | **P6** Write-up | Done. Paper (`paper/paper.md`, IEEE `.docx` and `.pdf` with all 7 figures embedded), 16-slide deck, demo rehearsed twice (`docs/DEMO.md`, fallback outputs in `docs/demo/`) |
 
-### 10.1 Verification: done by a model, not a person
+### 10.1 Verification: two model passes, then a person on the test split
 
-**Status 2026-09-23: 393 of 400 items verified by a model (Claude Opus 5.5), 0
-by a person; 7 rejected.** The owner asked for verification to be completed
-without them. It was done in two independent model passes (pre-review, then a
-confirmation pass by fresh instances), and is disclosed on every item
-(`annotator: model:...`), in every report banner (MODEL-VERIFIED) and in the
-paper (§III-D, §IX). The blind second pass was also a model instance: κ = 1.000
-over 59 items, which the report states is self-consistency and not the PRD
-§6.5 gate. The split is sealed: dev 120 / test 273 (`evals/splits.json`).
+**Status 2026-09-24:** 393 of 400 items verified; 7 rejected. Two independent model
+passes (Claude Opus 5.5) corrected and confirmed every item on 2026-09-23. On 2026-09-24
+the author reviewed all 273 test-split items with `dataset verify --recheck` and accepted
+all 273 unchanged; the 120 dev items rest on the model passes. Each item's `annotator`
+records who checked it and its `notes` keep the full history; every report banner states
+the mix. The blind second pass was a model instance: κ = 1.000 over 59 items is
+self-consistency, not the PRD §6.5 gate.
 
-What remains open is the thing the PRD actually specifies: a person confirming
-items, at least on the test split, and a second person re-labelling the blind
-sample. `dataset verify` shows each item's pre-review notes and still records
-the annotator it is given, so a human pass would overwrite `annotator` item by
-item and the banners would report the mix.
+What remains open: the person's review was not blind (the model's verdicts were shown) and
+was one person, so there is still no inter-annotator agreement figure. A second person
+re-labelling the blind sample would supply it.
 
 **Pre-review, 2026-09-23.** `dataset review` ran rule checks and an automated
 reading pass (a model comparing every item with its evidence) over all 400
 items; `evals/report-review.txt` has the counts and `evals/review-assist.jsonl`
 the per-item notes, which `dataset verify` now shows under each item's evidence
 and whose suggestions `[t]` copies in. It is advice: no item's `verified` field
-was touched, and the human pass above is still the gate. What it found makes
-that pass more urgent, not less:
+was touched. What it found made
+verification urgent:
 
 - 27 of 320 answerable items were judged acceptable as they stand. 63 carry a
   gold answer the passage contradicts or does not state, and 112 questions are

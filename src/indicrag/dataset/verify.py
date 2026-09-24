@@ -220,7 +220,10 @@ def verify_loop(
             if choice == "a":
                 item.verified = True
                 item.annotator = annotator
-                item.notes = f"verified {date.today().isoformat()}"
+                # Appended, not replaced: an item's notes are its history, and a
+                # re-review must not erase the passes that came before it.
+                stamp = f"verified {date.today().isoformat()} by {annotator}"
+                item.notes = f"{item.notes}; {stamp}" if item.notes else stamp
                 break
             if choice == "t":
                 # Copies the suggestion in and shows the item again. It never

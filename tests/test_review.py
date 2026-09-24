@@ -151,7 +151,7 @@ def test_recheck_records_the_person_only_on_items_they_accept(tmp_path):
     model = "model:claude-opus-5.5"
     items = [
         _item(q, "Stand Up India repayment period?", answer="up to 7 years",
-              verified=True, annotator=model, split="test")
+              verified=True, annotator=model, split="test", notes="model-verified")
         for q in ("a", "b", "c")
     ] + [_item("d", "Stand Up India moratorium?", answer="up to 18 months",
                verified=True, annotator=model, split="dev")]
@@ -163,6 +163,7 @@ def test_recheck_records_the_person_only_on_items_they_accept(tmp_path):
                 say=lambda _m: None, recheck=True, split="test")
     saved = {i.id: i for i in read_jsonl(path, QAItem)}
     assert (saved["a"].annotator, saved["a"].verified) == ("Dhruv", True)
+    assert saved["a"].notes.startswith("model-verified; verified ")  # history kept
     assert (saved["b"].annotator, saved["b"].verified) == (model, True)
     assert saved["c"].verified is False and saved["c"].notes.startswith("REJECTED")
     assert saved["d"].annotator == model  # other split, never shown

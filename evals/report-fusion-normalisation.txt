@@ -1,4 +1,4 @@
-313 answerable gold items (model-verified)
+313 answerable gold items (216 person-reviewed, 97 model-verified)
 weighted fusion, alpha=0.4, 50 candidates per component
 
 SCORE DISTRIBUTION OF THE CANDIDATE POOL

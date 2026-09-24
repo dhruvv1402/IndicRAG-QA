@@ -5,8 +5,8 @@ All five modules are written from measured numbers.
 **What the numbers rest on.** The headline results (§VI-A) are measured on the
 gold set after verification — 393 items, 313 answerable — and, for every claim
 the paper makes, on its sealed **test split of 273 items (216 answerable)**,
-scored once. That verification was carried out by a language model rather than
-a person (§III-D), and every figure here should be read as model-verified. The
+scored once. The set was verified in two language-model passes and the test
+split then reviewed by a person (§III-D). The
 earlier analyses in §VI-B to §VI-F were measured on 180 synthetic probes before
 the gold set existed; they are kept, marked `[PROBE]`, because they are where
 the mechanism was found, and §VI-A says where the verified set confirms them and

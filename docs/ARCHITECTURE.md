@@ -714,6 +714,7 @@ indicrag index build --encoder <name>      encode + cache; --all for every regis
 indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>] [--bm25-floor 18.08]
                                            the demo path; prints the §9 object.
                                            Extractive without --gguf, generated with it.
+indicrag serve [--port 8000] [--gguf <path>]   web interface (web/), system loaded once
 
 indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4] [--split all|dev|test]
                                            [--sweep/--no-sweep]   alpha sweep, H2

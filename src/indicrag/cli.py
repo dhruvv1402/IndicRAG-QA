@@ -1364,7 +1364,8 @@ def ask(
     ),
 ) -> None:
     """Answer one question and print the full response object."""
-    from .pipeline import Retrievers, answer_query
+    from .pipeline import answer_query
+    from .serve import load_system
 
     cfg = get_settings()
     passages = list(read_jsonl(cfg.passages_path, Passage))
@@ -1373,45 +1374,35 @@ def ask(
 
     # Load the dense index, not just the lexical one. Without it `hybrid` --
     # the default, and the method this project's central result is about --
-    # degrades to plain BM25 inside `retrieve()`, silently. That degradation is
-    # the right behaviour for a fresh checkout with no embeddings built, but it
-    # made the demo answer every query with the one configuration the paper
-    # shows collapses cross-lingually: BM25 scores 0.006 there against 0.153
-    # for script-aware fusion. A demo that cannot exercise the contribution is
-    # not a demo of this system.
-    from .index.lexical import LexicalIndex
-
-    retrievers = Retrievers(lexical=LexicalIndex.load(cfg.lex_dir))
-    try:
-        from .index.dense import DenseIndex, Encoder
-        from .index.encoders import get
-
-        spec = get(cfg.encoder_primary)
-        retrievers.dense = DenseIndex.load(spec, cfg.emb_dir, passages)
-        retrievers.encoder = Encoder(spec)
-    except Exception as exc:  # noqa: BLE001 -- reported, not swallowed
-        typer.echo(
-            f"# dense index unavailable ({type(exc).__name__}: {exc});"
-            f" '{method}' will fall back to lexical retrieval",
-            err=True,
-        )
-
-    provider = None
-    if gguf:
-        from .rag.providers import LlamaCppProvider
-
-        cfg_llm = get_settings()
-        provider = LlamaCppProvider(
-            gguf, n_ctx=cfg_llm.llm_n_ctx, n_threads=cfg_llm.llm_n_threads
-        )
-
+    # degrades to plain BM25 inside `retrieve()`, silently. `load_system`
+    # reports that degradation rather than hiding it.
+    system = load_system(passages, gguf=gguf, say=lambda m: typer.echo(m, err=True))
     result = answer_query(
-        query, passages, retrievers=retrievers, method=method, k=k,
-        bm25_floor=bm25_floor, provider=provider,
+        query, passages, retrievers=system.retrievers, method=method, k=k,
+        bm25_floor=bm25_floor, provider=system.provider,
     )
     import json
 
     typer.echo(json.dumps(result.as_dict(), ensure_ascii=False, indent=2))
+
+
+@app.command("serve")
+def serve(
+    port: int = typer.Option(8000, "--port"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Localhost only by default."),
+    gguf: str = typer.Option("", "--gguf", help="Generate answers with this GGUF model."),
+    web_dir: Path = typer.Option(Path("web"), "--web"),
+) -> None:
+    """Serve the web interface with the system loaded once and kept warm."""
+    from .serve import load_system
+    from .serve import serve as run_server
+
+    cfg = get_settings()
+    passages = _require_passages(cfg)
+    typer.echo(f"loading {len(passages)} passages, indices and encoder ...")
+    system = load_system(passages, gguf=gguf, say=typer.echo)
+    run_server(system, host=host, port=port, web_dir=web_dir,
+               demo_dir=Path("docs/demo"), paper_dir=Path("paper"))
 
 
 if __name__ == "__main__":

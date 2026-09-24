@@ -6,6 +6,7 @@ complete response object from PRD §9, so every field the brief requires is
 visible in one place rather than summarised.
 
 ```bash
+indicrag serve                             # web interface at http://127.0.0.1:8000
 python scripts/run-demo.py                 # the six prepared queries, outputs saved
 indicrag ask "<query>" --bm25-floor 18.08  # one query, the gate the paper recommends
 indicrag ask "<query>" --gguf <path.gguf>  # generated rather than extracted answer
@@ -98,8 +99,12 @@ bank accounts".
 
 ## What the demo does not do
 
-- **No web interface.** The CLI is the deliverable; a Streamlit surface was
-  listed as optional and is not built.
+- **The web interface is a local demo surface.** `indicrag serve` loads the
+  system once and serves `web/`, so the Playground answers in about a second
+  rather than the ~51 s `ask` spends reloading the encoder. Opened as a plain
+  file, the page falls back to the six rehearsed outputs in `docs/demo/`
+  (embedded by `scripts/build-web.py`). It binds to localhost and is not built
+  for deployment.
 - **No per-query-type threshold.** One floor serves all three query types; the
   per-type abstention rates are in `evals/report-answerability-bm25.txt`.
 - **First call is slow.** The dense index and encoder load per invocation, and

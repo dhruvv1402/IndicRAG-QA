@@ -71,6 +71,7 @@ indicrag index lexical                 # fit TF-IDF and BM25
 indicrag index build --all             # encode passages with every registered encoder
 
 indicrag ask "Scholarship ke liye minimum eligibility kya hai?"
+indicrag serve                         # web interface: http://127.0.0.1:8000
 
 indicrag eval retrieval --report evals/report-retrieval.txt
 indicrag eval all --report evals/      # corpus, retrieval, errors, answerability reports

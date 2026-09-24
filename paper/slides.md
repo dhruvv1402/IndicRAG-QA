@@ -161,7 +161,8 @@ say so before someone asks.
 ## 9. What verification changed
 
 On 180 synthetic probes the method looked like a trade: +0.131 cross-lingual,
-−0.044 monolingual, and **+0.133 over dense alone** cross-lingually.
+−0.044 monolingual. On the unverified questions it beat dense alone by
+**+0.133** cross-lingually.
 
 On the verified test split: the repair is **larger** (+0.411), the monolingual
 cost is **gone**, and the gain over dense alone is **mostly gone** (+0.024

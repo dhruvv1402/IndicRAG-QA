@@ -15,6 +15,7 @@ body at 10pt Times New Roman with 0.2in between columns.
 
     python scripts/build-docx.py          # paper/IndicRAG-QA.docx
     python scripts/build-docx.py --pdf    # and paper/IndicRAG-QA.pdf, via Word
+    python scripts/build-docx.py --ieee --pdf   # the 6-8 page version, from paper/ieee.md
 
 Writes paper/IndicRAG-QA.docx. Anything the converter could not handle is
 listed at the end rather than dropped silently -- a converter that quietly
@@ -44,6 +45,11 @@ ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "paper" / "paper.md"
 TARGET = ROOT / "paper" / "IndicRAG-QA.docx"
 PDF = TARGET.with_suffix(".pdf")
+
+#: The conference-length version is its own source, written to its own files,
+#: so building it never touches the full paper.
+IEEE_SOURCE = ROOT / "paper" / "ieee.md"
+IEEE_TARGET = ROOT / "paper" / "IndicRAG-QA-IEEE.docx"
 
 #: One column of the two-column body: (8.5in - 2 x 0.625in - 0.2in) / 2.
 COLUMN_WIDTH = Inches(3.5)
@@ -348,6 +354,10 @@ def export_pdf(source: Path, target: Path) -> str | None:
 
 
 def main() -> int:
+    global SOURCE, TARGET, PDF
+    if "--ieee" in sys.argv[1:]:
+        SOURCE, TARGET = IEEE_SOURCE, IEEE_TARGET
+        PDF = TARGET.with_suffix(".pdf")
     if not SOURCE.exists():
         print(f"missing {SOURCE}; run scripts/build-paper.py first")
         return 1

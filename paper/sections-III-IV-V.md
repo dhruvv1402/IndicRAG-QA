@@ -290,14 +290,14 @@ rejected by any threshold and demonstrates nothing; reporting a single
 answerability F1 over a set dominated by such questions would conceal the system's
 behaviour on the cases that matter.
 
-**TABLE II — Unanswerable taxonomy**
+**TABLE II — Unanswerable taxonomy (verified; design target in parentheses)**
 
 | Class | n | Definition |
 |---|---|---|
-| Out-of-scope | 25 | Topic absent from the corpus entirely |
-| **Near-miss** | 30 | Topic and scheme present; the specific fact is not |
-| **False premise** | 15 | Presupposes a benefit or clause that does not exist |
-| Under-specified | 10 | Unanswerable without naming a scheme |
+| Out-of-scope | 25 (25) | Topic absent from the corpus entirely |
+| **Near-miss** | 29 (30) | Topic and scheme present; the specific fact is not |
+| **False premise** | 16 (15) | Presupposes a benefit or clause that does not exist |
+| Under-specified | 10 (10) | Unanswerable without naming a scheme |
 
 The two emphasised classes are the hallucination test. For both, retrieval
 returns a confidently scored, topically correct passage, and only a properly
@@ -606,8 +606,8 @@ milliseconds.
 ### C. Splits and tuning protocol
 
 The question set is partitioned into a **120-item development split** and a
-**280-item test split**, stratified over query language, answerability and
-scheme, with seed 20260922. Stratification matters because an unstratified split
+**test split** — 280 items as designed, 273 after verification removed 7 —
+stratified over query language, answerability and scheme, with seed 20260922. Stratification matters because an unstratified split
 leaves some cell of Table I with a handful of test items, and a per-language
 result computed on a handful of items reports noise with the appearance of
 authority.

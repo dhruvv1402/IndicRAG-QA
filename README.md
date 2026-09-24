@@ -153,7 +153,9 @@ confirming at least the test split is the most valuable piece of outstanding wor
 `indicrag dataset verify` records a human annotator item by item, and the banners will then
 report the mix.
 
-The paper (`paper/paper.md`, IEEE `.docx` and `.pdf`), the slide deck and every figure are
+The paper in two lengths -- the full account (`paper/paper.md` -> `IndicRAG-QA.docx`/`.pdf`)
+and a 6-page IEEE conference version (`paper/ieee.md` -> `IndicRAG-QA-IEEE.docx`/`.pdf`,
+`build-docx.py --ieee --pdf`) -- the slide deck and every figure are
 built by script from committed data -- `scripts/build-paper.py`, `build-figures.py`,
 `build-docx.py`, `build-pptx.py` -- so a figure cannot quietly disagree with the table
 beside it. `python scripts/regenerate-reports.py --check` regenerates every committed report

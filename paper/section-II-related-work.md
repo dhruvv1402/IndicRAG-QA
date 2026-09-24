@@ -144,13 +144,10 @@ it.** Adversarially authored unanswerable questions are already near-misses in
 spirit. What the existing resources do not do is *stratify* them, so results are
 reported over an undifferentiated unanswerable class. Our §III-E taxonomy
 separates four kinds, and §VI-H shows why the distinction is not cosmetic: 55 of
-our 80 unanswerable items concern schemes that *are* in the corpus, and those
-retrieve exactly as well as answerable questions do. A retrieval-score threshold
-is a corpus-absence detector, so it can only see the 25 out-of-scope items, and
-over the stratified set it carries no information at all — answerable and
-unanswerable medians of 13.55 and 13.82 under BM25, with precision pinned at the
-base rate across every threshold. A single F1 over an undifferentiated
-unanswerable class hides that completely. The contribution is the stratified
+our 80 unanswerable items concern schemes that *are* in the corpus. A BM25
+threshold rejects every out-of-scope question on our test split and only 0.522 of
+near-misses, whose passages are genuinely about the right scheme; a single F1 over
+an undifferentiated unanswerable class hides that. The contribution is the stratified
 measurement, not the observation that hard unanswerable questions exist.
 
 ### E. Code-mixed retrieval

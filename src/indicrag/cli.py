@@ -461,6 +461,11 @@ def dataset_verify(
         Path("evals/review-assist.jsonl"), "--assist",
         help="Pre-review notes from `dataset review`, shown under each item if present.",
     ),
+    recheck: bool = typer.Option(
+        False, "--recheck",
+        help="Review items a model verified; each one accepted is recorded under --annotator.",
+    ),
+    split: str = typer.Option("", "--split", help="Only items in this split (dev or test)."),
 ) -> None:
     """Interactive review. Saves after every decision; resumable."""
     import json as _json
@@ -486,6 +491,8 @@ def dataset_verify(
         say=typer.echo,
         limit=limit or None,
         assist=notes,
+        recheck=recheck,
+        split=split or None,
     )
     typer.echo("")
     typer.echo(str(progress))

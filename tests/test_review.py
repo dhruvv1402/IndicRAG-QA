@@ -143,3 +143,26 @@ def test_taking_a_suggestion_edits_but_never_verifies(tmp_path):
     saved = list(read_jsonl(path, QAItem))[0]
     assert saved.answer_gold == "up to 7 years"
     assert saved.verified is False
+
+
+def test_recheck_records_the_person_only_on_items_they_accept(tmp_path):
+    """A person re-reviewing model-verified items: accepted items take their
+    name, skipped ones keep the model's, and rejected ones stop counting."""
+    model = "model:claude-opus-5.5"
+    items = [
+        _item(q, "Stand Up India repayment period?", answer="up to 7 years",
+              verified=True, annotator=model, split="test")
+        for q in ("a", "b", "c")
+    ] + [_item("d", "Stand Up India moratorium?", answer="up to 18 months",
+               verified=True, annotator=model, split="dev")]
+    path = tmp_path / "gold.jsonl"
+    write_jsonl(path, items)
+
+    answers = iter(["a", "s", "r", "duplicate"])
+    verify_loop(path, [PASSAGE], annotator="Dhruv", ask=lambda _p: next(answers),
+                say=lambda _m: None, recheck=True, split="test")
+    saved = {i.id: i for i in read_jsonl(path, QAItem)}
+    assert (saved["a"].annotator, saved["a"].verified) == ("Dhruv", True)
+    assert (saved["b"].annotator, saved["b"].verified) == (model, True)
+    assert saved["c"].verified is False and saved["c"].notes.startswith("REJECTED")
+    assert saved["d"].annotator == model  # other split, never shown

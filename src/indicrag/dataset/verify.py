@@ -182,11 +182,27 @@ def verify_loop(
     say: Callable[[str], None],
     limit: int | None = None,
     assist: dict[str, dict] | None = None,
+    recheck: bool = False,
+    split: str | None = None,
 ) -> Progress:
-    """Interactive review. Writes after every decision so nothing is ever lost."""
+    """Interactive review. Writes after every decision so nothing is ever lost.
+
+    `recheck` queues items a model verified, so a person can review them: each
+    item they accept is recorded under their name, and each one they reject
+    stops counting as verified. Items they skip keep the model's annotator, so
+    the report banners always show the true mix of who checked what.
+    """
     items = list(read_jsonl(path, QAItem))
     by_id = {p.passage_id: p for p in passages}
-    pending = [i for i in items if not i.verified and not i.notes.startswith("REJECTED")]
+    if recheck:
+        pending = [
+            i for i in items
+            if i.verified and i.annotator.startswith("model:") and not i.notes.startswith("REJECTED")
+        ]
+    else:
+        pending = [i for i in items if not i.verified and not i.notes.startswith("REJECTED")]
+    if split:
+        pending = [i for i in pending if i.split == split]
     if limit:
         pending = pending[:limit]
 
@@ -231,6 +247,7 @@ def verify_loop(
                 break
             if choice == "r":
                 item.notes = "REJECTED " + (ask("  reason> ").strip() or "unusable")
+                item.verified = False
                 break
             if choice == "p":
                 for pid in item.gold_passage_ids:

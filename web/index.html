@@ -4,93 +4,113 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IndicRAG-QA</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0b0b'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='%23f1f1ef' font-family='sans-serif' font-weight='900'%3E%E0%A4%85%3C/text%3E%3C/svg%3E">
 <meta name="description" content="Evidence-grounded question answering across Hindi, English and Hinglish, and why standard hybrid retrieval fails across scripts.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230b0b0b'/%3E%3Ctext x='16' y='24' font-size='22' text-anchor='middle' fill='%23f1f1ef' font-family='sans-serif' font-weight='900'%3E%E0%A4%85%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Inter+Tight:wght@400;500;600&family=Noto+Sans+Devanagari:wght@500;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Inter+Tight:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f1f1ef;
     --ink: #0b0b0b;
     --muted: #6d6d6a;
     --rule: #d6d6d2;
+    --soft: #e4e4e0;
     --blob: #dfe6e9;
-    --blob-edge: #c7d1d5;
+    --blob-edge: #c3cdd2;
     --good: #1f6b43;
+    --good-soft: #dcebe2;
     --bad: #9b2f2f;
     --display: "Archivo", "Arial Black", Impact, sans-serif;
     --text: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
-    --deva: "Noto Sans Devanagari", "Mangal", sans-serif;
+    --deva: "Noto Sans Devanagari", "Mangal", "Nirmala UI", sans-serif;
+    --pad: clamp(16px, 1.6vw, 24px);
+    --gap-xl: clamp(88px, 15vh, 150px);
+    --gap-l: clamp(48px, 8vh, 80px);
+    --gap-m: clamp(28px, 4.5vh, 44px);
   }
   * { box-sizing: border-box; }
   html { scroll-behavior: smooth; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font-family: var(--text); font-size: 16px; line-height: 1.5;
+    font-family: var(--text), var(--deva); font-size: 16px; line-height: 1.5;
     -webkit-font-smoothing: antialiased; overflow-x: hidden;
   }
   a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; cursor: pointer; }
   ::selection { background: var(--ink); color: var(--bg); }
-  .deva { font-family: var(--deva); }
+  .deva, :lang(hi) { font-family: var(--deva); }
+  .display {
+    font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
+    text-transform: uppercase; line-height: .92; letter-spacing: -0.012em;
+  }
+  .label { font-size: 13px; margin-bottom: var(--gap-m); }
+  .label::before, nav a::before { content: "·"; margin-right: 5px; }
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+  /* ---------- cursor ---------- */
+  .cursor { position: fixed; left: 0; top: 0; pointer-events: none; z-index: 100; opacity: 0;
+    transition: opacity .25s; will-change: transform; }
+  .cursor.on { opacity: 1; }
+  #dot { width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: var(--ink); }
+  #ring { width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; border: 1px solid var(--ink);
+    transition: opacity .25s, width .25s, height .25s, margin .25s, background-color .25s; }
+  #ring.big { width: 64px; height: 64px; margin: -32px 0 0 -32px; background-color: rgba(11,11,11,.06); }
+  @media (hover: none), (pointer: coarse) { .cursor { display: none; } }
 
   /* ---------- nav ---------- */
   nav {
     position: fixed; inset: 0 0 auto 0; z-index: 50;
     display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
-    padding: 12px 18px; font-size: 13px; mix-blend-mode: difference; color: #fff;
+    padding: 12px var(--pad); font-size: 13px; mix-blend-mode: difference; color: #fff;
   }
-  .brand { display: flex; align-items: center; gap: 2px; font-family: var(--display);
+  .brand { display: flex; align-items: center; font-family: var(--display);
     font-variation-settings: "wdth" 100; font-weight: 800; font-size: 19px; letter-spacing: -0.02em; }
   .brand b { display: inline-grid; place-items: center; width: 17px; height: 15px; background: #fff;
     color: #000; font-family: var(--deva); font-size: 11px; font-weight: 900; margin-left: 2px; line-height: 1; }
   nav .mid { display: flex; gap: 22px; }
   nav .end { justify-self: end; }
-  nav a::before { content: "·"; margin-right: 5px; }
   nav a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
   /* ---------- hero ---------- */
   .hero { position: relative; height: min(100vh, 1000px); min-height: 560px; overflow: hidden; }
   .headline {
-    position: absolute; left: 0; right: 0; top: 11%;
-    margin: 0; text-align: center; text-transform: uppercase;
-    font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
-    font-size: clamp(44px, 9.4vw, 158px); line-height: 0.92; letter-spacing: -0.012em;
-    width: 78vw; padding-left: 4vw;
-    clip-path: inset(0 55% 0 0);
-    user-select: none;
+    position: absolute; left: 0; top: 11%; margin: 0; width: 80vw; padding-left: 4vw;
+    font-size: clamp(44px, 9.4vw, 158px); text-align: center; user-select: none;
   }
-  .headline span { display: block; white-space: nowrap; }
+  .headline .line { display: block; overflow: hidden; white-space: nowrap; padding-top: .02em; }
+  .headline .line > span { display: inline-block; transform: translate3d(0, 105%, 0);
+    transition: transform 1.1s cubic-bezier(.16, 1, .3, 1); }
+  .ready .headline .line > span { transform: none; }
   #tear { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-  .blob-wrap { position: absolute; left: 58vw; top: 30%; width: 22vw; height: 22vw;
-    min-width: 150px; min-height: 150px; perspective: 900px; pointer-events: none; }
-  .blob { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; }
-  .blob i {
-    position: absolute; inset: 0; display: grid; place-items: center; font-style: normal;
-    font-family: var(--deva); font-weight: 900; font-size: min(19vw, 300px); line-height: 1;
-    color: var(--blob);
-  }
-  .hero .caption { position: absolute; left: 58vw; bottom: 18px; font-size: 13px; color: var(--muted); max-width: 34ch; margin: 0; }
-  .hero .scroll { position: absolute; right: 18px; bottom: 18px; font-size: 13px; }
-  .hero .hint { position: absolute; left: 58vw; top: 22%; font-size: 12px; color: var(--muted); }
+  #tear .cover { fill: var(--bg); }
+  #tear .strand { fill: none; stroke: var(--ink); stroke-linejoin: round; }
+  .over { position: absolute; z-index: 2; }
+  .blob-wrap { left: 58vw; top: 30%; width: 22vw; height: 22vw; min-width: 150px; min-height: 150px;
+    perspective: 900px; pointer-events: none; opacity: 0; transition: opacity 1.2s .5s; }
+  .ready .blob-wrap { opacity: 1; }
+  .blob { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; will-change: transform; }
+  .blob i { position: absolute; inset: 0; display: grid; place-items: center; font-style: normal;
+    font-family: var(--deva); font-weight: 900; font-size: min(19vw, 300px); line-height: 1; }
+  .hero .hint { left: 58vw; top: 22%; font-size: 12px; color: var(--muted); transition: opacity .6s; }
+  .hero .hint.gone { opacity: 0; }
+  .hero .caption { left: 58vw; bottom: 18px; font-size: 13px; color: var(--muted); max-width: 34ch; margin: 0; }
+  .hero .scroll { right: var(--pad); bottom: 18px; font-size: 13px; }
 
-  #dot { position: fixed; left: 0; top: 0; width: 12px; height: 12px; margin: -6px 0 0 -6px;
-    border-radius: 50%; background: var(--ink); z-index: 60; pointer-events: none;
-    transition: width .2s, height .2s, margin .2s; }
-  #dot.big { width: 34px; height: 34px; margin: -17px 0 0 -17px; mix-blend-mode: difference; background: #fff; }
-  @media (hover: none) { #dot { display: none; } }
+  /* ---------- marquee ---------- */
+  .marquee { border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); overflow: hidden;
+    background: var(--ink); color: var(--bg); }
+  .marquee .track { display: flex; width: max-content; animation: slide 38s linear infinite; }
+  .marquee span { padding: 14px 28px; font-size: clamp(18px, 1.8vw, 26px); white-space: nowrap; font-weight: 500; }
+  .marquee span::after { content: "✳"; margin-left: 56px; font-size: .7em; vertical-align: 2px; }
+  .marquee small { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; opacity: .6; margin-right: 12px; font-family: var(--text); }
+  @keyframes slide { to { transform: translate3d(-50%, 0, 0); } }
 
   /* ---------- sections ---------- */
-  section { padding: clamp(86px, 16vh, 144px) 18px clamp(65px, 12vh, 108px); border-top: 1px solid var(--rule); }
-  .label { font-size: 13px; margin-bottom: clamp(27px, 5vh, 45px); }
-  .label::before { content: "·"; margin-right: 5px; }
-  .display {
-    font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
-    text-transform: uppercase; font-size: clamp(40px, 8.4vw, 140px); line-height: 0.92;
-    letter-spacing: -0.012em; margin: 0 0 clamp(38px, 7vh, 63px);
-  }
+  section { padding: var(--gap-xl) var(--pad) var(--gap-l); border-top: 1px solid var(--rule); }
+  section h2.display { font-size: clamp(30px, 8.4vw, 140px); margin: 0 0 var(--gap-l); }
   .lede { font-size: clamp(22px, 2.9vw, 42px); line-height: 1.18; letter-spacing: -0.015em;
-    max-width: 30ch; margin: 0 0 clamp(54px, 10vh, 90px); font-weight: 500; }
+    max-width: min(30ch, 100%); margin: 0 0 var(--gap-l); font-weight: 500; }
   .lede em { font-style: normal; background: var(--ink); color: var(--bg); padding: 0 .18em; }
   .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
   .stat { border-top: 1px solid var(--ink); padding-top: 12px; }
@@ -98,66 +118,121 @@
     font-size: clamp(38px, 5vw, 76px); line-height: 1; letter-spacing: -0.02em; }
   .stat span { font-size: 14px; color: var(--muted); }
 
+  /* pipeline */
+  .steps { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--ink); }
+  .step { padding: 16px 16px 26px 0; border-right: 1px solid var(--rule); min-height: 230px; position: relative; }
+  .step + .step { padding-left: 16px; }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125; font-size: 15px; }
+  .step h3 { font-size: 21px; line-height: 1.15; margin: 28px 0 10px; font-weight: 600; letter-spacing: -0.01em; }
+  .step p { margin: 0; font-size: 14px; color: var(--muted); }
+  .step .chip { display: inline-block; margin-top: 14px; font-size: 12px; padding: 3px 9px; border: 1px solid var(--ink); border-radius: 999px; }
+  .step.key { background: var(--ink); color: var(--bg); padding-left: 16px; }
+  .step.key p { color: #b9b9b4; }
+  .step.key .chip { border-color: var(--bg); }
+
   /* findings */
-  .swing { display: flex; align-items: baseline; gap: 3vw; flex-wrap: wrap;
+  .swing { display: flex; align-items: baseline; gap: 3vw; flex-wrap: wrap; margin: 0 0 18px;
     font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
-    font-size: clamp(56px, 13vw, 220px); line-height: .9; letter-spacing: -0.03em; margin: 0 0 clamp(16px, 3vh, 27px); }
+    font-size: clamp(44px, 13vw, 220px); line-height: .9; letter-spacing: -0.03em; }
   .swing .from { color: transparent; -webkit-text-stroke: 2px var(--ink); }
   .swing .arrow { font-size: .45em; font-weight: 500; }
-  .swing-note { max-width: 62ch; color: var(--muted); font-size: 17px; margin-bottom: clamp(65px, 12vh, 108px); }
+  .swing-note { max-width: 62ch; color: var(--muted); font-size: 17px; margin: 0 0 var(--gap-l); }
   .swing-note strong { color: var(--ink); font-weight: 600; }
-
-  .bars { display: grid; grid-template-columns: 170px 1fr 1fr 1fr; gap: 10px 22px; align-items: center; margin-bottom: clamp(76px, 14vh, 126px); font-size: 14px; }
+  .bars { display: grid; grid-template-columns: 150px 1fr 1fr 1fr; gap: 10px 22px; align-items: center; margin-bottom: var(--gap-l); font-size: 14px; }
   .bars .head { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
   .bars .name { font-weight: 500; }
-  .bar { position: relative; height: 30px; background: #e4e4e0; margin-right: 50px; }
-  .bar i { position: absolute; inset: 0 auto 0 0; background: var(--ink); width: 0; transition: width 1.1s cubic-bezier(.2,.7,.1,1); }
+  .bar { position: relative; height: 28px; background: var(--soft); margin-right: 50px; }
+  .bar i { position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(0);
+    transition: transform 1.1s cubic-bezier(.2,.7,.1,1); }
   .bar.aware i { background: var(--good); }
-  .bar em { position: absolute; right: -46px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px;
-    font-variant-numeric: tabular-nums; color: var(--ink); }
-
+  .bar em { position: absolute; right: -46px; top: 50%; transform: translateY(-50%); font-style: normal; font-size: 13px; font-variant-numeric: tabular-nums; }
   .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
   .card { border-top: 1px solid var(--ink); padding-top: 14px; }
   .card h3 { font-size: 20px; line-height: 1.2; margin: 0 0 18px; font-weight: 600; letter-spacing: -0.01em; }
   .card .big { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125;
-    font-size: clamp(36px, 4.4vw, 64px); line-height: 1; letter-spacing: -0.02em; margin-bottom: 12px; }
+    font-size: clamp(34px, 4.2vw, 62px); line-height: 1; letter-spacing: -0.02em; margin-bottom: 12px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
 
+  /* fusion explainer */
+  .qcard { display: flex; flex-wrap: wrap; gap: 10px 26px; align-items: baseline; margin-bottom: 22px; }
+  .qcard .q { font-size: clamp(22px, 2.6vw, 38px); font-weight: 500; letter-spacing: -0.015em; line-height: 1.2; max-width: min(34ch, 100%); }
+  .qcard .a { font-size: 14px; color: var(--muted); }
+  .switch { display: inline-flex; border: 1px solid var(--ink); border-radius: 999px; padding: 3px; margin: 8px 0 28px; }
+  .switch button { border: 0; background: transparent; padding: 8px 18px; border-radius: 999px; font-size: 14px; }
+  .switch button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .lists { display: grid; grid-template-columns: 1fr 1fr 1.25fr; gap: 22px; }
+  .list h4 { margin: 0 0 4px; font-size: 13px; font-weight: 600; }
+  .list .sub { font-size: 12px; color: var(--muted); margin-bottom: 12px; min-height: 36px; }
+  .list ol { list-style: none; margin: 0; padding: 0; position: relative; }
+  .list li { display: grid; grid-template-columns: 26px 1fr auto; gap: 8px; align-items: center; padding: 9px 10px;
+    border-top: 1px solid var(--rule); font-size: 13px; background: var(--bg); position: relative; }
+  .list li .r { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .list li .id { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .list li .s { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 12px; }
+  .list li.gold { background: var(--good-soft); }
+  .list li.gold .id { font-weight: 600; }
+  .list li.gold::before { content: "gold"; position: absolute; right: 100%; margin-right: 6px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--good); font-weight: 600; }
+  .list li .sc { font-size: 10px; padding: 1px 6px; border-radius: 999px; border: 1px solid currentColor; margin-left: 6px; }
+  .list li .sc.cross { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  .list li.note-row { color: var(--muted); font-style: italic; }
+  .list.fused { border-left: 2px solid var(--ink); padding-left: 18px; }
+  .verdict { margin-top: 18px; font-size: 15px; min-height: 48px; max-width: 80ch; }
+  .verdict b { font-weight: 600; }
+  .verdict .bad { color: var(--bad); }
+  .verdict .good { color: var(--good); }
+  .formula { margin-top: var(--gap-m); font-size: 14px; color: var(--muted); max-width: 72ch; }
+  .formula code, .src code { font-size: 13px; color: var(--ink); background: var(--soft); padding: 1px 6px; }
+
+  /* taxonomy */
+  .tax { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+  .tcard { border-top: 1px solid var(--ink); padding-top: 14px; display: flex; flex-direction: column; }
+  .tcard .kind { font-family: var(--display); font-weight: 900; font-variation-settings: "wdth" 125; text-transform: uppercase;
+    font-size: clamp(20px, 1.9vw, 28px); line-height: 1; margin-bottom: 8px; }
+  .tcard .def { font-size: 13px; color: var(--muted); margin-bottom: 16px; min-height: 40px; }
+  .tcard blockquote { margin: 0 0 20px; font-size: 18px; line-height: 1.3; font-weight: 500; flex: 1; }
+  .meter { margin-top: 10px; font-size: 12px; }
+  .meter .row { display: flex; justify-content: space-between; margin-bottom: 4px; color: var(--muted); }
+  .meter .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .meter .track { height: 6px; background: var(--soft); position: relative; overflow: hidden; }
+  .meter .track i { position: absolute; inset: 0; background: var(--ink); transform-origin: left; transform: scaleX(0); transition: transform 1s cubic-bezier(.2,.7,.1,1); }
+  .meter.gen .track i { background: var(--good); }
+  .src { font-size: 13px; color: var(--muted); margin-top: 18px; max-width: 76ch; }
+
   /* playground */
-  .status { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: clamp(22px, 4vh, 36px); }
-  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .status { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; margin-bottom: var(--gap-m); }
+  .status i { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
   .status.live i { background: var(--good); box-shadow: 0 0 0 4px #1f6b4322; }
-  form.ask { display: flex; gap: 14px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 8px; margin-bottom: 18px; }
-  form.ask input {
-    flex: 1; min-width: 0; border: 0; background: transparent; outline: none; color: var(--ink);
-    font-family: var(--text), var(--deva); font-size: clamp(22px, 3.2vw, 46px); font-weight: 500; letter-spacing: -0.02em; padding: 6px 0;
-  }
+  form.ask { display: flex; gap: 14px; align-items: end; border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+  form.ask input { flex: 1; min-width: 0; border: 0; background: transparent; outline: none; color: var(--ink);
+    font-family: var(--text), var(--deva); font-size: clamp(22px, 3.2vw, 46px); font-weight: 500; letter-spacing: -0.02em; padding: 6px 0; }
   form.ask input::placeholder { color: #b3b3ae; }
-  button { font: inherit; cursor: pointer; }
-  .go { border: 0; background: var(--ink); color: var(--bg); padding: 12px 22px; font-size: 14px; font-weight: 500; border-radius: 999px; white-space: nowrap; }
-  .go:disabled { opacity: .45; cursor: wait; }
-  .controls { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; font-size: 13px; margin-bottom: 26px; }
+  .go { border: 0; background: var(--ink); color: var(--bg); padding: 12px 22px; font-size: 14px; font-weight: 500; border-radius: 999px; white-space: nowrap; min-width: 88px; }
+  .go:disabled { opacity: .5; cursor: wait; }
+  .detect { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; min-height: 34px; padding: 10px 0 14px; font-size: 13px; color: var(--muted); }
+  .detect .t { color: var(--ink); border: 1px solid var(--ink); border-radius: 999px; padding: 2px 10px; transition: background-color .2s, color .2s; }
+  .detect .t.on { background: var(--ink); color: var(--bg); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; font-size: 13px; margin-bottom: 22px; }
   .pills { display: inline-flex; flex-wrap: wrap; gap: 6px; }
-  .pill { border: 1px solid var(--ink); background: transparent; color: var(--ink); padding: 5px 12px; border-radius: 999px; font-size: 13px; }
+  .pill { border: 1px solid var(--ink); background: transparent; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
   .pill[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
   .controls label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: clamp(38px, 7vh, 63px); }
-  .ex { border: 1px dashed #9a9a95; background: transparent; color: var(--ink); padding: 7px 13px; border-radius: 999px;
-    font-size: 14px; max-width: 100%; text-align: left; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--gap-l); }
+  .ex { border: 1px dashed #9a9a95; background: transparent; padding: 7px 13px; border-radius: 999px; font-size: 14px; max-width: 100%; text-align: left; }
   .ex:hover { border-style: solid; border-color: var(--ink); }
-  .ex small { color: var(--muted); margin-right: 6px; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; }
-
-  .result { display: grid; grid-template-columns: 1.15fr 1fr; gap: 5vw; min-height: 260px; }
+  .ex small { color: var(--muted); margin-right: 6px; text-transform: uppercase; font-size: 10px; letter-spacing: .08em; font-family: var(--text); }
+  .result { display: grid; grid-template-columns: 1.15fr 1fr; gap: 5vw; min-height: 240px; animation: rise .5s cubic-bezier(.2,.7,.1,1); }
   .result[hidden] { display: none; }
+  @keyframes rise { from { opacity: 0; transform: translateY(16px); } }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
   .tag { font-size: 12px; padding: 3px 10px; border: 1px solid var(--ink); border-radius: 999px; }
   .tag.dark { background: var(--ink); color: var(--bg); }
   .tag.refuse { background: var(--bad); border-color: var(--bad); color: #fff; }
   .answer { font-size: clamp(22px, 2.4vw, 34px); line-height: 1.25; letter-spacing: -0.015em; margin: 0 0 16px; font-weight: 500; }
-  .answer:lang(hi) { font-family: var(--deva); font-weight: 500; }
   .answer.long { font-size: clamp(17px, 1.45vw, 22px); line-height: 1.45; letter-spacing: 0; }
   .meta { font-size: 13px; color: var(--muted); }
-  .meta code { font-size: 12px; }
+  .note { font-size: 13px; color: var(--muted); margin-top: 10px; }
   .cites h4 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 500; }
   .cite { border-top: 1px solid var(--rule); padding: 12px 0; }
   .cite:first-of-type { border-top-color: var(--ink); }
@@ -166,7 +241,6 @@
   .cite .lang { font-size: 11px; padding: 1px 7px; border: 1px solid var(--ink); border-radius: 999px; margin-left: 6px; }
   .cite .lang.cross { background: var(--ink); color: var(--bg); }
   .cite p { margin: 0; font-size: 14px; color: #3b3b39; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-  .note { font-size: 13px; color: var(--muted); margin-top: 12px; }
   .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -1px; }
   @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -176,76 +250,115 @@
   th, td { text-align: right; padding: 12px 10px; border-bottom: 1px solid var(--rule); }
   th:first-child, td:first-child { text-align: left; }
   thead th { font-size: 12px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; border-bottom-color: var(--ink); }
+  tbody tr { transition: background-color .2s; }
+  tbody tr:hover { background: var(--soft); }
   tr.win td { font-weight: 600; }
   tr.win td:first-child::after { content: " ←"; }
-  .src { font-size: 13px; color: var(--muted); margin-top: 14px; max-width: 70ch; }
 
   /* footer */
-  footer { padding: clamp(86px, 16vh, 144px) 18px 18px; border-top: 1px solid var(--rule); }
-  .links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: clamp(22px, 4vh, 36px) 0 clamp(97px, 18vh, 162px); }
-  .links a { border-top: 1px solid var(--ink); padding-top: 12px; font-size: 18px; font-weight: 500; }
+  footer { padding: var(--gap-xl) var(--pad) 18px; border-top: 1px solid var(--rule); }
+  footer h2.display { font-size: clamp(30px, 8.4vw, 140px); margin: 0 0 var(--gap-m); }
+  .links { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin: 0 0 var(--gap-xl); }
+  .links a { border-top: 1px solid var(--ink); padding: 12px 8px 12px 0; font-size: 18px; font-weight: 500; transition: background-color .2s, color .2s, padding .2s; }
   .links a small { display: block; color: var(--muted); font-size: 13px; font-weight: 400; margin-top: 4px; }
-  .links a:hover { background: var(--ink); color: var(--bg); }
+  .links a:hover { background: var(--ink); color: var(--bg); padding-left: 10px; }
   .links a:hover small { color: #bdbdb8; }
   .fine { display: flex; justify-content: space-between; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
 
-  .reveal { opacity: 0; transform: translateY(26px); transition: opacity .9s, transform .9s cubic-bezier(.2,.7,.1,1); }
+  .reveal { opacity: 0; transform: translate3d(0, 24px, 0); transition: opacity .8s, transform .8s cubic-bezier(.2,.7,.1,1); }
   .reveal.in { opacity: 1; transform: none; }
 
-  @media (max-width: 820px) {
+  @media (max-width: 900px) {
     nav .mid { display: none; }
     nav { grid-template-columns: 1fr 1fr; }
-    .headline { width: 100vw; padding: 0 16px; top: 13%; }
-    .blob-wrap { left: 52vw; top: 58%; }
+    .headline { width: 100vw; padding: 0 12px; top: 13%; }
+    .blob-wrap { left: 50vw; top: 60%; }
     .hero .hint { display: none; }
-    .grid4, .cards, .links { grid-template-columns: 1fr 1fr; }
-    .bars { grid-template-columns: 96px 1fr; }
-    .bars .head.g, .bars .bar.g2, .bars .bar.g3 { display: none; }
+    .hero .caption { left: var(--pad); right: 20vw; max-width: none; }
+    .grid4, .cards, .links, .tax { grid-template-columns: 1fr 1fr; }
+    .steps { grid-template-columns: 1fr; }
+    .step, .step + .step { padding: 16px 0 22px; border-right: 0; border-bottom: 1px solid var(--rule); min-height: 0; }
+    .step.key { padding-left: 12px; padding-right: 12px; }
+    .step h3 { margin-top: 10px; }
+    .bars { grid-template-columns: 90px 1fr; }
+    .bars .g { display: none; }
+    .lists { grid-template-columns: 1fr; }
+    .list.fused { border-left: 0; padding-left: 0; border-top: 2px solid var(--ink); padding-top: 12px; }
+    .list li.gold::before { display: none; }
     .result { grid-template-columns: 1fr; }
-    section, footer { padding-left: 16px; padding-right: 16px; }
+  }
+  @media (max-width: 520px) {
+    .grid4, .cards, .links, .tax { grid-template-columns: 1fr; }
   }
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .reveal { opacity: 1; transform: none; transition: none; }
-    .bar i { transition: none; }
+    .headline .line > span { transform: none; transition: none; }
+    .blob-wrap { transition: none; }
+    .bar i, .meter .track i { transition: none; }
+    .marquee .track { animation: none; }
   }
 </style>
 </head>
 <body>
-<div id="dot" aria-hidden="true"></div>
+<div class="cursor" id="ring" aria-hidden="true"></div>
+<div class="cursor" id="dot" aria-hidden="true"></div>
 
 <nav>
-  <div class="brand" aria-label="IndicRAG-QA">indicrag<b>अ</b></div>
-  <div class="mid"><a href="#about">About</a><a href="#findings">Findings</a><a href="#playground">Playground</a></div>
+  <a class="brand" href="#top" aria-label="IndicRAG-QA, back to top">indicrag<b>अ</b></a>
+  <div class="mid"><a href="#about">About</a><a href="#fusion">How fusion breaks</a><a href="#playground">Playground</a></div>
   <a class="end" href="#paper">Read the paper</a>
 </nav>
 
 <header class="hero" id="top">
-  <h1 class="headline" id="headline" aria-label="Hello! I am a retriever that reads across scripts and knows when to say no.">
-    <span>HELLO! I AM A</span>
-    <span>RETRIEVER</span>
-    <span>THAT READS</span>
-    <span>ACROSS</span>
-    <span>SCRIPTS AND</span>
-    <span>KNOWS WHEN</span>
-    <span>TO SAY NO.</span>
+  <h1 class="headline display" id="headline" aria-label="Hello! I am a retriever that reads across scripts and knows when to say no.">
+    <span class="line"><span>HELLO! I AM A</span></span>
+    <span class="line"><span>RETRIEVER</span></span>
+    <span class="line"><span>THAT READS</span></span>
+    <span class="line"><span>ACROSS</span></span>
+    <span class="line"><span>SCRIPTS AND</span></span>
+    <span class="line"><span>KNOWS WHEN</span></span>
+    <span class="line"><span>TO SAY NO.</span></span>
   </h1>
-  <svg id="tear" aria-hidden="true"></svg>
-  <div class="hint">move the cursor to tear it open →</div>
-  <div class="blob-wrap" aria-hidden="true"><div class="blob" id="blob"></div></div>
-  <p class="caption">Evidence-grounded question answering for Hindi, English and Hinglish, over Indian government scheme documents.</p>
-  <a class="scroll" href="#about">(scroll)</a>
+  <svg id="tear" aria-hidden="true"><path class="cover"/><path class="strand"/><path class="strand"/><path class="strand"/></svg>
+  <div class="over hint">move the cursor to tear it open →</div>
+  <div class="over blob-wrap" aria-hidden="true"><div class="blob" id="blob"></div></div>
+  <p class="over caption">Evidence-grounded question answering for Hindi, English and Hinglish, over Indian government scheme documents.</p>
+  <a class="over scroll" href="#about">(scroll)</a>
 </header>
+
+<div class="marquee" aria-label="The same question in three scripts">
+  <div class="track">
+    <span><small>Hinglish</small>Scholarship ke liye minimum eligibility kya hai?</span>
+    <span lang="hi"><small>Hindi</small>छात्रवृत्ति के लिए न्यूनतम पात्रता क्या है?</span>
+    <span><small>English</small>What is the minimum eligibility for a scholarship?</span>
+    <span aria-hidden="true"><small>Hinglish</small>Scholarship ke liye minimum eligibility kya hai?</span>
+    <span lang="hi" aria-hidden="true"><small>Hindi</small>छात्रवृत्ति के लिए न्यूनतम पात्रता क्या है?</span>
+    <span aria-hidden="true"><small>English</small>What is the minimum eligibility for a scholarship?</span>
+  </div>
+</div>
 
 <main>
   <section id="about">
     <div class="label">About</div>
     <p class="lede reveal">A citizen asks in Hindi, in English, or — most often — in <em>Romanized Hindi–English</em>. The answer sits in a document written in the other language, in the other script. IndicRAG-QA finds it, cites it, or says it does not know.</p>
     <div class="grid4 reveal">
-      <div class="stat"><b>40</b><span>government schemes, each with an English and a Hindi article</span></div>
-      <div class="stat"><b>694</b><span>passages, every Hindi document through five Devanagari integrity checks</span></div>
-      <div class="stat"><b>393</b><span>verified questions across six query × evidence language cells</span></div>
-      <div class="stat"><b>4</b><span>kinds of unanswerable question, from out-of-scope to near-miss</span></div>
+      <div class="stat"><b data-count="40">40</b><span>government schemes, each with an English and a Hindi article</span></div>
+      <div class="stat"><b data-count="694">694</b><span>passages, every Hindi document through five Devanagari integrity checks</span></div>
+      <div class="stat"><b data-count="393">393</b><span>verified questions across six query × evidence language cells</span></div>
+      <div class="stat"><b data-count="4">4</b><span>kinds of unanswerable question, from out-of-scope to near-miss</span></div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="label">How it works</div>
+    <h2 class="display reveal">One path,<br>three scripts.</h2>
+    <div class="steps reveal">
+      <div class="step"><span class="n">01</span><h3>Read the script</h3><p>Devanagari, Latin, or both — and for Latin, whether Hindi function words like <i>kya</i> and <i>ke liye</i> make it Hinglish.</p><span class="chip">English · Indic · Code-Mixed</span></div>
+      <div class="step"><span class="n">02</span><h3>Retrieve twice</h3><p>BM25 matches surface words; a multilingual encoder (e5-base) matches meaning across languages. 50 candidates each.</p><span class="chip">694 passages</span></div>
+      <div class="step key"><span class="n">03</span><h3>Fuse by eligibility</h3><p>A passage in the other script is scored on the retriever that could see it — not docked for a vote BM25 could never cast.</p><span class="chip">script-aware RRF</span></div>
+      <div class="step"><span class="n">04</span><h3>Answer from evidence</h3><p>The generator answers only from the retrieved passages and names the one it used.</p><span class="chip">cited passage id</span></div>
+      <div class="step"><span class="n">05</span><h3>Or refuse</h3><p>Below the BM25 floor, or when the generator finds no answer in the passages: <i>"Insufficient information available in the provided documents."</i></p><span class="chip">4 answerability signals</span></div>
     </div>
   </section>
 
@@ -256,31 +369,47 @@
       <span class="from">0.274</span><span class="arrow">→</span><span>0.685</span>
     </div>
     <p class="swing-note reveal">Cross-lingual Recall@5 on the sealed test split. Standard Reciprocal Rank Fusion docks a Devanagari passage for the <strong>lexical retriever's blindness</strong> to its script, and scores below the dense retriever it contains. <strong>Script-aware fusion</strong> counts only the retrievers that could have returned a passage — +0.411, p = 0.0001, no monolingual cost. Over dense retrieval alone it gains little: +0.030, significant only on code-mixed queries.</p>
-
     <div class="bars" id="bars" role="table" aria-label="Recall at 5 by query language group, test split">
       <div class="head" role="columnheader">system</div>
       <div class="head" role="columnheader">monolingual</div>
       <div class="head g" role="columnheader">cross-lingual</div>
       <div class="head g" role="columnheader">code-mixed</div>
     </div>
-
     <div class="cards">
-      <div class="card reveal">
-        <h3>Retrieval makes answers groundable.</h3>
-        <div class="big">0.18 → 0.87</div>
-        <p>Share of answers the cited passage supports, closed-book against dense RAG, on 72 test questions (+0.684, p = 0.0001).</p>
-      </div>
-      <div class="card reveal">
-        <h3>Which retriever does not reach the answer.</h3>
-        <div class="big">−0.027</div>
-        <p>Token-F1, script-aware against dense RAG (p = 0.55). The generator still loses more than retrieval: 0.359 against 0.223.</p>
-      </div>
-      <div class="card reveal">
-        <h3>Only a reader sees a missing fact.</h3>
-        <div class="big">22 / 23</div>
-        <p>Near-miss questions caught by the generator's own abstention. A BM25 score threshold catches about half; the fused score, almost none.</p>
-      </div>
+      <div class="card reveal"><h3>Retrieval makes answers groundable.</h3><div class="big">0.18 → 0.87</div>
+        <p>Share of answers the cited passage supports, closed-book against dense RAG, on 72 test questions (+0.684, p = 0.0001).</p></div>
+      <div class="card reveal"><h3>Which retriever does not reach the answer.</h3><div class="big">−0.027</div>
+        <p>Token-F1, script-aware against dense RAG (p = 0.55). The generator still loses more than retrieval: 0.359 against 0.223.</p></div>
+      <div class="card reveal"><h3>Only a reader sees a missing fact.</h3><div class="big">22 / 23</div>
+        <p>Near-miss questions caught by the generator's own abstention. A BM25 score threshold catches about half; the fused score, almost none.</p></div>
     </div>
+  </section>
+
+  <section id="fusion">
+    <div class="label">How fusion breaks — one real test question</div>
+    <h2 class="display reveal">Watch the<br>gold sink.</h2>
+    <div class="qcard reveal">
+      <div class="q" id="fxQ"></div>
+      <div class="a" id="fxA"></div>
+    </div>
+    <div class="switch" role="group" aria-label="Fusion rule">
+      <button type="button" data-rule="plain" aria-pressed="true">Plain RRF</button>
+      <button type="button" data-rule="aware" aria-pressed="false">Script-aware RRF</button>
+    </div>
+    <div class="lists">
+      <div class="list"><h4>BM25</h4><div class="sub">matches words — can only reach passages in the query's script</div><ol id="fxLex"></ol></div>
+      <div class="list"><h4>Dense (e5-base)</h4><div class="sub">matches meaning — ranks the Hindi gold passage first</div><ol id="fxDense"></ol></div>
+      <div class="list fused"><h4 id="fxFusedTitle">Fused</h4><div class="sub" id="fxFusedSub"></div><ol id="fxFused"></ol></div>
+    </div>
+    <p class="verdict" id="fxVerdict" aria-live="polite"></p>
+    <p class="formula">Plain RRF scores each passage <code>Σ 1/(60 + rank)</code> over the retrievers that returned it. Script-aware RRF multiplies by <code>2 / |eligible|</code>, where BM25 is ineligible for a passage in a script other than the query's. Both are recomputed here in your browser from the real candidate lists (50 per retriever) for <code id="fxId"></code>; the rankings match <code>index/hybrid.py</code>.</p>
+  </section>
+
+  <section id="unanswerable">
+    <div class="label">Four ways to be unanswerable</div>
+    <h2 class="display reveal">Knowing<br>when not to.</h2>
+    <div class="tax" id="tax"></div>
+    <p class="src">Questions are real items from the gold set. Recall is the share of each class correctly refused: the BM25 floor on the 273-item test split (<code>report-answerability-bm25.txt</code>); the generator's own abstention on 85 held-out items of an enriched sample (<code>report-answerability-signals.txt</code>). Each class rests on 7–23 items.</p>
   </section>
 
   <section id="playground">
@@ -291,6 +420,11 @@
       <input id="q" name="q" type="text" maxlength="500" placeholder="Scholarship ke liye minimum eligibility kya hai?" aria-label="Your question">
       <button class="go" id="go" type="submit">Ask →</button>
     </form>
+    <div class="detect" id="detect" aria-live="polite">
+      <span>detected as</span>
+      <span class="t" data-t="English">English</span><span class="t" data-t="Indic">Indic</span><span class="t" data-t="Code-Mixed">Code-Mixed</span>
+      <span id="detectWhy"></span>
+    </div>
     <div class="controls">
       <span>retriever</span>
       <span class="pills" id="methods">
@@ -302,17 +436,13 @@
       <label><input type="checkbox" id="floor" checked> abstain below the BM25 floor (18.08)</label>
     </div>
     <div class="examples" id="examples"></div>
-
     <div class="result" id="result" hidden aria-live="polite">
       <div>
         <div class="tags" id="rTags"></div>
         <p class="answer" id="rAnswer"></p>
         <div class="meta" id="rMeta"></div>
       </div>
-      <div class="cites">
-        <h4>Evidence</h4>
-        <div id="rCites"></div>
-      </div>
+      <div class="cites"><h4>Evidence</h4><div id="rCites"></div></div>
     </div>
   </section>
 
@@ -344,188 +474,336 @@
   </div>
 </footer>
 
-<script src="demo-data.js"></script>
+<script src="data.js"></script>
 <script>
 (() => {
   "use strict";
-  const $ = (s, el = document) => el.querySelector(s);
+  const $ = (s, root = document) => root.querySelector(s);
+  const DATA = window.INDICRAG || {};
   const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const finePointer = matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const DEVA = /[ऀ-ॿ]/;
 
-  /* ---------- hero: the tear ---------- */
-  const hero = $(".hero"), headline = $("#headline"), svg = $("#tear");
-  const NS = "http://www.w3.org/2000/svg";
-  const strands = [0, 1, 2, 3].map(() => {
-    const p = document.createElementNS(NS, "path");
-    p.setAttribute("fill", "none"); p.setAttribute("stroke", "#0b0b0b");
-    p.setAttribute("stroke-linejoin", "round"); svg.appendChild(p); return p;
-  });
-  const widths = [3.2, 1.6, 1.1, 0.7];
-  let target = 0.45, pos = 0.45, t = 0;
-  const mouse = { x: innerWidth * 0.45, y: innerHeight / 2, dx: innerWidth * 0.45, dy: innerHeight / 2 };
-
-  function noise(y, seed) {
-    return Math.sin(y * 0.021 + seed * 1.7 + t * 0.9) * 7
-         + Math.sin(y * 0.063 + seed * 4.1 - t * 1.6) * 3.5
-         + Math.sin(y * 0.19 + seed * 9.3 + t * 3.1) * 1.6;
+  /* ---------- pointer state; the rAF loop does all the writing ---------- */
+  const ptr = { x: innerWidth * 0.5, y: innerHeight * 0.5, seen: false };
+  const dot = $("#dot"), ring = $("#ring");
+  let ringX = ptr.x, ringY = ptr.y;
+  if (finePointer) {
+    addEventListener("pointermove", (e) => {
+      ptr.x = e.clientX; ptr.y = e.clientY;
+      if (!ptr.seen) { ptr.seen = true; ringX = ptr.x; ringY = ptr.y; dot.classList.add("on"); ring.classList.add("on"); }
+    }, { passive: true });
+    document.documentElement.addEventListener("mouseleave", () => { dot.classList.remove("on"); ring.classList.remove("on"); ptr.seen = false; });
+    document.addEventListener("pointerover", (e) => { ring.classList.toggle("big", !!e.target.closest("a, button, input, label, .ex")); });
   }
-  function frame() {
-    const w = hero.clientWidth, h = hero.clientHeight;
-    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
-    pos += (target - pos) * 0.06;
-    const x0 = pos * w, step = 14, pts = [];
-    for (let y = -step; y <= h + step; y += step) pts.push([x0 + noise(y, 0), y]);
+
+  /* ---------- hero: a cover with a torn edge, drawn over the text ---------- */
+  const hero = $(".hero"), svg = $("#tear"), hint = $(".hero .hint");
+  const [cover, ...strands] = svg.querySelectorAll("path");
+  const widths = [3, 1.4, 0.8], offsets = [0, -3.4, 3.2];
+  strands.forEach((p, i) => p.setAttribute("stroke-width", widths[i]));
+  let heroW = 0, heroH = 0, heroBottom = 0, heroVisible = true;
+  const REST = finePointer ? 0.45 : 0.86;   // where the tear settles; touch screens see more of the headline
+  let pos = finePointer ? 0.985 : REST, target = pos, t = 0;
+  function measure() {
+    heroW = hero.clientWidth; heroH = hero.clientHeight;
+    heroBottom = hero.getBoundingClientRect().bottom + scrollY;
+    svg.setAttribute("viewBox", `0 0 ${heroW} ${heroH}`);
+  }
+  measure();
+  addEventListener("resize", measure, { passive: true });
+  new IntersectionObserver(([e]) => { heroVisible = e.isIntersecting; }).observe(hero);
+
+  const wobble = (y, s) => Math.sin(y * 0.021 + s * 1.7 + t * 0.9) * 7
+                        + Math.sin(y * 0.063 + s * 4.1 - t * 1.6) * 3.4
+                        + Math.sin(y * 0.19 + s * 9.3 + t * 3.1) * 1.5;
+  const STEP = 16;
+  function drawTear() {
+    const x0 = pos * heroW;
+    let edge = "";
+    const xs = [];
+    for (let y = -STEP; y <= heroH + STEP; y += STEP) {
+      const x = x0 + wobble(y, 0); xs.push(x);
+      edge += `${edge ? "L" : "M"}${x.toFixed(1)},${y}`;
+    }
+    cover.setAttribute("d", `${edge}L${heroW + 20},${heroH + STEP}L${heroW + 20},${-STEP}Z`);
     strands.forEach((p, i) => {
-      const off = (i - 1) * 3.2;
-      p.setAttribute("stroke-width", widths[i]);
-      p.setAttribute("d", pts.map(([x, y], k) =>
-        `${k ? "L" : "M"}${(x + off + noise(y, i + 1) * 0.35).toFixed(1)},${y}`).join(""));
+      let d = "";
+      xs.forEach((x, k) => { const y = -STEP + k * STEP; d += `${k ? "L" : "M"}${(x + offsets[i] + wobble(y, i + 2) * 0.3).toFixed(1)},${y}`; });
+      p.setAttribute("d", d);
     });
-    // Clip the headline to the left of the tear, in the headline's own coordinates.
-    const box = headline.getBoundingClientRect(), hb = hero.getBoundingClientRect();
-    const poly = pts.map(([x, y]) => `${(x - (box.left - hb.left)).toFixed(1)}px ${(y - (box.top - hb.top)).toFixed(1)}px`);
-    headline.style.clipPath = `polygon(-10px -10px, ${poly.join(",")}, -10px ${box.height + 10}px)`;
-    if (!reduce) t += 0.016;
   }
 
-  /* ---------- hero: the extruded letter ---------- */
-  const blob = $("#blob"), LAYERS = 26;
+  // The extruded letter: built once; only the container's transform changes.
+  const blob = $("#blob"), LAYERS = 14;
   for (let i = 0; i < LAYERS; i++) {
-    const el = document.createElement("i");
-    el.textContent = "अ";
-    const shade = i === LAYERS - 1 ? "var(--blob)" : `color-mix(in srgb, var(--blob-edge) ${Math.round(100 - i * 2.4)}%, var(--blob))`;
-    el.style.color = shade;
-    el.style.transform = `translateZ(${i * 1.6}px)`;
-    blob.appendChild(el);
+    const g = el("i", null, "अ");
+    const mix = Math.round((i / (LAYERS - 1)) * 100);
+    g.style.color = i === LAYERS - 1 ? "var(--blob)" : `color-mix(in srgb, var(--blob) ${mix}%, var(--blob-edge))`;
+    g.style.transform = `translateZ(${i * 2.4}px)`;
+    blob.appendChild(g);
   }
-  let rx = -14, ry = 24;
+  let rx = -12, ry = 24;
 
-  /* ---------- cursor ---------- */
-  const dot = $("#dot");
-  addEventListener("pointermove", (e) => {
-    mouse.x = e.clientX; mouse.y = e.clientY;
-    const r = hero.getBoundingClientRect();
-    if (e.clientY < r.bottom) target = Math.min(0.97, Math.max(0.3, e.clientX / innerWidth));
-  });
-  document.addEventListener("pointerover", (e) => {
-    dot.classList.toggle("big", !!e.target.closest("a, button, input, label"));
-  });
-
-  function loop() {
-    mouse.dx += (mouse.x - mouse.dx) * 0.2; mouse.dy += (mouse.y - mouse.dy) * 0.2;
-    dot.style.transform = `translate(${mouse.dx}px, ${mouse.dy}px)`;
-    const tx = (mouse.y / innerHeight - 0.5) * -24, ty = (mouse.x / innerWidth - 0.5) * 40;
-    rx += (tx - 14 - rx) * 0.04; ry += (ty + 24 + (reduce ? 0 : Math.sin(t * 0.6) * 8) - ry) * 0.04;
-    blob.style.transform = `rotateX(${rx}deg) rotateY(${ry}deg)`;
-    if (hero.getBoundingClientRect().bottom > 0) frame();
+  let last = performance.now();
+  function loop(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (ptr.seen) {
+      dot.style.transform = `translate3d(${ptr.x}px, ${ptr.y}px, 0)`;
+      const k = 1 - Math.pow(0.0005, dt);   // frame-rate independent easing
+      ringX += (ptr.x - ringX) * k; ringY += (ptr.y - ringY) * k;
+      ring.style.transform = `translate3d(${ringX.toFixed(1)}px, ${ringY.toFixed(1)}px, 0)`;
+    }
+    if (heroVisible) {
+      if (!reduce) t += dt;
+      pos += (target - pos) * (1 - Math.pow(0.03, dt));
+      drawTear();
+      const tx = (ptr.y / innerHeight - 0.5) * -22 - 12;
+      const ty = (ptr.x / innerWidth - 0.5) * 36 + 24 + (reduce ? 0 : Math.sin(t * 0.6) * 7);
+      const e = 1 - Math.pow(0.05, dt);
+      rx += (tx - rx) * e; ry += (ty - ry) * e;
+      blob.style.transform = `rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg)`;
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
 
-  /* ---------- reveal on scroll ---------- */
-  const io = new IntersectionObserver((entries) => entries.forEach((en) => {
-    if (en.isIntersecting) { en.target.classList.add("in"); io.unobserve(en.target); }
-  }), { threshold: 0.15 });
-  document.querySelectorAll(".reveal").forEach((el) => io.observe(el));
+  // Intro: wait for the display font so nothing reflows mid-animation, then
+  // slide the lines up and let the tear close in from the right.
+  const fontsReady = Promise.race([
+    document.fonts ? document.fonts.load('900 64px "Archivo"').then(() => document.fonts.ready) : Promise.resolve(),
+    new Promise((r) => setTimeout(r, 1500)),
+  ]);
+  fontsReady.then(() => {
+    measure();
+    document.querySelectorAll(".headline .line > span").forEach((s, i) => { s.style.transitionDelay = `${i * 70}ms`; });
+    document.body.classList.add("ready");
+    if (reduce) { pos = target = REST; } else { setTimeout(() => { target = REST; }, 700); }
+  });
+  if (finePointer) {
+    addEventListener("pointermove", (e) => {
+      if (document.body.classList.contains("ready") && e.clientY + scrollY < heroBottom) {
+        target = Math.min(0.97, Math.max(0.3, e.clientX / innerWidth));
+        hint.classList.add("gone");   // it has done its job once the tear moves
+      }
+    }, { passive: true });
+  }
 
-  /* ---------- findings: bars (test split, evals/report-retrieval-test.txt) ---------- */
-  const GROUPS = [
-    ["BM25", [0.970, 0.153, 0.500]],
-    ["dense (e5)", [0.976, 0.661, 0.472]],
-    ["plain RRF", [0.964, 0.274, 0.514]],
-    ["script-aware", [0.964, 0.685, 0.556], "aware"],
-  ];
+  /* ---------- reveal + counters ---------- */
+  const io = new IntersectionObserver((entries) => entries.forEach((en) => {
+    if (!en.isIntersecting) return;
+    en.target.classList.add("in"); io.unobserve(en.target);
+    en.target.querySelectorAll("[data-count]").forEach(countUp);
+  }), { threshold: 0.12 });
+  document.querySelectorAll(".reveal").forEach((n) => io.observe(n));
+  function countUp(b) {
+    const end = +b.dataset.count; if (reduce || end < 10) return;
+    const t0 = performance.now(), dur = 1100;
+    const tick = (now) => { const p = Math.min(1, (now - t0) / dur); b.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+  function whenSeen(node, fn, threshold = 0.3) {
+    new IntersectionObserver((es, obs) => { if (es[0].isIntersecting) { fn(); obs.disconnect(); } }, { threshold }).observe(node);
+  }
+
+  /* ---------- findings bars (test split, evals/report-retrieval-test.txt) ---------- */
+  const GROUPS = [["BM25", [0.970, 0.153, 0.500]], ["dense (e5)", [0.976, 0.661, 0.472]],
+                  ["plain RRF", [0.964, 0.274, 0.514]], ["script-aware", [0.964, 0.685, 0.556], "aware"]];
   const bars = $("#bars");
   GROUPS.forEach(([name, vals, cls]) => {
-    const n = document.createElement("div"); n.className = "name"; n.textContent = name; bars.appendChild(n);
+    bars.appendChild(el("div", "name", name));
     vals.forEach((v, i) => {
-      const b = document.createElement("div");
-      b.className = `bar ${cls || ""} ${i ? "g" + (i + 1) : ""}`;
-      b.innerHTML = `<i></i><em>${v.toFixed(3)}</em>`;
-      b.dataset.v = v; bars.appendChild(b);
+      const b = el("div", `bar ${cls || ""} ${i ? "g" : ""}`);
+      b.append(el("i"), el("em", null, v.toFixed(3))); b.dataset.v = v; bars.appendChild(b);
     });
   });
-  new IntersectionObserver((entries, obs) => {
-    if (!entries[0].isIntersecting) return;
-    bars.querySelectorAll(".bar").forEach((b) => { b.firstElementChild.style.width = `${b.dataset.v * 100}%`; });
-    obs.disconnect();
-  }, { threshold: 0.3 }).observe(bars);
+  whenSeen(bars, () => bars.querySelectorAll(".bar").forEach((b, i) => {
+    const fill = b.firstElementChild; fill.style.transitionDelay = `${(i % 3) * 90}ms`; fill.style.transform = `scaleX(${b.dataset.v})`;
+  }));
+
+  /* ---------- fusion explainer: recomputed from the real candidate lists ---------- */
+  const FX = DATA.fusion;
+  if (FX) {
+    $("#fxQ").textContent = `“${FX.question}”`;
+    $("#fxA").textContent = `gold answer “${FX.answer}”, in ${FX.gold.join(", ")} (Hindi)`;
+    $("#fxId").textContent = FX.id;
+    const gold = new Set(FX.gold), P = FX.passages, RRF_K = 60;
+    function fuse(rule) {
+      // Same arithmetic and insertion order as index/hybrid.py, so ties break the same way.
+      const parts = new Map();
+      for (const [label, run] of [["lexical", FX.lexical], ["dense", FX.dense]]) {
+        for (const r of run) { if (!parts.has(r.id)) parts.set(r.id, {}); parts.get(r.id)[label] = 1 / (RRF_K + r.rank); }
+      }
+      const both = FX.query_script === "mixed" || FX.query_script === "unknown";
+      const out = [];
+      for (const [id, c] of parts) {
+        let s = (c.lexical || 0) + (c.dense || 0);
+        if (rule === "aware") s *= 2 / (both || P[id].script === FX.query_script ? 2 : 1);
+        out.push({ id, s });
+      }
+      return out.sort((a, b) => b.s - a.s);
+    }
+    function row(id, rank, score) {
+      const li = el("li"); li.dataset.id = id;
+      if (gold.has(id)) li.classList.add("gold");
+      const name = el("span", "id", id);
+      name.appendChild(el("span", "sc" + (P[id].script !== FX.query_script ? " cross" : ""), P[id].lang === "hi" ? "HI" : "EN"));
+      li.append(el("span", "r", rank), name, el("span", "s", score));
+      li.title = P[id].snippet;
+      return li;
+    }
+    function noteRow(text) { const li = el("li", "note-row"); li.append(el("span", "r", "⋯"), el("span", "id", text), el("span", "s", "")); return li; }
+    const lexOl = $("#fxLex"), denOl = $("#fxDense"), fusOl = $("#fxFused");
+    FX.lexical.slice(0, 5).forEach((r) => lexOl.appendChild(row(r.id, r.rank, "")));
+    const goldLex = FX.lexical.find((r) => gold.has(r.id));
+    lexOl.appendChild(noteRow(goldLex ? `gold at rank ${goldLex.rank} of 50` : "gold not in its 50 candidates"));
+    FX.dense.slice(0, 5).forEach((r) => denOl.appendChild(row(r.id, r.rank, "")));
+
+    let rule = "plain";
+    function render(animate) {
+      const ranked = fuse(rule), goldRank = ranked.findIndex((r) => gold.has(r.id)) + 1;
+      const before = new Map([...fusOl.children].map((li) => [li.dataset.id, li.getBoundingClientRect().top]));
+      fusOl.textContent = "";
+      ranked.slice(0, 5).forEach((r, i) => fusOl.appendChild(row(r.id, i + 1, r.s.toFixed(4))));
+      if (goldRank > 5) {
+        fusOl.appendChild(noteRow(""));
+        const g = ranked[goldRank - 1]; fusOl.appendChild(row(g.id, goldRank, g.s.toFixed(4)));
+      }
+      $("#fxFusedTitle").textContent = rule === "plain" ? "Plain RRF" : "Script-aware RRF";
+      $("#fxFusedSub").textContent = rule === "plain"
+        ? "every passage summed over the retrievers that returned it"
+        : "a Hindi passage scored on the only retriever that could see it";
+      const v = $("#fxVerdict"); v.textContent = "";
+      if (goldRank <= 5) {
+        v.append(el("b", "good", `Gold passage back at rank ${goldRank}.`),
+          document.createTextNode(" Scored on the dense vote alone, it is no longer penalised for BM25's silence about Devanagari text."));
+      } else {
+        v.append(el("b", "bad", `Gold passage sinks to rank ${goldRank}.`),
+          document.createTextNode(" Dense ranked it first, but English passages returned by both retrievers collect two votes and it collects one — docked for BM25's blindness, not its own irrelevance."));
+      }
+      if (animate && !reduce) {   // FLIP: slide each row from where it was
+        [...fusOl.children].forEach((li) => {
+          const was = before.get(li.dataset.id);
+          if (was == null) { li.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 350 }); return; }
+          const dy = was - li.getBoundingClientRect().top;
+          if (dy) li.animate([{ transform: `translateY(${dy}px)` }, { transform: "none" }], { duration: 650, easing: "cubic-bezier(.2,.8,.2,1)" });
+        });
+      }
+    }
+    render(false);
+    document.querySelectorAll(".switch button").forEach((b) => b.addEventListener("click", () => {
+      if (rule === b.dataset.rule) return;
+      rule = b.dataset.rule;
+      document.querySelectorAll(".switch button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+      render(true);
+    }));
+  } else {
+    $("#fusion").hidden = true;
+  }
+
+  /* ---------- taxonomy (report-answerability-bm25.txt, report-answerability-signals.txt) ---------- */
+  const TAX_INFO = {
+    "out-of-scope": ["Out-of-scope", "The topic is not in the corpus at all.", 1.000, 0.944],
+    "near-miss": ["Near-miss", "The scheme is covered; the specific fact is not.", 0.522, 0.957],
+    "false-premise": ["False premise", "Asks about a benefit that does not exist.", 0.667, 1.000],
+    "under-specified": ["Under-specified", "Cannot be answered without naming a scheme.", 0.857, 0.571],
+  };
+  const tax = $("#tax");
+  (DATA.taxonomy || []).forEach((tq) => {
+    const [name, def, floorR, genR] = TAX_INFO[tq.class];
+    const c = el("div", "tcard reveal");
+    const quote = el("blockquote", null, `“${tq.question}”`);
+    if (DEVA.test(tq.question)) quote.lang = "hi";
+    c.append(el("div", "kind", name), el("div", "def", def), quote);
+    [["BM25 floor refuses", floorR, ""], ["generator refuses", genR, "gen"]].forEach(([label, v, cls]) => {
+      const m = el("div", "meter " + cls), r = el("div", "row");
+      r.append(el("span", null, label), el("b", null, v.toFixed(3)));
+      const track = el("div", "track"), fill = el("i"); fill.dataset.v = v; track.appendChild(fill);
+      m.append(r, track); c.appendChild(m);
+    });
+    tax.appendChild(c); io.observe(c);
+  });
+  if (tax.children.length) whenSeen(tax, () => tax.querySelectorAll(".track i").forEach((i) => { i.style.transform = `scaleX(${i.dataset.v})`; }), 0.2);
 
   /* ---------- results table ---------- */
-  const ROWS = [
-    ["BM25", 0.581, 0.970, 0.153, 0.500], ["TF-IDF", 0.593, 0.964, 0.185, 0.514],
-    ["multilingual-e5-base", 0.720, 0.976, 0.661, 0.472], ["LaBSE", 0.485, 0.655, 0.540, 0.239],
-    ["MiniLM-L12", 0.478, 0.624, 0.605, 0.195], ["MuRIL (mean pooling)", 0.265, 0.582, 0.048, 0.082],
-    ["weighted fusion, α = 0.4", 0.688, 0.976, 0.484, 0.528], ["plain RRF", 0.618, 0.964, 0.274, 0.514],
-    ["script-aware RRF", 0.750, 0.964, 0.685, 0.556, true],
-  ];
-  const tbody = $("#tbody");
-  ROWS.forEach(([name, ...rest]) => {
-    const win = rest[4] === true, tr = document.createElement("tr");
-    if (win) tr.className = "win";
-    const td0 = document.createElement("td"); td0.textContent = name; tr.appendChild(td0);
-    rest.slice(0, 4).forEach((v) => { const td = document.createElement("td"); td.textContent = v.toFixed(3); tr.appendChild(td); });
-    tbody.appendChild(tr);
+  [["BM25", 0.581, 0.970, 0.153, 0.500], ["TF-IDF", 0.593, 0.964, 0.185, 0.514],
+   ["multilingual-e5-base", 0.720, 0.976, 0.661, 0.472], ["LaBSE", 0.485, 0.655, 0.540, 0.239],
+   ["MiniLM-L12", 0.478, 0.624, 0.605, 0.195], ["MuRIL (mean pooling)", 0.265, 0.582, 0.048, 0.082],
+   ["weighted fusion, α = 0.4", 0.688, 0.976, 0.484, 0.528], ["plain RRF", 0.618, 0.964, 0.274, 0.514],
+   ["script-aware RRF", 0.750, 0.964, 0.685, 0.556, true]].forEach(([name, ...v]) => {
+    const tr = el("tr", v[4] === true ? "win" : null);
+    tr.appendChild(el("td", null, name)); v.slice(0, 4).forEach((x) => tr.appendChild(el("td", null, x.toFixed(3))));
+    $("#tbody").appendChild(tr);
   });
 
-  /* ---------- playground ---------- */
-  const status = $("#status"), form = $("#askForm"), q = $("#q"), go = $("#go"), floor = $("#floor");
-  let live = false, method = "hybrid";
-  let demo = Array.isArray(window.INDICRAG_DEMO) ? window.INDICRAG_DEMO : [];
-  const LABELS = ["english", "hindi", "hinglish", "cross-lingual", "near-miss", "named entity"];
-
-  function setStatus(isLive, text) {
-    live = isLive; status.classList.toggle("live", isLive); status.lastElementChild.textContent = text;
+  /* ---------- language ID as you type: query/langid.py's own rules ---------- */
+  const LID = DATA.langid || { unambiguous: [], indic_floor: 0.6 };
+  const HI = new Set(LID.unambiguous);
+  function classify(text) {
+    const letters = [...text].filter((c) => /\p{L}/u.test(c));
+    if (!letters.length) return null;
+    const ratio = letters.filter((c) => DEVA.test(c)).length / letters.length;
+    const hasDeva = DEVA.test(text), hasLatin = /[A-Za-z]/.test(text);
+    const hits = (text.toLowerCase().match(/[a-zऀ-ॿ]+/g) || []).filter((w) => HI.has(w));
+    if (ratio >= LID.indic_floor) return ["Indic", `${Math.round(ratio * 100)}% Devanagari`];
+    if (hasDeva && hasLatin) return ["Code-Mixed", "both scripts present"];
+    if (hasDeva) return ["Indic", "Devanagari only"];
+    if (hits.length) return ["Code-Mixed", `Hindi markers: ${[...new Set(hits)].slice(0, 4).join(", ")}`];
+    return ["English", "Latin script, no Hindi markers"];
   }
+  const q = $("#q");
+  function showDetect() {
+    const r = classify(q.value || q.placeholder);
+    document.querySelectorAll("#detect .t").forEach((tEl) => tEl.classList.toggle("on", !!r && tEl.dataset.t === r[0]));
+    $("#detectWhy").textContent = r ? `— ${r[1]}${q.value ? "" : " (placeholder)"}` : "";
+  }
+  q.addEventListener("input", showDetect); showDetect();
+
+  /* ---------- playground ---------- */
+  const status = $("#status"), form = $("#askForm"), go = $("#go"), floor = $("#floor");
+  let live = false, method = "hybrid", demo = DATA.demo || [], inflight = null;
+  const LABELS = ["english", "hindi", "hinglish", "cross-lingual", "near-miss", "named entity"];
+  function setStatus(isLive, text) { live = isLive; status.classList.toggle("live", isLive); status.lastElementChild.textContent = text; }
   function renderExamples() {
     const box = $("#examples"); box.textContent = "";
     demo.forEach((d, i) => {
-      const b = document.createElement("button");
-      b.type = "button"; b.className = "ex";
-      const s = document.createElement("small"); s.textContent = LABELS[i] || "example";
-      b.append(s, document.createTextNode(d.query));
-      b.addEventListener("click", () => { q.value = d.query; live ? ask() : show(d, true); });
+      const b = el("button", "ex"); b.type = "button";
+      if (DEVA.test(d.query)) b.lang = "hi";
+      b.append(el("small", null, LABELS[i] || "example"), document.createTextNode(d.query));
+      b.addEventListener("click", () => { q.value = d.query; showDetect(); live ? ask() : show(d, true); });
       box.appendChild(b);
     });
   }
-  function tag(text, cls) { const s = document.createElement("span"); s.className = "tag " + (cls || ""); s.textContent = text; return s; }
-
   function show(r, rehearsed) {
-    $("#result").hidden = false;
+    const res = $("#result"); res.hidden = true; void res.offsetWidth; res.hidden = false;
     const tags = $("#rTags"); tags.textContent = "";
-    tags.append(tag(r.query_type, "dark"));
-    tags.append(tag(r.answerability === "ANSWERABLE" ? "answerable" : "refused", r.answerability === "ANSWERABLE" ? "" : "refuse"));
-    if (r.retrieval) tags.append(tag(r.retrieval.method === "hybrid" ? "script-aware" : r.retrieval.method));
-    if (r.model) tags.append(tag(r.model));
-    const a = $("#rAnswer"); a.textContent = r.answer;
+    const ok = r.answerability === "ANSWERABLE";
+    tags.append(el("span", "tag dark", r.query_type), el("span", "tag" + (ok ? "" : " refuse"), ok ? "answerable" : "refused"));
+    if (r.retrieval) tags.append(el("span", "tag", r.retrieval.method === "hybrid" ? "script-aware" : r.retrieval.method));
+    if (r.model) tags.append(el("span", "tag", r.model));
+    const a = $("#rAnswer"); a.textContent = r.answer; a.lang = ok && r.answer_lang === "hi" ? "hi" : "en";
     a.classList.toggle("long", (r.answer || "").length > 160);
-    a.lang = r.answerability === "ANSWERABLE" && r.answer_lang === "hi" ? "hi" : "en";
-    const meta = $("#rMeta"); meta.textContent = "";
-    const bits = [];
+    const meta = $("#rMeta"), bits = [];
     if (r.confidence != null) bits.push(`confidence ${Number(r.confidence).toFixed(2)}`);
     if (r.retrieval && r.retrieval.bm25_top != null) bits.push(`BM25 top ${r.retrieval.bm25_top.toFixed(1)} vs floor ${r.retrieval.bm25_floor}`);
     if (r.latency_ms != null) bits.push(`${(r.latency_ms / 1000).toFixed(2)} s`);
     meta.textContent = bits.join("  ·  ");
-    if (r.explanation) { const p = document.createElement("div"); p.className = "note"; p.textContent = r.explanation; meta.appendChild(p); }
-    if (rehearsed) { const p = document.createElement("div"); p.className = "note"; p.textContent = "Rehearsed output from docs/demo/ — run `indicrag serve` for live answers."; meta.appendChild(p); }
-
+    if (r.explanation) meta.appendChild(el("div", "note", r.explanation));
+    if (rehearsed) meta.appendChild(el("div", "note", "Rehearsed output from docs/demo/ — run `indicrag serve` for live answers."));
     const cites = $("#rCites"); cites.textContent = "";
-    const qScript = /[ऀ-ॿ]/.test(r.query) ? "hi" : "en";
+    const qLang = DEVA.test(r.query) ? "hi" : "en";
     (r.citations || []).forEach((c) => {
-      const box = document.createElement("div"); box.className = "cite";
-      const h = document.createElement("header");
-      const left = document.createElement("span");
-      const id = document.createElement("b"); id.textContent = c.passage_id;
-      const lang = document.createElement("span"); lang.className = "lang" + (c.lang !== qScript ? " cross" : "");
-      lang.textContent = c.lang === "hi" ? "Hindi" : "English"; lang.title = c.lang !== qScript ? "other script than the query" : "same script as the query";
-      left.append(id, lang);
-      const sc = document.createElement("span"); sc.textContent = Number(c.score).toFixed(4);
-      h.append(left, sc);
-      const p = document.createElement("p"); p.textContent = c.snippet || ""; if (c.lang === "hi") p.className = "deva";
+      const box = el("div", "cite"), h = el("header"), left = el("span");
+      const lang = el("span", "lang" + (c.lang !== qLang ? " cross" : ""), c.lang === "hi" ? "Hindi" : "English");
+      lang.title = c.lang !== qLang ? "other script than the query" : "same script as the query";
+      left.append(el("b", null, c.passage_id), lang);
+      h.append(left, el("span", null, Number(c.score).toFixed(4)));
+      const p = el("p", null, c.snippet || ""); if (c.lang === "hi") p.lang = "hi";
       box.append(h, p); cites.appendChild(box);
     });
     if (!(r.citations || []).length) cites.textContent = "No passages retrieved.";
   }
-
   async function ask() {
     const query = q.value.trim();
     if (!query) { q.focus(); return; }
@@ -535,19 +813,19 @@
       setStatus(false, "offline — live answers need the server: run `indicrag serve`, then reload");
       return;
     }
-    go.disabled = true; go.innerHTML = '<span class="spinner"></span>';
+    if (inflight) inflight.abort();         // a newer question supersedes an older one
+    const ctl = new AbortController(); inflight = ctl;
+    go.disabled = true; go.replaceChildren(el("span", "spinner"));
     try {
-      const res = await fetch("/api/ask", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, method, bm25_floor: floor.checked ? 18.08 : 0 }),
-      });
+      const res = await fetch("/api/ask", { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, method, bm25_floor: floor.checked ? 18.08 : 0 }) });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || res.statusText);
       show(body, false);
     } catch (err) {
-      setStatus(false, "request failed: " + err.message);
+      if (err.name !== "AbortError") setStatus(false, "request failed: " + err.message);
     } finally {
-      go.disabled = false; go.textContent = "Ask →";
+      if (inflight === ctl) { inflight = null; go.disabled = false; go.textContent = "Ask →"; }
     }
   }
   form.addEventListener("submit", (e) => { e.preventDefault(); ask(); });
@@ -557,20 +835,24 @@
     document.querySelectorAll("#methods .pill").forEach((p) => p.setAttribute("aria-pressed", String(p === b)));
     if (live && q.value.trim()) ask();
   });
+  floor.addEventListener("change", () => { if (live && q.value.trim()) ask(); });
 
   (async () => {
-    try {
-      const h = await (await fetch("/api/health", { cache: "no-store" })).json();
-      if (!h.ok) throw new Error();
-      setStatus(true, `live — ${h.passages} passages, ${h.generator} answers`);
-      try { const d = await (await fetch("/api/demo")).json(); if (d.length) demo = d; } catch (_) { /* keep embedded */ }
-    } catch (_) {
+    if (location.protocol === "file:") {
       setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");
+    } else {
+      try {
+        const h = await (await fetch("/api/health", { cache: "no-store" })).json();
+        if (!h.ok) throw new Error();
+        setStatus(true, `live — ${h.passages} passages, ${h.generator} answers`);
+        try { const d = await (await fetch("/api/demo")).json(); if (d.length) demo = d; } catch (_) { /* keep embedded */ }
+      } catch (_) {
+        setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");
+      }
     }
     renderExamples();
-    // ?q=... pre-fills the question and asks it, so a query can be shared as a link.
     const shared = new URLSearchParams(location.search).get("q");
-    if (shared) { q.value = shared.slice(0, 500); ask(); }
+    if (shared) { q.value = shared.slice(0, 500); showDetect(); ask(); }
   })();
 })();
 </script>

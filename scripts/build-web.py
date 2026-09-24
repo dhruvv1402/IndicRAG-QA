@@ -1,10 +1,19 @@
-"""Embed the rehearsed demo outputs into the web page's offline fallback.
+"""Build web/data.js: every piece of project data the web page shows.
 
-The Playground in web/index.html answers live through `indicrag serve`. Opened
-as a plain file, it has no server to ask, so it shows the six outputs that
-scripts/run-demo.py recorded under docs/demo/. This writes them to
-web/demo-data.js, which the page loads with a plain <script> tag -- a fetch()
-of a local JSON file is blocked under file://.
+The page is built, not written, for the same reason the figures are: a number
+on it cannot then disagree with the report it came from. This writes
+
+  demo      the six rehearsed outputs in docs/demo/ (the Playground's fallback)
+  fusion    one real test-split query with its BM25 and dense candidate lists,
+            50 each, so the page can recompute plain and script-aware RRF in
+            the browser with the same formula as index/hybrid.py
+  taxonomy  one real gold-set question per unanswerable class
+  langid    the Hindi marker lexicon and Devanagari threshold from query/langid.py,
+            so the page's as-you-type badge applies the classifier's own rules
+
+The page loads it with a plain <script> tag, since fetch() of a local file is
+blocked under file://. The fusion example needs the corpus and the dense
+index, so run it with the environment set up:
 
     python scripts/build-web.py
 """
@@ -16,22 +25,102 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
 DEMO = ROOT / "docs" / "demo"
-OUT = ROOT / "web" / "demo-data.js"
+GOLD = ROOT / "evals" / "gold.jsonl"
+OUT = ROOT / "web" / "data.js"
+
+#: The explainer's query: an English question whose gold passage is Hindi. The
+#: dense retriever ranks the gold passage first; plain RRF drops it out of the
+#: top five; script-aware fusion restores it.
+FUSION_ITEM = "qa-en-hi-027"
+#: One unanswerable gold item per class, chosen for being self-explanatory.
+TAXONOMY_ITEMS = {
+    "out-of-scope": "un-out-of-scope-101",
+    "near-miss": "un-near-miss-007",
+    "false-premise": "un-false-premise-012",
+    "under-specified": "un-under-specified-009",
+}
+CANDIDATES = 50
+
+
+def _snippet(text: str, n: int = 110) -> str:
+    text = " ".join(text.split())
+    return text if len(text) <= n else text[:n].rsplit(" ", 1)[0] + "…"
+
+
+def fusion_example() -> dict:
+    from indicrag.config import get_settings
+    from indicrag.index.dense import DenseIndex, Encoder
+    from indicrag.index.encoders import get
+    from indicrag.index.lexical import LexicalIndex
+    from indicrag.models import Passage, QAItem, read_jsonl
+    from indicrag.query.langid import classify
+
+    cfg = get_settings()
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise RuntimeError(f"no passages at {cfg.passages_path}; set INDICRAG_DATA_DIR")
+    by_id = {p.passage_id: p for p in passages}
+    item = next(i for i in read_jsonl(GOLD, QAItem) if i.id == FUSION_ITEM)
+
+    lex = LexicalIndex.load(cfg.lex_dir)
+    spec = get(cfg.encoder_primary)
+    dense = DenseIndex.load(spec, cfg.emb_dir, passages)
+    qvec = Encoder(spec).encode_query(item.question)
+
+    def run(hits):
+        return [{"id": h.passage_id, "rank": h.rank} for h in hits]
+
+    lexical = run(lex.search_bm25(item.question, CANDIDATES))
+    dense_run = run(dense.search_vector(qvec, CANDIDATES))
+    seen = {r["id"] for r in lexical} | {r["id"] for r in dense_run}
+    return {
+        "id": item.id,
+        "question": item.question,
+        "answer": item.answer_gold,
+        "query_script": classify(item.question).script,
+        "gold": list(item.gold_passage_ids),
+        "lexical": lexical,
+        "dense": dense_run,
+        "passages": {
+            pid: {"scheme": by_id[pid].scheme, "lang": by_id[pid].lang,
+                  "script": "deva" if by_id[pid].lang == "hi" else "latin",
+                  "snippet": _snippet(by_id[pid].text)}
+            for pid in sorted(seen)
+        },
+    }
+
+
+def taxonomy() -> list[dict]:
+    items = {}
+    with GOLD.open(encoding="utf-8") as fh:
+        for line in fh:
+            row = json.loads(line)
+            items[row["id"]] = row
+    return [{"class": klass, "question": items[qid]["question"], "id": qid}
+            for klass, qid in TAXONOMY_ITEMS.items()]
+
+
+def langid() -> dict:
+    from indicrag.query import langid as lid
+
+    return {"unambiguous": sorted(lid.UNAMBIGUOUS_MARKERS), "indic_floor": lid.DEVANAGARI_INDIC_FLOOR}
 
 
 def main() -> int:
-    outputs = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(DEMO.glob("*.json"))]
-    if not outputs:
+    demo = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(DEMO.glob("*.json"))]
+    if not demo:
         print(f"no demo outputs in {DEMO}; run scripts/run-demo.py first")
         return 1
-    body = json.dumps(outputs, ensure_ascii=False, indent=1)
+    data = {"demo": demo, "fusion": fusion_example(), "taxonomy": taxonomy(), "langid": langid()}
     OUT.write_text(
-        "// Generated by scripts/build-web.py from docs/demo/*.json. Do not edit.\n"
-        f"window.INDICRAG_DEMO = {body};\n",
+        "// Generated by scripts/build-web.py. Do not edit by hand.\n"
+        f"window.INDICRAG = {json.dumps(data, ensure_ascii=False, indent=1)};\n",
         encoding="utf-8", newline="\n",
     )
-    print(f"wrote {OUT.relative_to(ROOT)}  ({len(outputs)} outputs)")
+    print(f"wrote {OUT.relative_to(ROOT)}  ({len(demo)} demo outputs, fusion example "
+          f"{data['fusion']['id']}, {len(data['taxonomy'])} taxonomy questions)")
     return 0
 
 

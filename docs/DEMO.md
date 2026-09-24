@@ -10,7 +10,16 @@ indicrag serve                             # web interface at http://127.0.0.1:8
 python scripts/run-demo.py                 # the six prepared queries, outputs saved
 indicrag ask "<query>" --bm25-floor 18.08  # one query, the gate the paper recommends
 indicrag ask "<query>" --gguf <path.gguf>  # generated rather than extracted answer
+indicrag serve --api groq                  # web interface with a hosted model (Groq or Gemini)
 ```
+
+**Hosted models.** `--api groq` or `--api gemini` answers with a hosted model
+through its OpenAI-compatible endpoint, using the same prompt, parser and
+refusal rules as the local model. Put `GROQ_API_KEY` or `GEMINI_API_KEY` in
+`.env` (see `.env.example`; `.env` is gitignored); `--model` overrides the
+default model name. The question and the retrieved passages are sent to that
+provider, and the web page says so when a hosted model is selected. The
+extracted-sentence answer stays available beside it for comparison.
 
 `scripts/run-demo.py` runs the six queries PLAN §8 prepares, exactly as they
 would be typed, and writes each response object to `docs/demo/`. Those files

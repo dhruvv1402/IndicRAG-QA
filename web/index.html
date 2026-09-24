@@ -266,6 +266,8 @@
   .pill { border: 1px solid var(--ink); background: transparent; padding: 5px 12px; border-radius: 999px; font-size: 13px; }
   .pill[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
   .controls label { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+  .controls[hidden] { display: none; }
+  .sent { font-size: 12px; color: var(--muted); }
   .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: var(--gap-l); }
   .ex { border: 1px dashed #9a9a95; background: transparent; padding: 7px 13px; border-radius: 999px; font-size: 14px; max-width: 100%; text-align: left; }
   .ex:hover { border-style: solid; border-color: var(--ink); }
@@ -570,6 +572,11 @@
         <button type="button" class="pill" data-m="bm25" aria-pressed="false">BM25</button>
       </span>
       <label><input type="checkbox" id="floor" checked> abstain below the BM25 floor (18.08)</label>
+    </div>
+    <div class="controls" id="genRow" hidden>
+      <span>answer with</span>
+      <span class="pills" id="gens"></span>
+      <span class="sent" id="sentNote"></span>
     </div>
     <div class="examples" id="examples"></div>
     <div class="result" id="result" hidden aria-live="polite">
@@ -984,7 +991,7 @@
 
   /* ---------- playground ---------- */
   const status = $("#status"), form = $("#askForm"), go = $("#go"), floor = $("#floor");
-  let live = false, method = "hybrid", demo = DATA.demo || [], inflight = null;
+  let live = false, method = "hybrid", demo = DATA.demo || [], inflight = null, generator = "";
   const LABELS = ["english", "hindi", "hinglish", "cross-lingual", "near-miss", "named entity"];
   function setStatus(isLive, text) { live = isLive; status.classList.toggle("live", isLive); status.lastElementChild.textContent = text; }
   function renderExamples() {
@@ -1040,7 +1047,7 @@
     go.disabled = true; go.replaceChildren(el("span", "spinner"));
     try {
       const res = await fetch("/api/ask", { method: "POST", signal: ctl.signal, headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, method, bm25_floor: floor.checked ? 18.08 : 0 }) });
+        body: JSON.stringify({ query, method, bm25_floor: floor.checked ? 18.08 : 0, ...(generator ? { generator } : {}) }) });
       const body = await res.json();
       if (!res.ok) throw new Error(body.error || res.statusText);
       show(body, false);
@@ -1059,6 +1066,37 @@
   });
   floor.addEventListener("change", () => { if (live && q.value.trim()) ask(); });
 
+  // Generators the server has loaded: extractive always, plus a local model or
+  // a hosted API (Groq, Gemini) when it was started with --gguf or --api.
+  function renderGenerators(names, current) {
+    if (!names || names.length < 2) return;
+    generator = current;
+    const box = $("#gens"); box.textContent = "";
+    const label = (n) => n === "extractive" ? "extracted sentence"
+      : n.startsWith("groq:") ? `Groq · ${n.slice(5)}`
+      : n.startsWith("gemini:") ? `Gemini · ${n.slice(7)}`
+      : n.startsWith("local:") ? `local · ${n.slice(6)}` : n;
+    const note = () => {
+      const hosted = generator.startsWith("groq:") || generator.startsWith("gemini:");
+      $("#sentNote").textContent = hosted
+        ? `your question and the retrieved passages are sent to ${generator.startsWith("groq:") ? "Groq" : "Google"}`
+        : generator === "extractive" ? "no model: the best-supporting sentence" : "runs on this machine";
+    };
+    names.forEach((n) => {
+      const b = el("button", "pill", label(n)); b.type = "button"; b.dataset.g = n;
+      b.setAttribute("aria-pressed", String(n === generator));
+      b.addEventListener("click", () => {
+        generator = n;
+        box.querySelectorAll(".pill").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+        note();
+        if (q.value.trim()) ask();
+      });
+      box.appendChild(b);
+    });
+    note();
+    $("#genRow").hidden = false;
+  }
+
   (async () => {
     if (location.protocol === "file:") {
       setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");
@@ -1066,7 +1104,8 @@
       try {
         const h = await (await fetch("/api/health", { cache: "no-store" })).json();
         if (!h.ok) throw new Error();
-        setStatus(true, `live — ${h.passages} passages, ${h.generator} answers`);
+        setStatus(true, `live — ${h.passages} passages, ${h.generator} answers by default`);
+        renderGenerators(h.generators, h.generator);
         try { const d = await (await fetch("/api/demo")).json(); if (d.length) demo = d; } catch (_) { /* keep embedded */ }
       } catch (_) {
         setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");

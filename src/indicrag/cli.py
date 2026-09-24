@@ -1362,6 +1362,10 @@ def ask(
         help="Refuse when the BM25 top score is below this. 18.08 is the threshold fitted "
         "on the dev split (tau 0.25 x scale 72.31, paper §VI-H); 0 disables it.",
     ),
+    api: str = typer.Option(
+        "", "--api", help="Generate with a hosted model: groq (GROQ_API_KEY) or gemini (GEMINI_API_KEY).",
+    ),
+    model: str = typer.Option("", "--model", help="Override the hosted model's default name."),
 ) -> None:
     """Answer one question and print the full response object."""
     from .pipeline import answer_query
@@ -1376,11 +1380,20 @@ def ask(
     # the default, and the method this project's central result is about --
     # degrades to plain BM25 inside `retrieve()`, silently. `load_system`
     # reports that degradation rather than hiding it.
-    system = load_system(passages, gguf=gguf, say=lambda m: typer.echo(m, err=True))
-    result = answer_query(
-        query, passages, retrievers=system.retrievers, method=method, k=k,
-        bm25_floor=bm25_floor, provider=system.provider,
-    )
+    from .rag.providers import APIError
+
+    try:
+        system = load_system(passages, gguf=gguf, api=api, model=model, say=lambda m: typer.echo(m, err=True))
+    except APIError as exc:
+        raise typer.BadParameter(str(exc)) from None
+    try:
+        result = answer_query(
+            query, passages, retrievers=system.retrievers, method=method, k=k,
+            bm25_floor=bm25_floor, provider=system.provider,
+        )
+    except APIError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from None
     import json
 
     typer.echo(json.dumps(result.as_dict(), ensure_ascii=False, indent=2))
@@ -1391,16 +1404,24 @@ def serve(
     port: int = typer.Option(8000, "--port"),
     host: str = typer.Option("127.0.0.1", "--host", help="Localhost only by default."),
     gguf: str = typer.Option("", "--gguf", help="Generate answers with this GGUF model."),
+    api: str = typer.Option(
+        "", "--api", help="Also offer a hosted model: groq (GROQ_API_KEY) or gemini (GEMINI_API_KEY).",
+    ),
+    model: str = typer.Option("", "--model", help="Override the hosted model's default name."),
     web_dir: Path = typer.Option(Path("web"), "--web"),
 ) -> None:
     """Serve the web interface with the system loaded once and kept warm."""
+    from .rag.providers import APIError
     from .serve import load_system
     from .serve import serve as run_server
 
     cfg = get_settings()
     passages = _require_passages(cfg)
     typer.echo(f"loading {len(passages)} passages, indices and encoder ...")
-    system = load_system(passages, gguf=gguf, say=typer.echo)
+    try:
+        system = load_system(passages, gguf=gguf, api=api, model=model, say=typer.echo)
+    except APIError as exc:
+        raise typer.BadParameter(str(exc)) from None
     run_server(system, host=host, port=port, web_dir=web_dir,
                demo_dir=Path("docs/demo"), paper_dir=Path("paper"))
 

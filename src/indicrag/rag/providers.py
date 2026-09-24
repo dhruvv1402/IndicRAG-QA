@@ -1,6 +1,11 @@
 """Answer generation behind one interface.
 
-Three backends. The extractive one is not a placeholder -- it is a genuine
+Four backends: extractive, local GGUF (llama.cpp), a Transformers fallback, and
+any OpenAI-compatible HTTP API -- which covers Groq and Gemini. The generative
+ones answer through `grounded_answer`, so each is asked the same question with
+the same prompt and judged by the same parser and refusal rules.
+
+The original three: The extractive one is not a placeholder -- it is a genuine
 non-neural QA baseline and the `--no-model` fast path, and having it means the
 retrieval and answerability halves of the project are testable, evaluable and
 demonstrable without a 2 GB model download. Every result it produces is by
@@ -440,63 +445,218 @@ class LlamaCppProvider:
     def answer(
         self, query: str, passages: Sequence[Passage], *, lang: LangIdResult
     ) -> Generated:
-        """Grounded answering for the interactive path.
+        return grounded_answer(self, query, passages, lang=lang)
 
-        Deliberately built on the same prompt and parser as the Module 4 arms
-        rather than on its own. If the demo answered by a different route from
-        the evaluation, the thing being demonstrated would not be the thing
-        being measured, and any divergence between them would surface as a
-        confusing bug report rather than as a number.
 
-        A reply the model declines, or one that will not parse, becomes a
-        refusal carrying the required string from PRD §9 -- not an empty answer
-        presented as though the system had responded.
-        """
-        from .arms import parse_answer
-        from .prompts import REFUSAL, build_answer_prompt
+def grounded_answer(provider, query: str, passages: Sequence[Passage], *, lang: LangIdResult) -> Generated:
+    """Grounded answering for the interactive path, shared by every generator.
 
-        data = parse_answer(self.complete(build_answer_prompt(query, passages)))
-        by_id = {p.passage_id: p for p in passages}
+    Deliberately built on the same prompt and parser as the Module 4 arms
+    rather than on its own. If the demo answered by a different route from
+    the evaluation, the thing being demonstrated would not be the thing
+    being measured, and any divergence between them would surface as a
+    confusing bug report rather than as a number.
 
-        if data is None:
-            return Generated(
-                text=REFUSAL,
-                lang=lang.lang,
-                confidence=0.0,
-                answerable=False,
-                explanation="The generator produced no parseable JSON object.",
-                citations=[],
-            )
+    A reply the model declines, or one that will not parse, becomes a
+    refusal carrying the required string from PRD §9 -- not an empty answer
+    presented as though the system had responded.
+    """
+    from .arms import parse_answer
+    from .prompts import REFUSAL, build_answer_prompt
 
-        text = (data.get("answer") or "").strip()
-        answerable = bool(data.get("answerable", True)) and bool(text)
-        cited = (data.get("citation") or "").strip()
-        # Fall back to the top passage when the model names an id that is not in
-        # the context. Its own citation is preferred, but an invented one must
-        # not become the displayed evidence.
-        citations = [cited] if cited in by_id else ([passages[0].passage_id] if passages else [])
+    data = parse_answer(provider.complete(build_answer_prompt(query, passages)))
+    by_id = {p.passage_id: p for p in passages}
 
-        if not answerable:
-            return Generated(
-                text=REFUSAL,
-                lang=lang.lang,
-                confidence=float(data.get("confidence") or 0.0),
-                answerable=False,
-                explanation="The generator reported the passages do not contain the answer.",
-                citations=citations,
-            )
-
-        source = by_id.get(citations[0]) if citations else None
-        where = f" ({source.scheme}, {source.section_path or 'lead'})" if source else ""
+    if data is None:
         return Generated(
-            text=text,
-            lang=source.lang if source else lang.lang,
+            text=REFUSAL,
+            lang=lang.lang,
+            confidence=0.0,
+            answerable=False,
+            explanation="The generator produced no parseable JSON object.",
+            citations=[],
+        )
+
+    text = (data.get("answer") or "").strip()
+    answerable = bool(data.get("answerable", True)) and bool(text)
+    cited = (data.get("citation") or "").strip()
+    # Fall back to the top passage when the model names an id that is not in
+    # the context. Its own citation is preferred, but an invented one must
+    # not become the displayed evidence.
+    citations = [cited] if cited in by_id else ([passages[0].passage_id] if passages else [])
+
+    if not answerable:
+        return Generated(
+            text=REFUSAL,
+            lang=lang.lang,
             confidence=float(data.get("confidence") or 0.0),
-            answerable=True,
-            explanation=(
-                f"Generated from {citations[0]}{where}"
-                + ("" if cited in by_id else ", which the model did not itself cite")
-                + "."
-            ),
+            answerable=False,
+            explanation="The generator reported the passages do not contain the answer.",
             citations=citations,
         )
+
+    source = by_id.get(citations[0]) if citations else None
+    where = f" ({source.scheme}, {source.section_path or 'lead'})" if source else ""
+    return Generated(
+        text=text,
+        lang=source.lang if source else lang.lang,
+        confidence=float(data.get("confidence") or 0.0),
+        answerable=True,
+        explanation=(
+            f"Generated from {citations[0]}{where}"
+            + ("" if cited in by_id else ", which the model did not itself cite")
+            + "."
+        ),
+        citations=citations,
+    )
+
+
+class APIError(RuntimeError):
+    """An API call that failed for a reason worth showing the user."""
+
+
+#: Hosted endpoints that speak the OpenAI chat-completions protocol. The model
+#: is only a default; model names change, so `--model` overrides it.
+API_PRESETS: dict[str, dict[str, str]] = {
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "key_env": "GROQ_API_KEY",
+        "model": "llama-3.3-70b-versatile",
+    },
+    "gemini": {
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "key_env": "GEMINI_API_KEY",
+        "model": "gemini-2.5-flash",
+    },
+}
+
+
+class OpenAICompatProvider:
+    """Any OpenAI-compatible chat-completions API: Groq, Gemini, a local server.
+
+    Standard library only -- no SDK dependency for a single POST. Temperature 0
+    matches the local generator, so a hosted model and the 3B model differ in
+    the model, not in the sampling.
+
+    **What leaves the machine.** Every call sends the question and the retrieved
+    passages to the provider. The passages are public Wikipedia text; the
+    question is whatever the user typed. The key is read from the environment
+    and never logged or included in an error message.
+    """
+
+    def __init__(
+        self,
+        *,
+        base_url: str,
+        api_key: str,
+        model: str,
+        label: str = "api",
+        max_tokens: int = 320,
+        timeout: float = 60.0,
+        retries: int = 3,
+        opener=None,
+        sleep=None,
+    ):
+        import time
+        import urllib.request
+
+        if not api_key:
+            raise APIError(f"no API key for {label}; set it in the environment or in .env")
+        self.base_url = base_url.rstrip("/")
+        self._key = api_key
+        self.model = model
+        self.name = f"{label}:{model}"
+        self.max_tokens = max_tokens
+        self.timeout = timeout
+        self.retries = retries
+        self.calls = 0
+        self.parse_failures = 0
+        self._open = opener or urllib.request.urlopen
+        self._sleep = sleep or time.sleep
+
+    @classmethod
+    def from_preset(cls, preset: str, *, model: str = "", api_key: str = "", **kw) -> OpenAICompatProvider:
+        import os
+
+        if preset not in API_PRESETS:
+            raise APIError(f"unknown API {preset!r}; choose one of {', '.join(API_PRESETS)}")
+        cfg = API_PRESETS[preset]
+        key = api_key or os.environ.get(cfg["key_env"], "") or os.environ.get("INDICRAG_LLM_API_KEY", "")
+        if not key:
+            raise APIError(f"{cfg['key_env']} is not set; add it to your environment or to .env")
+        return cls(base_url=cfg["base_url"], api_key=key, model=model or cfg["model"], label=preset, **kw)
+
+    @property
+    def parse_failure_rate(self) -> float:
+        return self.parse_failures / self.calls if self.calls else 0.0
+
+    def _post(self, payload: dict) -> dict:
+        import json
+        import urllib.error
+        import urllib.request
+
+        body = json.dumps(payload).encode("utf-8")
+        for attempt in range(self.retries + 1):
+            req = urllib.request.Request(
+                f"{self.base_url}/chat/completions", data=body, method="POST",
+                headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._key}"},
+            )
+            try:
+                with self._open(req, timeout=self.timeout) as resp:
+                    return json.loads(resp.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                detail = ""
+                try:
+                    err = json.loads(exc.read().decode("utf-8"))
+                    err = err[0] if isinstance(err, list) and err else err
+                    inner = err.get("error", err) if isinstance(err, dict) else err
+                    detail = inner.get("message", "") if isinstance(inner, dict) else str(inner)
+                except Exception:  # noqa: BLE001 -- the status code is still reported
+                    pass
+                # Rate limits and transient server errors are retried with backoff,
+                # honouring Retry-After when the provider sends one.
+                if exc.code in (429, 500, 502, 503, 504) and attempt < self.retries:
+                    wait = exc.headers.get("Retry-After") if exc.headers else None
+                    try:
+                        delay = float(wait) if wait else 2.0 ** attempt
+                    except ValueError:
+                        delay = 2.0 ** attempt
+                    self._sleep(min(delay, 20.0))
+                    continue
+                raise APIError(f"{self.name} returned HTTP {exc.code}: {detail or exc.reason}") from None
+            except urllib.error.URLError as exc:
+                if attempt < self.retries:
+                    self._sleep(2.0 ** attempt)
+                    continue
+                raise APIError(f"could not reach {self.base_url}: {exc.reason}") from None
+        raise APIError(f"{self.name}: retries exhausted")
+
+    def complete(self, prompt: str, grammar: str | None = None, **_: object) -> str:
+        """One chat completion, reduced to the JSON object it contains.
+
+        `grammar` is accepted for interface compatibility and ignored: hosted
+        APIs do not take GBNF, and the answer prompt already asks for JSON,
+        which `extract_json_object` recovers from any surrounding prose.
+        """
+        self.calls += 1
+        out = self._post({
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0,
+            "max_tokens": self.max_tokens,
+        })
+        try:
+            text = out["choices"][0]["message"]["content"] or ""
+        except (KeyError, IndexError, TypeError):
+            self.parse_failures += 1
+            return ""
+        found = extract_json_object(text)
+        if found is None:
+            self.parse_failures += 1
+            return ""
+        return found
+
+    def answer(
+        self, query: str, passages: Sequence[Passage], *, lang: LangIdResult
+    ) -> Generated:
+        return grounded_answer(self, query, passages, lang=lang)

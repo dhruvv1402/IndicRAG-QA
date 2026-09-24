@@ -711,10 +711,10 @@ indicrag index lexical                     fit TF-IDF and BM25
 indicrag index build --encoder <name>      encode + cache; --all for every registry entry
                                            [--pooling mean|cls] [--batch-size 16]
 
-indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path>] [--bm25-floor 18.08]
+indicrag ask "<query>" [--method hybrid] [--k 5] [--gguf <path> | --api groq|gemini [--model <m>]] [--bm25-floor 18.08]
                                            the demo path; prints the §9 object.
                                            Extractive without --gguf, generated with it.
-indicrag serve [--port 8000] [--gguf <path>]   web interface (web/), system loaded once
+indicrag serve [--port 8000] [--gguf <path>] [--api groq|gemini]   web interface (web/), system loaded once
 
 indicrag eval retrieval     [--report <p>] [--gold <p>] [--alpha 0.4] [--split all|dev|test]
                                            [--sweep/--no-sweep]   alpha sweep, H2
@@ -834,7 +834,7 @@ Listed because the brief's §9 bonus items map onto them, and because each is a 
 
 | Extension | Seam |
 |---|---|
-| A larger instruction-tuned model | `OpenAICompatProvider` already exists; add the key, add the arm |
+| A larger instruction-tuned model | `OpenAICompatProvider` answers through Groq or Gemini (`--api`); adding it as a Module 4 arm is the remaining step |
 | Query translation instead of direct multilingual embedding | A query-side transform, sits beside `translit.py` |
 | Additional Indic languages | Add documents; the encoders and pipeline are language-agnostic. The langid lexicon and the QA normalizer need per-language additions |
 | Multi-document question answering | Retrieval already returns k passages from multiple documents; the prompt and the gold schema need multi-passage answers |

@@ -254,7 +254,11 @@ def label_blind(path: Path, passages, *, labeller: str, ask, say) -> tuple[int, 
             for r in rows:
                 fh.write(json.dumps(r, ensure_ascii=False) + "\n")
 
-    say("  [y] answerable -- the evidence states the answer    [n] not answerable")
+    say("  Read the passages under each question. Press y only if one of them states")
+    say("  the answer. If none does -- even when the question is sensible, or the")
+    say("  passages are on a related topic -- press n.")
+    say("")
+    say("  [y] a passage states the answer    [n] no passage states it")
     say("  [s] skip    [w] save and quit")
     todo = [r for r in rows if r.get("answerable") is None]
     for n, row in enumerate(todo, start=1):

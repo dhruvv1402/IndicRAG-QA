@@ -37,6 +37,24 @@ def _emit(lines: list[str], report: Path | None) -> None:
         typer.echo(f"\nwritten to {report}")
 
 
+def _require_passages(cfg) -> list:
+    """Load the corpus, or stop. A review with no evidence on screen is not a review.
+
+    Both review commands used to carry on with an empty corpus -- when
+    INDICRAG_DATA_DIR was not set in the shell -- and showed every passage as
+    missing, so a person could click through an entire sample having seen
+    nothing to judge by.
+    """
+    passages = list(read_jsonl(cfg.passages_path, Passage))
+    if not passages:
+        raise typer.BadParameter(
+            f"no passages at {cfg.passages_path}. Set up the environment first "
+            "(PowerShell: . .\\scripts\\dev-env.ps1, which sets INDICRAG_DATA_DIR), "
+            "then run this again."
+        )
+    return passages
+
+
 def _stratified(items: list, n: int, *, seed: int = 20260922) -> list:
     """A seeded sample of `n` items spread evenly over the language pairs.
 
@@ -473,7 +491,7 @@ def dataset_verify(
     from .dataset.verify import verify_loop
 
     cfg = get_settings()
-    passages = list(read_jsonl(cfg.passages_path, Passage))
+    passages = _require_passages(cfg)
     if not path.exists():
         raise typer.BadParameter(f"no candidates at {path}; run `dataset generate` first")
 
@@ -534,7 +552,7 @@ def dataset_second_pass(
             raise typer.BadParameter("--label needs --labeller <name>")
         cfg = get_settings()
         done, total = label_blind(
-            label, list(read_jsonl(cfg.passages_path, Passage)),
+            label, _require_passages(cfg),
             labeller=labeller, ask=typer.prompt, say=typer.echo,
         )
         typer.echo(f"\n{done}/{total} labelled -> {label}")

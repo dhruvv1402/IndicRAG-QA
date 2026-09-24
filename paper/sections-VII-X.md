@@ -220,33 +220,32 @@ questions do not do that. We report the probe regression anyway, because on a
 deployment whose queries are overwhelmingly lexical-overlap monolingual ones it
 is the figure that would apply.
 
-### D. Retrieval is not the binding constraint here
+### D. What the correction is worth end to end
 
-The oracle arm of §VI-G puts a number on what this correction can be worth
-end to end, and it is smaller than the retrieval figures alone suggest. Given
-the gold passage and nothing to find, our generator reaches 0.403 token-F1;
-the full system reaches 0.210. Generation error is therefore 0.597 and
-retrieval error 0.193, a factor of three apart.
+The oracle arm of §VI-G puts a number on what retrieval can be worth end to
+end. Given the gold passage and nothing to find, our generator reaches 0.641
+token-F1 on the test sample; the full system reaches 0.418. Retrieval error is
+therefore 0.223 and generation error 0.359. Both are substantial, and the
+generator still loses more, by a factor of 1.6.
 
 We report this because it constrains the practical claim rather than the
-scientific one. Script-aware fusion is a large improvement to retrieval,
-measured as retrieval. It does **not** produce a measurable improvement in
-answer quality over dense retrieval alone at this sample size: paired over the
-questions both arms answered, arm C exceeds arm B by 0.003 token-F1 (p = 0.89)
-and 0.026 citation support (p = 1.00).
+scientific one. Script-aware fusion is a large improvement to retrieval over
+plain fusion, measured as retrieval. It does **not** produce a measurable
+improvement in answer quality over dense retrieval alone: paired over the same
+72 questions, arm C is 0.027 token-F1 below arm B (p = 0.55) and level on
+citation support (p = 1.00). That is consistent with §VI-A, where the gain over
+dense alone is small and confined to code-mixed queries, of which the sample
+holds 24.
 
-The two facts fit together rather than conflicting. A generator losing 0.597 on
-its own is a noise floor that a retrieval gain has to clear to become visible
-downstream, and on 72 questions a gain of this size does not clear it. A reader
-who cares about end-to-end answer quality should know that fixing retrieval
-entirely would buy 0.193, while the generator is leaving 0.597 on the table.
-
-That ratio is a property of this configuration, not a general law. A 3B model at
+Before verification we reported generation error at 0.597 against retrieval
+error of 0.193 and advised fixing the generator first. On verified items the
+ratio has narrowed from three to 1.6, and that advice no longer follows. The
+ratio is a property of this configuration, not a general law — a 3B model at
 4-bit quantization is a deliberately small generator, chosen so every number
 here is reproducible on commodity hardware, and a larger one would move the
-0.597 without touching the 0.193. The point is that the two error sources have
-to be measured separately before either is optimised, which is precisely what
-the oracle arm is for and why the brief asks for it.
+0.359 without touching the 0.223. The point is that the two error sources have
+to be measured separately before either is optimised, which is what the oracle
+arm is for and why the brief asks for it.
 
 ### E. Where this generalises
 
@@ -407,13 +406,16 @@ systems may be, in part, an artefact of how their components are combined rather
 than a limitation of the components themselves.
 
 One measurement bounds all of this and belongs in the summary rather than only
-in the results. The oracle arm shows generation error of 0.597 against retrieval
-error of 0.193 on our configuration: correcting retrieval entirely would buy
-less than a third of what the generator is currently losing. The fusion result
-is a claim about retrieval, and it is not a claim that retrieval is what most
-limits answer quality on a corpus like this one. Separating the two is what the
-oracle arm exists to do, and doing it changed what we would advise a
-practitioner to fix first.
+in the results. On the verified test sample, the oracle arm shows generation
+error of 0.359 against retrieval error of 0.223: correcting retrieval entirely
+would buy a little less than the generator is losing, and both are worth
+pursuing. Retrieval itself is what makes answers groundable — citation support
+rises from 0.184 closed-book to 0.870 — but which retriever supplies the
+passages did not show up in answer quality at our sample size. The fusion
+result is a claim about retrieval, measured as retrieval. Separating the two
+error sources is what the oracle arm exists to do, and on verified items it
+changed our advice: before verification the generator looked like the only
+thing worth fixing, and it is not.
 
 Immediate future work is a human verification pass over the evaluation set,
 at least its test split, to replace the model verification it currently rests

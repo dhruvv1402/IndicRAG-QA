@@ -119,17 +119,19 @@ BM25 top-score threshold fitted on dev reaches unanswerable F1 0.525 on test (AU
 catching every out-of-scope question but only 0.522 of near-misses -- questions about a
 scheme the corpus covers, asking for a fact it does not state. The script-aware RRF score
 carries almost no signal (medians 0.0328 against 0.0325), because rank fusion discards score
-magnitudes.
+magnitudes. The generator's own abstention is the best signal of the four: on 85 held-out
+items it catches 52 of 57 unanswerable questions, including 22 of 23 near-misses, while
+still answering 20 of 28 answerable ones. An entailment check on top adds nothing.
 
-**Retrieval-augmented generation works; measured so far only on unverified items.**
+**Retrieval-augmented generation works, and which retriever does not show downstream.**
 Module 4 compares four arms -- closed-book, dense RAG, script-aware RAG, and an oracle
-given the gold passage -- with one generator (Qwen2.5-3B, 4-bit). On a 72-item sample of
-the unverified set, citation support rose from 0.162 closed-book to 0.762 with retrieval
-(+0.593, p=0.0001), the choice of retriever did not show up downstream, and generation
-error (0.597) was three times retrieval error (0.193). The re-run on the sealed test split
-is 186 of 288 generations in. Until it finishes, `evals/report-qa.txt` and
-`report-answerability-signals.txt` hold the unverified run; the second says so in its
-banner, and the first predates banners and does not.
+given the gold passage -- with one generator (Qwen2.5-3B, 4-bit), on a 72-item sample of
+the test split. Citation support rises from 0.184 closed-book to 0.870 with dense
+retrieval (+0.684, p=0.0001); the closed-book arm answers 49 of 72 and fewer than one in
+five of those answers is supported. Script-aware against dense RAG is -0.027 token-F1
+(p=0.55). The oracle splits the remaining error into generation 0.359 and retrieval
+0.223. Before verification that was 0.597 against 0.193, and the advice to fix the
+generator first no longer follows.
 
 See `evals/report-retrieval-test.txt`, `evals/report-fusion-test.txt`,
 `evals/report-answerability-bm25.txt`, `evals/report-answerability-signals.txt`,

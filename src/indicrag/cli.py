@@ -1290,7 +1290,14 @@ def eval_qa(
         arms=[a.strip().upper() for a in arms.split(",") if a.strip()],
         progress=typer.echo,
     )
-    _emit(format_module4(result), report)
+    from .evaluation.all_reports import provenance
+
+    # The same banner as every other report, so a Module 4 figure copied out of
+    # it keeps what it rests on: which split, how many items, verified by whom.
+    source = str(gold) if split == "all" else f"{gold} [{split} split]"
+    if sample:
+        source += f", {len(items)}-item stratified sample"
+    _emit(provenance(items, source) + format_module4(result), report)
 
 
 @app.command("ask")

@@ -9,10 +9,9 @@ the start. Slides 5–8 are the spine and 11–12 are the payoff — if time run
 then 13, then 14. Never 12: it is the one that stops the talk being a sales
 pitch.
 
-Retrieval and answerability-threshold figures are from the sealed test split of
-the model-verified gold set. Slides 11, 12 and the signals half of 14 are still
-from the unverified Module 4 run until its test-split re-run finishes, and are
-labelled so on the slide, not just in the notes.
+Every figure is from the model-verified gold set, on its sealed test split.
+Figures that ever come from another set must be labelled on the slide, not just
+in the notes.
 
 ---
 
@@ -196,48 +195,49 @@ anecdote.
 ## 11. Does it actually help the answers?
 
 Four arms, same generator, differing only in the evidence given.
-*Unverified items, 72-item sample — re-run on the test split pending.*
+Test split, 72-item stratified sample.
 
 | Arm | token-F1 | abstains | Citation Support |
 |---|---|---|---|
-| closed-book | 0.065 | 0.486 | **0.162** |
-| RAG dense | 0.207 | 0.417 | 0.762 |
-| RAG hybrid | 0.210 | 0.361 | **0.826** |
-| oracle | 0.403 | 0.194 | 0.948 |
+| closed-book | 0.050 | 0.319 | **0.184** |
+| RAG dense | 0.446 | 0.250 | **0.870** |
+| RAG hybrid | 0.418 | 0.208 | 0.860 |
+| oracle | 0.641 | 0.083 | 0.985 |
 
-Closed-book answers 37 of 72 questions. **16%** of those answers are supported
-by the evidence. Paired: **+0.593, p = 0.0001**.
+Closed-book answers 49 of 72 questions; fewer than **1 in 5** of those answers
+is supported. Paired: **+0.684, p = 0.0001**.
 
-**Hybrid vs dense is NOT significant** (+0.026, p = 1.00). Retrieval-or-not is
-the large effect; *which* retriever does not show up downstream at n = 72.
+**Hybrid vs dense is NOT significant** (−0.027 token-F1, p = 0.55).
+Retrieval-or-not is the large effect; *which* retriever does not show up
+downstream at n = 72.
 
 *Notes:* This is H3 and it is the cleanest result in the deck. The closed-book
-arm is not refusing — it is confidently reciting eligibility thresholds from
-memory and getting them wrong. Say the second line out loud: the unpaired rates
-(0.826 vs 0.762) look like a win only because the arms answer different numbers
-of questions. The paired test is what settles it.
+arm is not refusing — it is confidently reciting scheme figures from memory and
+getting them wrong. Say the second line out loud: the fusion gain is real as
+retrieval, and small enough over dense alone that 72 questions cannot see it.
 
 ---
 
-## 12. But retrieval is not the bottleneck
+## 12. Where the errors are
 
-*Unverified items, 72-item sample.*
+Test split, 72-item sample.
 
 | | |
 |---|---|
-| oracle token-F1 | 0.403 |
-| full system token-F1 | 0.210 |
-| **retrieval error** | **0.193** |
-| **generation error** | **0.597** |
+| oracle token-F1 | 0.641 |
+| full system token-F1 | 0.418 |
+| **retrieval error** | **0.223** |
+| **generation error** | **0.359** |
 
-Fixing retrieval *entirely* buys 0.193. The 3B generator is losing 0.597.
+Both matter. The generator loses more, by 1.6×.
 
-**Say this out loud:** our own contribution improves the smaller of the two.
+**Say this out loud:** before verification this was 0.597 against 0.193 — a
+factor of three — and we advised fixing the generator first. On verified items
+(and a different sample) it narrowed to 1.6. That advice did not survive.
 
-*Notes:* The slide that stops the talk being a sales pitch. The fusion result is
-a claim about retrieval, measured as retrieval. It is not a claim that retrieval
-is what limits answer quality here. This ratio is a property of a 3B quantized
-model, not a law — but it is why the oracle arm exists.
+*Notes:* The slide that stops the talk being a sales pitch: our headline number
+moved when the data got better, and we show it moving. The ratio is a property
+of a 3B quantized model, not a law — but it is why the oracle arm exists.
 
 ---
 
@@ -276,20 +276,21 @@ Before verification the BM25 medians were reversed (13.55 vs 13.82): questions
 that did not name their scheme retrieved weakly whether or not they were
 answerable.
 
-Four signals, same items (*unverified set, enriched sample*). Of 28 answerable
-questions, how many get answered?
+Four signals, same 85 held-out items (enriched: 57 unanswerable, 28 answerable).
 
 | signal | catches unanswerable | answers answerable |
 |---|---|---|
-| retrieval threshold | 53/56 | 6/28 |
-| calibrated combination | 56/56 | **0/28** |
-| generator self-report | 52/56 | **17/28** |
+| threshold on fused score | 53/57 | **2/28** |
+| calibrated combination | 44/57 | 11/28 |
+| generator self-report | 52/57 | **20/28** |
 
-*Notes:* The calibrated row is the one to dwell on — perfect recall, achieved by
-refusing every single question. Per-class recall of 1.000 everywhere means
-nothing when the system abstains unconditionally. Only the generator, which
-reads the passage, produces a system that answers anything. Adding NLI on top
-changes nothing: it had 2 false positives left to catch.
+Generator near-miss recall: **22 of 23**.
+
+*Notes:* The threshold row is the one to dwell on — high recall, achieved by
+refusing almost every question. Only the generator, which reads the passage,
+catches near-misses while still answering. Adding NLI on top changes nothing:
+of the 25 it answers, 5 are unanswerable, and no entailment threshold improves
+on that. In deployment: BM25 floor first, generator abstention second.
 
 ---
 

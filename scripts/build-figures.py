@@ -113,6 +113,16 @@ FUSION_GOLD = {
 }
 
 
+#: Module 4 on a 72-item stratified sample of the sealed test split, from
+#: evals/report-qa.txt: arm -> (token-F1, CSR lexical, CSR entailment, answered).
+QA_ARMS = {
+    "closed-book": (0.050, 0.184, 0.245, 49),
+    "RAG dense": (0.446, 0.870, 0.667, 54),
+    "RAG hybrid": (0.418, 0.860, 0.526, 57),
+    "oracle": (0.641, 0.985, 0.667, 66),
+}
+
+
 def fig1_pipeline() -> Path:
     """The system diagram §IV-A cites, which did not exist until now.
 
@@ -293,6 +303,34 @@ def fig4_alpha_sweep() -> Path:
     return _save(fig, "fig4-alpha-sweep.png")
 
 
+def fig6_citation_support() -> Path:
+    """H3: retrieval makes answers groundable; which retriever barely matters."""
+    fig, ax = plt.subplots(figsize=(6.2, 3.0))
+    arms = list(QA_ARMS)
+    x = range(len(arms))
+    width = 0.27
+    series = (
+        ("token-F1", 0, "#c6dbef"),
+        ("citation support (lexical)", 1, DENSE),
+        ("citation support (entailment)", 2, "#08306b"),
+    )
+    for j, (label, col, colour) in enumerate(series):
+        offs = [i + (j - 1) * width for i in x]
+        ax.bar(offs, [QA_ARMS[a][col] for a in arms], width, label=label, color=colour)
+    for i, arm in enumerate(arms):
+        ax.text(i, 1.03, f"answered {QA_ARMS[arm][3]}/72", ha="center", fontsize=6.5, color=MUTED)
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(arms)
+    ax.set_ylim(0, 1.12)
+    ax.set_ylabel("rate")
+    ax.legend(frameon=False, fontsize=7, ncol=3, loc="upper center", bbox_to_anchor=(0.5, 1.19))
+    ax.set_title(
+        "Test split: retrieval makes answers groundable; dense vs hybrid is not separable",
+        fontsize=8.5, pad=32,
+    )
+    return _save(fig, "fig6-citation-support.png")
+
+
 def fig7_answerability_sweep() -> Path:
     """The BM25 threshold's trade-off: a usable signal, bought with abstention."""
     fig, ax = plt.subplots(figsize=(5.6, 3.1))
@@ -387,6 +425,7 @@ def main() -> int:
         fig3_fusion_goldset,
         fig4_alpha_sweep,
         fig5_fusion_probes,
+        fig6_citation_support,
         fig7_answerability_sweep,
     ):
         path = build()

@@ -1,27 +1,36 @@
+Generated: 2026-09-24 21:50
+Source:    evals\gold.jsonl [test split], 72-item stratified sample
+Items:     72 (72 answerable, 0 unanswerable)
+Verified:  72/72  (0 by a person, 72 by a model)
+
+MODEL-VERIFIED. Verification of these items was done by a language-model
+pass (annotator 'model:...'), not by a person as PRD §6.5 specifies; see
+paper §III-D for the procedure and its agreement figures.
+
 MODULE 4 -- direct LLM vs retrieval-augmented question answering
 ------------------------------------------------------------------------------
   arm                    n       EM   token-F1   abstain      CSR
 ------------------------------------------------------------------------------
-  closed-book           72    0.014      0.065     0.486    0.162
-  RAG dense             72    0.139      0.207     0.417    0.762
-  RAG hybrid            72    0.139      0.210     0.361    0.826
-  oracle                72    0.264      0.403     0.194    0.948
+  closed-book           72    0.000      0.050     0.319    0.184
+  RAG dense             72    0.264      0.446     0.250    0.870
+  RAG hybrid            72    0.236      0.418     0.208    0.860
+  oracle                72    0.403      0.641     0.083    0.985
 
 TOKEN-F1 WITH 95% BOOTSTRAP CI
 ------------------------------------------------------------------------------
-  closed-book       0.065 [0.027, 0.110]
-  RAG dense         0.207 [0.136, 0.281]
-  RAG hybrid        0.210 [0.136, 0.292]
-  oracle            0.403 [0.311, 0.495]
+  closed-book       0.050 [0.032, 0.070]
+  RAG dense         0.446 [0.351, 0.545]
+  RAG hybrid        0.418 [0.323, 0.517]
+  oracle            0.641 [0.548, 0.731]
 
   Percentile bootstrap over questions, 1000 resamples. Differences
   smaller than the interval width are not distinguishable from noise.
 
 PAIRED TESTS -- token-F1, two-sided randomization
 ------------------------------------------------------------------------------
-  RAG dense          vs closed-book       delta=+0.141 p=0.0003* (n=72)
-  RAG hybrid         vs RAG dense         delta=+0.003 p=0.8926  (n=72)
-  oracle             vs RAG hybrid        delta=+0.193 p=0.0002* (n=72)
+  RAG dense          vs closed-book       delta=+0.396 p=0.0001* (n=72)
+  RAG hybrid         vs RAG dense         delta=-0.027 p=0.5509  (n=72)
+  oracle             vs RAG hybrid        delta=+0.223 p=0.0002* (n=72)
 
   Paired on question id. The C-vs-B row is the one to read: it is the
   fusion result carried through to generation, and the two arms differ
@@ -30,10 +39,10 @@ PAIRED TESTS -- token-F1, two-sided randomization
 ERROR DECOMPOSITION
 ------------------------------------------------------------------------------
   paired over 72 items answered by both arms
-  oracle (D) token-F1        0.403
-  full system (C) token-F1   0.210
-  retrieval error  (D - C)   0.193
-  generation error (1 - D)   0.597
+  oracle (D) token-F1        0.641
+  full system (C) token-F1   0.418
+  retrieval error  (D - C)   0.223
+  generation error (1 - D)   0.359
 
   This is what the brief asks for: a wrong answer attributable to the
   component that caused it. D is generation given perfect evidence, so
@@ -42,9 +51,9 @@ ERROR DECOMPOSITION
 
 H3 -- does retrieval reduce unsupported answers?
 ------------------------------------------------------------------------------
-  RAG dense          CSR 0.762   vs closed-book 0.162   +0.600
-  RAG hybrid         CSR 0.826   vs closed-book 0.162   +0.664
-  oracle             CSR 0.948   vs closed-book 0.162   +0.786
+  RAG dense          CSR 0.870   vs closed-book 0.184   +0.687
+  RAG hybrid         CSR 0.860   vs closed-book 0.184   +0.676
+  oracle             CSR 0.985   vs closed-book 0.184   +0.801
 
 GROUNDING -- qwen2.5-3b-instruct-q4_k_m
 ------------------------------------------------------------------------------
@@ -53,10 +62,10 @@ cited evidence supports. Abstentions are excluded from the denominator --
 declining to answer is not a grounding failure.
 
   arm               answered   CSR (lex)   CSR (NLI)   abstained
-  A                       37       0.162       0.297       0.486
-  B                       42       0.762       0.476       0.417
-  C                       46       0.826       0.391       0.361
-  D                       58       0.948       0.569       0.194
+  A                       49       0.184       0.245       0.319
+  B                       54       0.870       0.667       0.250
+  C                       57       0.860       0.526       0.208
+  D                       66       0.985       0.667       0.083
 
 H3 is supported only if the RAG arms exceed the closed-book arm here.
 Note that an extractive system scores 1.0 by construction, so it is a
@@ -71,10 +80,10 @@ the retrieved context when the named id does not resolve, and so scores
 such an answer as though the model had cited honestly.
 
   arm                    cited    fabricated
-  A                      0.054         1.000
-  B                      1.000         0.048
-  C                      1.000         0.000
-  D                      1.000         0.034
+  A                      0.020         1.000
+  B                      1.000         0.037
+  C                      1.000         0.018
+  D                      1.000         0.030
 
 Arm A is the one to read here. It is shown no passages at all, so any id
 it produces is invented outright, and the rate is a direct measure of the
@@ -82,9 +91,9 @@ behaviour retrieval is meant to suppress.
 
 PAIRED TESTS -- citation support, two-sided randomization
 ------------------------------------------------------------------------------
-  arm B vs arm A   delta=+0.593 p=0.0001* (n=27)
-  arm C vs arm B   delta=+0.026 p=1.0000  (n=39)
-  arm D vs arm C   delta=+0.143 p=0.0675  (n=42)
+  arm B vs arm A   delta=+0.684 p=0.0001* (n=38)
+  arm C vs arm B   delta=+0.000 p=1.0000  (n=50)
+  arm D vs arm C   delta=+0.115 p=0.0674  (n=52)
 
   n is the questions BOTH arms answered: an abstention has no answer to
   ground, and counting it as unsupported would penalise refusing.

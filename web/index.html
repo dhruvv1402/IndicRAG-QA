@@ -1022,7 +1022,7 @@
     if (r.latency_ms != null) bits.push(`${(r.latency_ms / 1000).toFixed(2)} s`);
     meta.textContent = bits.join("  ·  ");
     if (r.explanation) meta.appendChild(el("div", "note", r.explanation));
-    if (rehearsed) meta.appendChild(el("div", "note", "Rehearsed output from docs/demo/ — run `indicrag serve` for live answers."));
+    if (rehearsed) meta.appendChild(el("div", "note", "A recorded answer: this page replays what the system returned when run locally."));
     const cites = $("#rCites"); cites.textContent = "";
     const qLang = DEVA.test(r.query) ? "hi" : "en";
     (r.citations || []).forEach((c) => {
@@ -1042,7 +1042,7 @@
     if (!live) {
       const match = demo.find((d) => d.query === query);
       if (match) { show(match, true); return; }
-      setStatus(false, "offline — live answers need the server: run `indicrag serve`, then reload");
+      setStatus(false, "this hosted page replays the six example questions; typed questions need the system running (indicrag serve — see Code & data)");
       return;
     }
     if (inflight) inflight.abort();         // a newer question supersedes an older one
@@ -1102,7 +1102,7 @@
 
   (async () => {
     if (location.protocol === "file:") {
-      setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");
+      setStatus(false, "recorded demo — pick an example below; live answers run with indicrag serve");
     } else {
       try {
         const h = await (await fetch("/api/health", { cache: "no-store" })).json();
@@ -1111,7 +1111,7 @@
         renderGenerators(h.generators, h.generator);
         try { const d = await (await fetch("/api/demo")).json(); if (d.length) demo = d; } catch (_) { /* keep embedded */ }
       } catch (_) {
-        setStatus(false, "offline — showing the rehearsed demo; run `indicrag serve` for live answers");
+        setStatus(false, "recorded demo — pick an example below; live answers run with indicrag serve");
       }
     }
     renderExamples();

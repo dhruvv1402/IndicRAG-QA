@@ -3,8 +3,16 @@
 `indicrag ask` reloads the dense encoder on every call, which is most of its
 ~50 s per query. The server loads the system once and keeps it warm, so the
 web Playground answers in about a quarter of a second (extractive) or a minute (with a
-generator). It is a demo surface, not a deployment: standard library only,
-bound to localhost, one request at a time.
+generator). Standard library only. Bound to localhost by default; `--host 0.0.0.0`
+serves it publicly (the Hugging Face Space in deploy/ does), and then the
+limits below are what stand between the page and anyone's scripts:
+
+    INDICRAG_RATE_PER_MIN   questions per visitor per minute   (default 12)
+    INDICRAG_RATE_PER_DAY   questions per visitor per day      (default 300)
+    INDICRAG_API_DAILY_CAP  hosted-model calls per day, total  (default 1000)
+    INDICRAG_TRUST_PROXY=1  read the visitor from X-Forwarded-For (behind a proxy)
+
+Queries are never logged.
 
     indicrag serve                      # http://127.0.0.1:8000
     indicrag serve --gguf <model.gguf>  # generated rather than extracted answers
@@ -24,8 +32,12 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
+import threading
+import time
+from collections import deque
 from dataclasses import dataclass, field
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +154,56 @@ def handle_ask(payload: Any, system: System) -> tuple[int, dict]:
     return 200, result.as_dict()
 
 
+class RateLimiter:
+    """Sliding-window limits per visitor, and a daily cap on hosted-model calls.
+
+    In memory, so a restart resets it -- fine for a demo Space, and it keeps
+    the server dependency-free. The hosted-model cap is global because it is
+    a budget: it protects the API key's quota, not any one visitor.
+    """
+
+    def __init__(self, per_min: int = 12, per_day: int = 300, api_daily_cap: int = 1000, clock=time.time):
+        self.per_min, self.per_day, self.api_daily_cap = per_min, per_day, api_daily_cap
+        self._clock = clock
+        self._hits: dict[str, deque] = {}
+        self._api: deque = deque()
+        self._lock = threading.Lock()
+
+    @classmethod
+    def from_env(cls) -> RateLimiter:
+        def num(name, default):
+            try:
+                return int(os.environ.get(name, default))
+            except ValueError:
+                return default
+        return cls(num("INDICRAG_RATE_PER_MIN", 12), num("INDICRAG_RATE_PER_DAY", 300),
+                   num("INDICRAG_API_DAILY_CAP", 1000))
+
+    def check(self, visitor: str, *, hosted: bool) -> str | None:
+        """Record one question. Returns why it is refused, or None if allowed."""
+        now = self._clock()
+        with self._lock:
+            hits = self._hits.setdefault(visitor, deque())
+            while hits and now - hits[0] > 86400:
+                hits.popleft()
+            last_min = sum(1 for t in hits if now - t < 60)
+            if last_min >= self.per_min:
+                return f"slow down: at most {self.per_min} questions a minute"
+            if len(hits) >= self.per_day:
+                return f"daily limit reached ({self.per_day} questions)"
+            if hosted:
+                while self._api and now - self._api[0] > 86400:
+                    self._api.popleft()
+                if len(self._api) >= self.api_daily_cap:
+                    return "the hosted model's daily budget is used up; try the extracted answer"
+                self._api.append(now)
+            hits.append(now)
+            if len(self._hits) > 10000:     # forget idle visitors so memory stays bounded
+                for key in [k for k, v in self._hits.items() if not v or now - v[-1] > 86400]:
+                    del self._hits[key]
+        return None
+
+
 def _demo_outputs(demo_dir: Path) -> list[dict]:
     out = []
     for path in sorted(demo_dir.glob("*.json")):
@@ -152,19 +214,51 @@ def _demo_outputs(demo_dir: Path) -> list[dict]:
     return out
 
 
-def make_handler(system: System, web_dir: Path, demo_dir: Path, paper_dir: Path | None = None):
+#: Sent with every response. The page's only third parties are Google Fonts.
+#: Framing is governed by `frame-ancestors` alone: X-Frame-Options has no way to
+#: allow huggingface.co, which shows a Space inside an iframe.
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Content-Security-Policy": (
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; "
+        "frame-ancestors 'self' https://huggingface.co https://*.hf.space"
+    ),
+}
+
+
+def make_handler(
+    system: System, web_dir: Path, demo_dir: Path, paper_dir: Path | None = None,
+    limiter: RateLimiter | None = None, trust_proxy: bool = False,
+):
     web_root = web_dir.resolve()
+    limiter = limiter or RateLimiter()
+    # Retrieval shares one encoder and one index; answering is serialised so
+    # concurrent visitors cannot interleave inside them. Static files and
+    # health checks are served in parallel.
+    answer_lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "indicrag"
 
-        def _send(self, status: int, body: bytes, ctype: str) -> None:
+        def _send(self, status: int, body: bytes, ctype: str, cache: bool = False) -> None:
             self.send_response(status)
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
+            self.send_header("Cache-Control", "public, max-age=300" if cache else "no-store")
+            for k, v in SECURITY_HEADERS.items():
+                self.send_header(k, v)
             self.end_headers()
             self.wfile.write(body)
+
+        def _visitor(self) -> str:
+            if trust_proxy:
+                fwd = self.headers.get("X-Forwarded-For", "")
+                if fwd:
+                    return fwd.split(",")[0].strip()
+            return self.client_address[0]
 
         def _json(self, status: int, obj: Any) -> None:
             self._send(status, json.dumps(obj, ensure_ascii=False).encode("utf-8"),
@@ -185,7 +279,7 @@ def make_handler(system: System, web_dir: Path, demo_dir: Path, paper_dir: Path 
                 target = paper_dir / name
                 if name in PAPER_FILES and target.is_file():
                     ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
-                    self._send(200, target.read_bytes(), ctype)
+                    self._send(200, target.read_bytes(), ctype, cache=True)
                 else:
                     self._send(404, b"not found", "text/plain; charset=utf-8")
                 return
@@ -199,7 +293,7 @@ def make_handler(system: System, web_dir: Path, demo_dir: Path, paper_dir: Path 
             ctype = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             if ctype.startswith("text/") or ctype.endswith("javascript"):
                 ctype += "; charset=utf-8"
-            self._send(200, target.read_bytes(), ctype)
+            self._send(200, target.read_bytes(), ctype, cache=not target.name.endswith(".html"))
 
         def do_POST(self) -> None:  # noqa: N802
             if self.path.split("?", 1)[0] != "/api/ask":
@@ -214,11 +308,21 @@ def make_handler(system: System, web_dir: Path, demo_dir: Path, paper_dir: Path 
             except json.JSONDecodeError:
                 self._json(400, {"error": "body is not JSON"})
                 return
-            status, body = handle_ask(payload, system)
+            generator = str((payload or {}).get("generator") or system.default_generator) \
+                if isinstance(payload, dict) else system.default_generator
+            refused = limiter.check(self._visitor(), hosted=generator not in ("extractive", "")
+                                    and not generator.startswith("local:"))
+            if refused:
+                self._json(429, {"error": refused})
+                return
+            with answer_lock:
+                status, body = handle_ask(payload, system)
             self._json(status, body)
 
         def log_message(self, fmt: str, *args) -> None:
-            print(f"  {self.command} {self.path.split('?', 1)[0]}  {args[1] if len(args) > 1 else ''}")
+            # Method, path and status only: never the query, which may be personal.
+            print(f"  {self.command} {self.path.split('?', 1)[0]}  {args[1] if len(args) > 1 else ''}",
+                  flush=True)
 
     return Handler
 
@@ -226,7 +330,10 @@ def make_handler(system: System, web_dir: Path, demo_dir: Path, paper_dir: Path 
 def serve(
     system: System, *, host: str, port: int, web_dir: Path, demo_dir: Path, paper_dir: Path
 ) -> None:
-    httpd = HTTPServer((host, port), make_handler(system, web_dir, demo_dir, paper_dir))
+    trust = os.environ.get("INDICRAG_TRUST_PROXY", "") == "1"
+    handler = make_handler(system, web_dir, demo_dir, paper_dir, RateLimiter.from_env(), trust)
+    httpd = ThreadingHTTPServer((host, port), handler)
+    httpd.daemon_threads = True
     print(f"IndicRAG-QA web interface on http://{host}:{port}  (Ctrl+C to stop)")
     try:
         httpd.serve_forever()

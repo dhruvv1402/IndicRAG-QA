@@ -80,3 +80,66 @@ def test_the_server_serves_web_and_api_and_nothing_outside_web(tmp_path):
             assert json.loads(r.read())["answerability"] == "ANSWERABLE"
     finally:
         httpd.shutdown()
+
+
+def test_the_rate_limiter_enforces_minute_day_and_hosted_budget():
+    from indicrag.serve import RateLimiter
+
+    now = [1000.0]
+    lim = RateLimiter(per_min=2, per_day=3, api_daily_cap=1, clock=lambda: now[0])
+    assert lim.check("a", hosted=False) is None
+    assert lim.check("a", hosted=False) is None
+    assert "a minute" in lim.check("a", hosted=False)
+    assert lim.check("b", hosted=False) is None          # limits are per visitor
+    now[0] += 61
+    assert lim.check("a", hosted=False) is None           # the minute window slides
+    now[0] += 61
+    assert "daily limit" in lim.check("a", hosted=False)
+    assert lim.check("c", hosted=True) is None
+    assert "budget" in lim.check("d", hosted=True)         # the hosted budget is global
+    assert lim.check("d", hosted=False) is None            # the extracted answer still works
+
+
+def test_a_limited_visitor_gets_429_and_proxy_headers_are_honoured_only_when_trusted(tmp_path):
+    from indicrag.serve import RateLimiter
+
+    web = tmp_path / "web"
+    web.mkdir()
+    (web / "index.html").write_text("<p>hi</p>", encoding="utf-8")
+
+    def post(base, ip):
+        req = urllib.request.Request(
+            base + "/api/ask", method="POST",
+            headers={"Content-Type": "application/json", "X-Forwarded-For": ip},
+            data=json.dumps({"query": "How much do students receive?", "method": "bm25",
+                             "bm25_floor": 0}).encode(),
+        )
+        try:
+            with urllib.request.urlopen(req) as r:
+                return r.status
+        except urllib.error.HTTPError as e:
+            return e.code
+
+    for trusted, expect_second_ip in ((True, 200), (False, 429)):
+        handler = make_handler(_system(), web, tmp_path, limiter=RateLimiter(per_min=1), trust_proxy=trusted)
+        httpd = HTTPServer(("127.0.0.1", 0), handler)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{httpd.server_address[1]}"
+        try:
+            assert post(base, "1.1.1.1") == 200
+            assert post(base, "1.1.1.1") == 429
+            # A different forwarded address is a different visitor only behind a trusted proxy;
+            # otherwise the header is ignored and the socket address (still limited) is used.
+            assert post(base, "2.2.2.2") == expect_second_ip
+        finally:
+            httpd.shutdown()
+
+
+def test_responses_carry_security_headers(tmp_path):
+    httpd, base = _serve(tmp_path)
+    try:
+        with urllib.request.urlopen(base + "/") as r:
+            assert r.headers["X-Content-Type-Options"] == "nosniff"
+            assert "default-src 'self'" in r.headers["Content-Security-Policy"]
+    finally:
+        httpd.shutdown()

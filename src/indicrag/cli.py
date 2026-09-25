@@ -1401,7 +1401,7 @@ def ask(
 
 @app.command("serve")
 def serve(
-    port: int = typer.Option(8000, "--port"),
+    port: int = typer.Option(8000, "--port", envvar="PORT"),
     host: str = typer.Option("127.0.0.1", "--host", help="Localhost only by default."),
     gguf: str = typer.Option("", "--gguf", help="Generate answers with this GGUF model."),
     api: str = typer.Option(

@@ -106,6 +106,31 @@ bank accounts".
 
 ---
 
+## Hosting it publicly
+
+The Space in `deploy/hf-space/` runs the same server on Hugging Face's free CPU
+tier. `scripts/build-space.py` assembles the Space's whole content into
+`build/hf-space/` (the package, the page, the paper files and the frozen corpus
+with its indices, about 7 MB) and checks the copied indices against the copied
+passages. The e5 encoder is downloaded into the image at build time.
+
+1. Create a Space on huggingface.co: SDK **Docker**, hardware **CPU basic** (free).
+2. Optional: in the Space's settings, add a **secret** `GROQ_API_KEY`. With it the
+   page offers Groq answers beside the extracted ones; without it, extracted only.
+3. Log in once: `.venv\Scripts\hf auth login` (paste a token with write access).
+4. Build and upload:
+   ```
+   . .\scripts\dev-env.ps1
+   python scripts/build-space.py
+   .venv\Scripts\hf upload <user>/<space> build/hf-space . --repo-type space
+   ```
+
+Public traffic is limited per visitor (12 questions a minute, 300 a day) and
+hosted-model calls to 1,000 a day in total; `INDICRAG_RATE_PER_MIN`,
+`INDICRAG_RATE_PER_DAY` and `INDICRAG_API_DAILY_CAP` change them. Queries are
+never logged. Every response carries a content-security policy that allows
+only this origin and Google Fonts.
+
 ## What the demo does not do
 
 - **The web interface is a local demo surface.** `indicrag serve` loads the

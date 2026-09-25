@@ -2,6 +2,10 @@
 
 *Evidence-grounded cross-lingual question answering for Indic and code-mixed queries.*
 
+**Live demo: [indicragqa.vercel.app](https://indicragqa.vercel.app)** — the findings, an
+interactive fusion explainer, the system architecture, the paper and slides. The hosted page
+replays six recorded answers; `indicrag serve` runs the system live (see *Running it*).
+
 A user asks in English, in Hindi, or — most often in practice — in Romanized Hindi-English
 code-mix (*"Scholarship ke liye minimum eligibility kya hai?"*). The document that answers them
 was published in the other language. This project builds and, more importantly, **measures** a

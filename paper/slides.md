@@ -21,6 +21,7 @@ in the notes.
 Why naive hybrid retrieval fails on Indic and code-mixed queries
 
 IndicRAG-QA · CSET 346 · Bennett University
+indicragqa.vercel.app
 
 *Notes:* Name the mechanism, not the system. Fifteen seconds.
 
@@ -319,4 +320,6 @@ monolingual cost, no training — and no large gain over dense alone.
 
 Found by reading 20 cases, not by reading a table.
 
-*Notes:* Three sentences, then stop.
+Try it: indicragqa.vercel.app
+
+*Notes:* Three sentences, then stop. Leave the link on screen for questions.

@@ -61,6 +61,7 @@ BODY_SIZE = Pt(10)
 AUTHOR = "Dhruv"
 AFFILIATION = "School of Computer Science Engineering and Technology, Bennett University"
 COURSE = "CSET 346 — Natural Language Processing"
+LINKS = "Demo: indicragqa.vercel.app · Code: github.com/dhruvv1402/IndicRAG-QA"
 
 
 def set_columns(section, count: int, space_twips: int = 288) -> None:
@@ -220,7 +221,7 @@ def build() -> tuple[Document, list[str]]:
     run.font.size = Pt(20)
     run.font.name = BODY_FONT
 
-    for line, size in ((AUTHOR, 11), (AFFILIATION, 10), (COURSE, 10)):
+    for line, size in ((AUTHOR, 11), (AFFILIATION, 10), (COURSE, 10), (LINKS, 9)):
         p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         p.paragraph_format.space_after = Pt(0)
